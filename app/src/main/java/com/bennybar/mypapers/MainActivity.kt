@@ -46,6 +46,8 @@ import com.bennybar.mypapers.feature.documents.DocumentsScreen
 import com.bennybar.mypapers.feature.documents.EditDocumentScreen
 import com.bennybar.mypapers.feature.gmail.GmailScreen
 import com.bennybar.mypapers.feature.settings.SettingsScreen
+import com.bennybar.mypapers.feature.trash.TrashScreen
+import com.bennybar.mypapers.reminders.ExpiryReminders
 import com.bennybar.mypapers.gmail.GmailNotifications
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
@@ -78,6 +80,7 @@ class MainActivity : ComponentActivity() {
         when (intent.getStringExtra(GmailNotifications.EXTRA_OPEN)) {
             GmailNotifications.OPEN_GMAIL -> pendingRoute.value = Route.Gmail
             GmailNotifications.OPEN_SETTINGS -> pendingRoute.value = Route.Settings
+            ExpiryReminders.OPEN_DOCUMENT -> intent.getStringExtra(ExpiryReminders.EXTRA_ID)?.let { pendingRoute.value = Route.Document(it) }
             else -> importShared(intent)
         }
     }
@@ -168,7 +171,14 @@ private fun AppRoot(pendingRoute: MutableStateFlow<Route?>) {
                     )
                 }
                 screen<Route.EditDocument> { EditDocumentScreen(it.toRoute<Route.EditDocument>().id, onDone = controller::popBackStack) }
-                screen<Route.Settings> { SettingsScreen(onBack = controller::popBackStack, onOpenGmail = { controller.navigate(Route.Gmail) }) }
+                screen<Route.Settings> {
+                    SettingsScreen(
+                        onBack = controller::popBackStack,
+                        onOpenGmail = { controller.navigate(Route.Gmail) },
+                        onOpenTrash = { controller.navigate(Route.Trash) },
+                    )
+                }
+                screen<Route.Trash> { TrashScreen(onBack = controller::popBackStack) }
                 screen<Route.Gmail> { GmailScreen(onBack = controller::popBackStack) }
             }
         }

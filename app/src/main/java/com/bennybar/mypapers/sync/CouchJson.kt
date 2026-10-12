@@ -54,6 +54,7 @@ fun Document.toCouchJson(keepFile: Boolean): JsonObject = buildJsonObject {
     put("aiState", aiState)
     put("aiError", aiError)
     put("duplicateOf", duplicateOf)
+    put("trashedAt", trashedAt)
     if (keepFile) putJsonObject("_attachments") { putJsonObject(FILE_ATTACHMENT) { put("stub", true) } }
 }
 
@@ -106,6 +107,7 @@ fun JsonObject.toDocument(fileLocal: Boolean): Document = Document(
     aiState = str("aiState").orEmpty(),
     aiError = str("aiError"),
     duplicateOf = str("duplicateOf"),
+    trashedAt = long("trashedAt"),
     rev = rev(),
     dirty = false,
     deleted = false,

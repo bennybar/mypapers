@@ -19,10 +19,16 @@ import kotlinx.serialization.json.Json
 
 @Dao
 interface DocumentDao {
-    @Query("SELECT * FROM documents WHERE deleted = 0")
+    @Query("SELECT * FROM documents WHERE deleted = 0 AND trashedAt IS NULL")
     fun observeAll(): Flow<List<Document>>
 
-    @Query("SELECT * FROM documents WHERE id = :id AND deleted = 0")
+    @Query("SELECT * FROM documents WHERE deleted = 0 AND trashedAt IS NOT NULL ORDER BY trashedAt DESC")
+    fun observeTrash(): Flow<List<Document>>
+
+    @Query("SELECT * FROM documents WHERE deleted = 0 AND trashedAt IS NOT NULL")
+    suspend fun trash(): List<Document>
+
+    @Query("SELECT * FROM documents WHERE id = :id AND deleted = 0 AND trashedAt IS NULL")
     fun observe(id: String): Flow<Document?>
 
     /** Including rows deleted locally but not yet pushed. */
@@ -32,7 +38,8 @@ interface DocumentDao {
     @Query("SELECT * FROM documents WHERE deleted = 0 AND fileHash = :hash LIMIT 1")
     suspend fun findByHash(hash: String): Document?
 
-    @Query("SELECT * FROM documents WHERE deleted = 0")
+    /** Not deleted and not in the trash. */
+    @Query("SELECT * FROM documents WHERE deleted = 0 AND trashedAt IS NULL")
     suspend fun all(): List<Document>
 
     @Query("SELECT * FROM documents WHERE dirty = 1")
@@ -75,7 +82,7 @@ class Converters {
     @TypeConverter fun detailsFromJson(json: String): List<KeyDetail> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 7)
+@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 8)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
@@ -84,7 +91,7 @@ abstract class PapersDatabase : RoomDatabase() {
     companion object {
         fun open(context: Context): PapersDatabase =
             Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .build()
 
         /** v2: AI reading state and duplicate marking. */
@@ -128,6 +135,13 @@ abstract class PapersDatabase : RoomDatabase() {
         }
 
         /** v7: bilingual search keywords. */
+        /** v8: the trash. */
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE documents ADD COLUMN trashedAt INTEGER")
+            }
+        }
+
         private val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE documents ADD COLUMN keywords TEXT NOT NULL DEFAULT '[]'")

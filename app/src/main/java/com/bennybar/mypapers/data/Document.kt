@@ -44,6 +44,8 @@ data class Document(
     val aiError: String? = null,
     /** Another document this one seems to repeat (same vendor, amount and date), until kept or deleted. */
     val duplicateOf: String? = null,
+    /** In the trash since (epoch ms): hidden, restorable, deleted for good after [TRASH_DAYS]; null = not. */
+    val trashedAt: Long? = null,
 
     // Sync bookkeeping (local only).
     /** The CouchDB revision this row is based on; null = never pushed. */
@@ -61,6 +63,9 @@ data class Document(
 /** One labeled fact on a paper: "Right eye" → "SPH −1.25 · CYL −0.50 · AXIS 90". */
 @kotlinx.serialization.Serializable
 data class KeyDetail(val label: String, val value: String)
+
+/** How long a paper stays in the trash. */
+const val TRASH_DAYS = 30
 
 val DOCUMENT_TYPES = listOf("Receipt", "Invoice", "Warranty", "Contract", "Other")
 

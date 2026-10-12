@@ -1,5 +1,9 @@
 package com.bennybar.mypapers.feature.documents
 
+import androidx.compose.material.icons.outlined.Schedule
+import java.time.LocalDate
+import com.bennybar.mypapers.ai.ExtractionPrompt
+import com.bennybar.mypapers.data.Expiry
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
@@ -162,10 +166,12 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
         val ids = vm.hide(all)
         if (ids.isEmpty()) return@launch // already being deleted
         vm.clearSelection()
+        // Undo right away, not queued behind an "Added" message.
+        snackbar.currentSnackbarData?.dismiss()
         var undone = false
         try {
             undone = snackbar.showSnackbar(
-                if (ids.size == 1) "Deleted" else "Deleted ${ids.size} papers",
+                if (ids.size == 1) "Moved to trash" else "${ids.size} papers moved to trash",
                 actionLabel = "Undo",
                 duration = SnackbarDuration.Long,
             ) == SnackbarResult.ActionPerformed
@@ -295,6 +301,14 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                             )
                             DropdownMenuItem(text = { Text("Add tag…") }, onClick = { selectionMenu = false; tagDialog = true })
                             DropdownMenuItem(text = { Text("Set type…") }, onClick = { selectionMenu = false; typeDialog = true })
+                            DropdownMenuItem(
+                                text = { Text("Export (spreadsheet + files)") },
+                                onClick = {
+                                    selectionMenu = false
+                                    val docs = results.orEmpty().filter { it.id in selection }
+                                    scope.launch { Sharing.export(context, docs) }
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text("Read with AI") },
                                 enabled = ai.isSet,
@@ -695,6 +709,7 @@ private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, 
                         textAlign = layoutStart(), modifier = Modifier.fillMaxWidth(),
                     )
                 }
+                ExpiryLabel(doc, Modifier.padding(top = 8.dp))
                 if (doc.tags.isNotEmpty()) {
                     Spacer(Modifier.padding(top = 12.dp))
                     TagRow(doc.tags)
@@ -702,6 +717,26 @@ private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, 
                 AiStatus(doc, Modifier.padding(top = 12.dp))
             }
         }
+    }
+}
+
+/** "Expires in 12 days" from the paper's key details, when that's close (or just past); nothing otherwise. */
+@Composable
+fun ExpiryLabel(doc: Document, modifier: Modifier = Modifier) {
+    val expires = Expiry.date(doc, ExtractionPrompt.dayFirst(Format.locale)) ?: return
+    val left = Expiry.daysLeft(expires, LocalDate.now())
+    if (left < -30 || left > Expiry.SOON_DAYS) return
+    val text = when {
+        left < -1 -> "Expired ${-left} days ago"
+        left == -1L -> "Expired yesterday"
+        left == 0L -> "Expires today"
+        left == 1L -> "Expires tomorrow"
+        else -> "Expires in $left days"
+    }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val color = if (left <= 7) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary
+        Icon(Icons.Outlined.Schedule, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = color)
     }
 }
 

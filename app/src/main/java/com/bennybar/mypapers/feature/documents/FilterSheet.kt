@@ -175,6 +175,7 @@ fun FilterSheet(filters: Filters, vendors: List<String>, onChange: (Filters) -> 
                 FilterChip(filters.missingInfo, { onChange(filters.copy(missingInfo = !filters.missingInfo)) }, { Text("Missing amount, date or vendor") }, shape = CircleShape)
                 FilterChip(filters.duplicates, { onChange(filters.copy(duplicates = !filters.duplicates)) }, { Text("Possible duplicates") }, shape = CircleShape)
                 FilterChip(filters.unread, { onChange(filters.copy(unread = !filters.unread)) }, { Text("Not read by AI") }, shape = CircleShape)
+                FilterChip(filters.expiring, { onChange(filters.copy(expiring = !filters.expiring)) }, { Text("Expiring soon") }, shape = CircleShape)
             }
 
             Button(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(vertical = 12.dp)) { Text("Done") }
@@ -226,6 +227,7 @@ fun ActiveFilters(filters: Filters, onChange: (Filters) -> Unit, modifier: Modif
         if (filters.missingInfo) chip("Missing info") { copy(missingInfo = false) }
         if (filters.duplicates) chip("Possible duplicates") { copy(duplicates = false) }
         if (filters.unread) chip("Not read by AI") { copy(unread = false) }
+        if (filters.expiring) chip("Expiring soon") { copy(expiring = false) }
     }
 }
 

@@ -1,6 +1,7 @@
 package com.bennybar.mypapers.search
 
 import com.bennybar.mypapers.data.Document
+import com.bennybar.mypapers.data.Expiry
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -26,11 +27,13 @@ data class Filters(
     val duplicates: Boolean = false,
     /** Not read by the AI and not filled in. */
     val unread: Boolean = false,
+    /** Expires within [Expiry.SOON_DAYS] days (from its key details). */
+    val expiring: Boolean = false,
     /** null: best match first when searching, recently added first otherwise. */
     val sort: SortBy? = null,
 ) {
     val activeCount: Int
-        get() = listOf(date != null, minCents != null || maxCents != null, vendors.isNotEmpty(), missingInfo, duplicates, unread, sort != null).count { it }
+        get() = listOf(date != null, minCents != null || maxCents != null, vendors.isNotEmpty(), missingInfo, duplicates, unread, expiring, sort != null).count { it }
 
     /** The date window's first and last day. */
     fun range(today: LocalDate): Pair<LocalDate, LocalDate>? = when (date) {
@@ -42,7 +45,8 @@ data class Filters(
         null -> null
     }
 
-    fun matches(d: Document, today: LocalDate): Boolean {
+    /** [dayFirst]: how to read a date like 03/04/2027 in the details (the region setting). */
+    fun matches(d: Document, today: LocalDate, dayFirst: Boolean = true): Boolean {
         range(today)?.let { (first, last) ->
             val day = paperDay(d)
             if (day.isBefore(first) || day.isAfter(last)) return false
@@ -55,6 +59,7 @@ data class Filters(
         if (vendors.isNotEmpty() && d.vendor !in vendors) return false
         if (missingInfo && d.totalCents != null && d.date != null && d.vendor.isNotBlank()) return false
         if (duplicates && d.duplicateOf == null) return false
+        if (expiring && !Expiry.isSoon(d, today, dayFirst)) return false
         if (unread && !((d.aiState.isEmpty() || d.aiState == "failed") && d.title.isBlank() && d.vendor.isBlank() && d.totalCents == null)) return false
         return true
     }

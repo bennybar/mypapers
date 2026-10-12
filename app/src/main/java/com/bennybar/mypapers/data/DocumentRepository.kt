@@ -92,6 +92,11 @@ class DocumentRepository(
         val hash = digest.digest().joinToString("") { "%02x".format(it) }
         dao.findByHash(hash)?.let {
             temp.delete()
+            // The same file, in the trash: brought back rather than added twice.
+            if (it.trashedAt != null) {
+                update(it.copy(trashedAt = null))
+                return@withContext ImportResult.Added(it.id)
+            }
             return@withContext ImportResult.Duplicate(it)
         }
         val id = UUID.randomUUID().toString()
@@ -119,6 +124,28 @@ class DocumentRepository(
         onChanged()
     }
 
+    fun observeTrash(): Flow<List<Document>> = dao.observeTrash()
+
+    /** To the trash: hidden everywhere, restorable for [TRASH_DAYS] days. */
+    suspend fun trash(id: String) {
+        val doc = dao.get(id)?.takeUnless { it.deleted || it.trashedAt != null } ?: return
+        update(doc.copy(trashedAt = System.currentTimeMillis()))
+    }
+
+    suspend fun restore(id: String) {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return
+        update(doc.copy(trashedAt = null))
+    }
+
+    /** Deletes for good what has been in the trash longer than [TRASH_DAYS] days. */
+    suspend fun purgeTrash() {
+        val cutoff = System.currentTimeMillis() - TRASH_DAYS * 24 * 60 * 60 * 1000L
+        dao.trash().filter { it.trashedAt!! < cutoff }.forEach { delete(it.id) }
+    }
+
+    suspend fun emptyTrash() = dao.trash().forEach { delete(it.id) }
+
+    /** Deletes for good, here and on the server (the trash's "Delete forever"). */
     suspend fun delete(id: String) {
         val doc = dao.get(id) ?: return
         // Always a tombstone, even if never pushed: a push may be on its way (the sync clears it).

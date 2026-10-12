@@ -58,6 +58,7 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.app
+import com.bennybar.mypapers.feature.documents.Sharing
 import com.bennybar.mypapers.data.FormatSettings
 import com.bennybar.mypapers.ui.Format
 import java.util.Locale
@@ -66,7 +67,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenGmail: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onOpenGmail: () -> Unit, onOpenTrash: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -89,7 +90,29 @@ fun SettingsScreen(onBack: () -> Unit, onOpenGmail: () -> Unit) {
             AccountSection()
             AiSection()
             GmailSection(onOpenGmail)
+            PapersSection(onOpenTrash)
             FormatsSection()
+        }
+    }
+}
+
+/** The trash, and a copy of everything. */
+@Composable
+private fun PapersSection(onOpenTrash: () -> Unit) {
+    val all by remember { app.repository.observeAll() }.collectAsStateWithLifecycle(emptyList())
+    val trash by remember { app.repository.observeTrash() }.collectAsStateWithLifecycle(emptyList())
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("Your papers")
+        Text(
+            "Export: a spreadsheet of every paper (date, amounts, VAT, tags, details) and the files, as one ZIP for your accountant, a tax refund or a copy of your own.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(enabled = all.isNotEmpty(), onClick = { scope.launch { Sharing.export(context, all) } }) { Text("Export all (${all.size})") }
+            OutlinedButton(onClick = onOpenTrash) { Text(if (trash.isEmpty()) "Trash" else "Trash (${trash.size})") }
         }
     }
 }

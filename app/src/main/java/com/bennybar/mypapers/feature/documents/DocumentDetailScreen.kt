@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -79,11 +78,9 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     }
     val shape = RoundedCornerShape(corner)
     var menu by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val aiSet = app.ai.config.collectAsStateWithLifecycle().value.isSet
-    val signedIn = app.server.session.collectAsStateWithLifecycle().value != null
 
     with(LocalSharedTransitionScope.current) {
         Scaffold(
@@ -133,8 +130,9 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                                onClick = { menu = false; confirmDelete = true },
+                                text = { Text("Move to trash", color = MaterialTheme.colorScheme.error) },
+                                // Restorable from the trash for 30 days: no need to ask. The page closes as it goes.
+                                onClick = { menu = false; scope.launch { app.repository.trash(id) } },
                             )
                         }
                     },
@@ -149,27 +147,10 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                     onRead = { scope.launch { app.repository.requestReading(id) } },
                     onOpen = onOpen,
                     onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
-                    onDelete = { confirmDelete = true },
+                    onDelete = { scope.launch { app.repository.trash(id) } },
                 )
             }
         }
-    }
-
-    if (confirmDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this paper?") },
-            text = {
-                Text(if (signedIn) "It's removed from all your devices." else "It's removed from this phone.")
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    scope.launch { app.repository.delete(id) }
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
-        )
     }
 }
 
@@ -206,6 +187,7 @@ private fun DocumentDetails(
                 if (doc.aiState == AI_FAILED && canRead) TextButton(onClick = onRead) { Text("Retry") }
             }
         }
+        ExpiryLabel(doc, Modifier.padding(top = 12.dp))
         doc.duplicateOf?.let { otherId -> DuplicateBanner(otherId, onOpen, onKeepBoth, onDelete) }
         Spacer(Modifier.padding(top = 16.dp))
         if (doc.totalCents != null) {
@@ -288,7 +270,11 @@ private fun DetailsCard(details: List<KeyDetail>) {
             details.forEach { d ->
                 Column {
                     Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(d.value, style = MaterialTheme.typography.bodyLarge)
+                    // Dates the AI wrote as 2027-08-15, in the region's format.
+                    Text(
+                        if (Regex("\\d{4}-\\d{2}-\\d{2}").matches(d.value)) Format.date(d.value) ?: d.value else d.value,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                 }
             }
         }

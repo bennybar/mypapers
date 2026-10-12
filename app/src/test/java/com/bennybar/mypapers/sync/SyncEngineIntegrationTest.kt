@@ -99,6 +99,8 @@ private class FakeDao : DocumentDao {
     private val rows = MutableStateFlow(mapOf<String, Document>())
 
     override fun observeAll(): Flow<List<Document>> = rows.map { m -> m.values.filter { !it.deleted } }
+    override fun observeTrash(): Flow<List<Document>> = rows.map { m -> m.values.filter { !it.deleted && it.trashedAt != null } }
+    override suspend fun trash() = rows.value.values.filter { !it.deleted && it.trashedAt != null }
     override fun observe(id: String): Flow<Document?> = rows.map { it[id]?.takeIf { d -> !d.deleted } }
     override suspend fun get(id: String) = rows.value[id]
     override suspend fun findByHash(hash: String) = rows.value.values.firstOrNull { !it.deleted && it.fileHash == hash }

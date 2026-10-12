@@ -3,6 +3,7 @@ package com.bennybar.mypapers.feature.documents
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.DOCUMENT_TYPES
@@ -45,7 +46,8 @@ class DocumentsViewModel : ViewModel() {
 
     private val filtered = combine(visible, selectedTypes, filters) { docs, types, f ->
         val today = LocalDate.now()
-        docs?.filter { (types.isEmpty() || it.docType in types) && f.matches(it, today) }
+        val dayFirst = ExtractionPrompt.dayFirst(Format.locale)
+        docs?.filter { (types.isEmpty() || it.docType in types) && f.matches(it, today, dayFirst) }
     }
 
     val results: StateFlow<List<Document>?> = combine(filtered, query, selectedTags, filters) { docs, q, tags, f ->
@@ -100,10 +102,10 @@ class DocumentsViewModel : ViewModel() {
         hidden.update { it + new }
         return new
     }
-    /** After the Undo window: deletes (unless undone) in the app's scope, so leaving the screen can't stop it. */
+    /** After the Undo window: to the trash (unless undone), in the app's scope, so leaving the screen can't stop it. */
     fun finishDelete(ids: Collection<String>, undone: Boolean) {
         app.scope.launch {
-            if (!undone) ids.forEach { app.repository.delete(it) }
+            if (!undone) ids.forEach { app.repository.trash(it) }
             hidden.update { it - ids.toSet() }
         }
     }

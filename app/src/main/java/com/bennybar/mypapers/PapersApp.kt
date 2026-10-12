@@ -19,6 +19,7 @@ import com.bennybar.mypapers.data.DocumentRepository
 import com.bennybar.mypapers.data.PapersDatabase
 import com.bennybar.mypapers.data.ServerSettings
 import com.bennybar.mypapers.data.Session
+import com.bennybar.mypapers.reminders.ExpiryReminders
 import com.bennybar.mypapers.sync.Account
 import com.bennybar.mypapers.sync.CouchClient
 import com.bennybar.mypapers.sync.SyncEngine
@@ -70,6 +71,8 @@ class PapersApp : Application() {
         }
         gmail = GmailImporter(this, db.gmailCandidates(), GmailSettings(this), repository)
         GmailNotifications.createChannels(this)
+        ExpiryReminders.createChannel(this)
+        ExpiryReminders.schedule(this)
         gmail.scheduleSweep()
         // Signed out by an older version, which left Gmail connected.
         if (server.session.value == null && gmail.settings.config.value.isConnected) scope.launch { gmail.disconnect() }
@@ -79,6 +82,10 @@ class PapersApp : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 requestSync(debounceMs = 0)
+                scope.launch {
+                    repository.purgeTrash()
+                    ExpiryReminders.check(this@PapersApp)
+                }
                 if (ai.config.value.autoRead) scope.launch { if (repository.unreadIds().isNotEmpty()) repository.readUnread() }
             }
         })
