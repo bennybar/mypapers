@@ -193,7 +193,8 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     }
     BackHandler(selecting) { vm.clearSelection() }
     val syncState by vm.syncState.collectAsStateWithLifecycle()
-    val session by vm.session.collectAsStateWithLifecycle()
+    val email by vm.email.collectAsStateWithLifecycle()
+    val oldServer by vm.oldServer.collectAsStateWithLifecycle()
     val gmailFound by vm.gmailFound.collectAsStateWithLifecycle(0)
     var refreshing by remember { mutableStateOf(false) }
 
@@ -434,14 +435,14 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                 modifier = Modifier.fillMaxSize(),
             ) {
                 // One notice at a time, the most important; none while searching or selecting.
-                val s = session
                 val failed = syncState as? SyncState.Failed
                 val progress = reading
                 if (!narrowed && !selecting) when {
-                    s == null || s.isExpired() -> item(key = "account") {
+                    email == null -> item(key = "account") {
                         Notice(
-                            if (s == null) "Sign in to back up and sync your papers." else "Your sign-in expired. Sign in again to sync.",
-                            "Set up",
+                            if (oldServer != null) "Your papers now back up to your own Google Drive. Sign in to move them."
+                            else "Sign in to back up your papers to your Google Drive.",
+                            if (oldServer != null) "Move" else "Set up",
                             onSettings,
                         )
                     }

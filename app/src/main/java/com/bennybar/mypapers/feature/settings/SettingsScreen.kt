@@ -9,9 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,17 +26,17 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,11 +59,14 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.app
-import com.bennybar.mypapers.feature.documents.Sharing
 import com.bennybar.mypapers.data.FormatSettings
+import com.bennybar.mypapers.feature.documents.Sharing
+import com.bennybar.mypapers.gmail.GmailAuth
+import com.bennybar.mypapers.sync.DriveAuth
+import com.bennybar.mypapers.sync.DriveAuthException
+import com.bennybar.mypapers.sync.SyncState
 import com.bennybar.mypapers.ui.Format
 import java.util.Locale
-import com.bennybar.mypapers.gmail.GmailAuth
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,49 +127,85 @@ private fun SectionTitle(text: String) =
 
 @Composable
 private fun AccountSection() {
-    val session by app.server.session.collectAsStateWithLifecycle()
+    val email by app.drive.email.collectAsStateWithLifecycle()
+    val oldServer by app.server.session.collectAsStateWithLifecycle()
+    val syncState by app.sync.state.collectAsStateWithLifecycle()
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var confirmSignOut by remember { mutableStateOf(false) }
+    // Signed in, waiting on Google's Drive consent screen.
+    var pending by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    fun finish(address: String) = scope.launch {
+        busy = true
+        status = try {
+            app.connectDrive(address)
+            null
+        } catch (e: Exception) {
+            e.message ?: e.javaClass.simpleName
+        }
+        busy = false
+    }
+    val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
+        val address = pending
+        pending = null
+        if (r.resultCode == Activity.RESULT_OK && DriveAuth.tokenFrom(context, r.data) != null && address != null) finish(address)
+        else status = "Google Drive access wasn't allowed, so your papers can't be backed up."
+    }
+    fun connect(address: String) = scope.launch {
+        status = try {
+            when (val r = DriveAuth.authorize(context, address)) {
+                is DriveAuth.Result.Token -> finish(address)
+                is DriveAuth.Result.NeedsConsent -> {
+                    pending = address
+                    consent.launch(IntentSenderRequest.Builder(r.intent).build())
+                }
+            }
+            null
+        } catch (e: Exception) {
+            e.message ?: e.javaClass.simpleName
+        }
+    }
+    val needsAccess = (syncState as? SyncState.Failed)?.message == DriveAuthException().message
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("Account")
-        val s = session
+        val e = email
         Text(
             when {
-                s == null -> "Sign in to back up your papers and sync them between your devices."
-                s.isExpired() -> "Signed in as ${s.email}, but the sign-in has expired. Sign in again to sync."
-                else -> "Signed in as ${s.email}"
+                e != null -> "Backed up to the Google Drive of $e, in a hidden folder only My Papers can see. Synced between your devices."
+                oldServer != null -> "Your papers now back up to your own Google Drive. Sign in to move them there; everything on this phone and the old server comes along."
+                else -> "Sign in to back up your papers to your own Google Drive and sync them between your devices."
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         status?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (s == null || s.isExpired()) {
+            if (e == null) {
                 Button(
                     enabled = !busy,
                     onClick = {
                         scope.launch {
-                            busy = true
                             status = try {
-                                app.onSignedIn(app.account.signIn(context))
+                                connect(app.account.signIn(context))
                                 null
                             } catch (_: GetCredentialCancellationException) {
                                 null
                             } catch (_: androidx.credentials.exceptions.NoCredentialException) {
                                 "No Google account on this phone. Add one in the phone's Settings → Accounts."
-                            } catch (e: Exception) {
-                                e.message ?: e.javaClass.simpleName
+                            } catch (ex: Exception) {
+                                ex.message ?: ex.javaClass.simpleName
                             }
-                            busy = false
                         }
                     },
-                ) { Text("Sign in with Google") }
+                ) { Text(if (busy) "Moving your papers…" else "Sign in with Google") }
+            } else {
+                if (needsAccess) Button(enabled = !busy, onClick = { connect(e) }) { Text("Allow Drive access") }
+                OutlinedButton(enabled = !busy, onClick = { confirmSignOut = true }) { Text("Sign out") }
             }
-            if (s != null) OutlinedButton(enabled = !busy, onClick = { confirmSignOut = true }) { Text("Sign out") }
         }
     }
 
@@ -173,7 +213,7 @@ private fun AccountSection() {
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
             title = { Text("Sign out?") },
-            text = { Text("Your papers are removed from this phone. They stay on the server and come back when you sign in again. Changes not yet synced are lost.") },
+            text = { Text("Your papers are removed from this phone. They stay in your Google Drive and come back when you sign in again. Changes not yet synced are lost.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmSignOut = false
@@ -282,14 +322,15 @@ private fun SettingSwitch(title: String, detail: String, checked: Boolean, onCha
 @Composable
 private fun GmailSection(onOpenGmail: () -> Unit) {
     val saved by app.gmail.settings.config.collectAsStateWithLifecycle()
-    val session by app.server.session.collectAsStateWithLifecycle()
+    val driveEmail by app.drive.email.collectAsStateWithLifecycle()
+    val oldServer by app.server.session.collectAsStateWithLifecycle()
     val busy by app.gmail.observeBusy().collectAsStateWithLifecycle(false)
     val error by app.gmail.observeScanError().collectAsStateWithLifecycle(null)
     val newCount by app.gmail.observeNewCount().collectAsStateWithLifecycle(0)
     var status by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val email = session?.email
+    val email = driveEmail ?: oldServer?.email
 
     fun connected(address: String) {
         app.gmail.settings.save(saved.copy(email = address))

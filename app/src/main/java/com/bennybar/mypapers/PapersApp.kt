@@ -17,11 +17,14 @@ import com.bennybar.mypapers.data.DocumentFiles
 import com.bennybar.mypapers.data.FormatSettings
 import com.bennybar.mypapers.data.DocumentRepository
 import com.bennybar.mypapers.data.PapersDatabase
+import com.bennybar.mypapers.data.DriveSettings
 import com.bennybar.mypapers.data.ServerSettings
-import com.bennybar.mypapers.data.Session
 import com.bennybar.mypapers.reminders.ExpiryReminders
 import com.bennybar.mypapers.sync.Account
 import com.bennybar.mypapers.sync.CouchClient
+import com.bennybar.mypapers.sync.DriveAuth
+import com.bennybar.mypapers.sync.DriveClient
+import com.bennybar.mypapers.sync.DriveSync
 import com.bennybar.mypapers.sync.SyncEngine
 import com.bennybar.mypapers.sync.SyncWorker
 import kotlinx.coroutines.CoroutineScope
@@ -37,9 +40,12 @@ lateinit var app: PapersApp
 
 class PapersApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /** The old CouchDB server, only to move papers from it to Drive. */
     lateinit var server: ServerSettings
+    private lateinit var couch: SyncEngine
+    lateinit var drive: DriveSettings
     lateinit var repository: DocumentRepository
-    lateinit var sync: SyncEngine
+    lateinit var sync: DriveSync
     lateinit var account: Account
     lateinit var ai: AiSettings
     lateinit var gmail: GmailImporter
@@ -57,6 +63,7 @@ class PapersApp : Application() {
         dao = db.documents()
         files = DocumentFiles(filesDir)
         server = ServerSettings(this)
+        drive = DriveSettings(this)
         account = Account()
         ai = AiSettings(this)
         repository = DocumentRepository(
@@ -65,9 +72,17 @@ class PapersApp : Application() {
             onNeedsReading = { ExtractWorker.enqueue(this, it) },
             onReadAll = { all -> ReadAllWorker.start(this, all) },
         )
-        sync = SyncEngine(dao, files, server) {
+        couch = SyncEngine(dao, files, server) {
             server.session.value?.takeUnless { it.isExpired() }
                 ?.let { CouchClient(ServerSettings.SERVER_URL, it.db, "Bearer ${it.token}") }
+        }
+        sync = DriveSync(dao, files, drive) {
+            drive.email.value?.let { email ->
+                DriveClient(
+                    token = { DriveAuth.token(this, email) },
+                    clearToken = { DriveClient.clearCachedToken(this, it) },
+                )
+            }
         }
         gmail = GmailImporter(this, db.gmailCandidates(), GmailSettings(this), repository)
         GmailNotifications.createChannels(this)
@@ -75,7 +90,7 @@ class PapersApp : Application() {
         ExpiryReminders.schedule(this)
         gmail.scheduleSweep()
         // Signed out by an older version, which left Gmail connected.
-        if (server.session.value == null && gmail.settings.config.value.isConnected) scope.launch { gmail.disconnect() }
+        if (drive.email.value == null && server.session.value == null && gmail.settings.config.value.isConnected) scope.launch { gmail.disconnect() }
         SyncWorker.schedule(this)
         // Catch up whenever the app comes to the front; with automatic reading on, also read papers
         // that came in while there was no key, or synced from elsewhere (not on every background start).
@@ -92,23 +107,29 @@ class PapersApp : Application() {
     }
 
     /**
-     * Signed in (or the token renewed). A database new to this phone: pull it
-     * all, and upload what's here (papers added before signing in).
+     * Signed in, with Drive access allowed. An account new to this phone: read all of its Drive,
+     * and upload what's here (papers added before signing in). Coming from the old server: first
+     * bring everything from it to this phone (the server keeps its copy), so nothing is left behind.
      */
-    suspend fun onSignedIn(session: Session) {
+    suspend fun connectDrive(email: String) {
+        if (server.session.value != null) {
+            if (server.session.value?.isExpired() == false) couch.sync().getOrThrow()
+            check(dao.missingFiles().isEmpty()) { "Some files are still only on the old server. Try again when online." }
+        }
         sync.whileIdle {
-            if (server.syncedDb != session.db) {
-                server.lastSeq = "0"
+            if (drive.syncedEmail != email) {
+                drive.pageToken = null
                 dao.resetSync()
-                server.syncedDb = session.db
+                drive.syncedEmail = email
             }
-            server.saveSession(session)
+            server.saveSession(null)
+            drive.saveEmail(email)
         }
         requestSync(debounceMs = 0)
     }
 
     /**
-     * Signs out and removes this account's papers from the phone (they stay on the server), and
+     * Signs out and removes this account's papers from the phone (they stay in its Drive), and
      * disconnects Gmail. In the app's scope, so leaving the screen can't stop it halfway; the papers
      * go first, so none can be uploaded into the next account.
      */
@@ -121,9 +142,10 @@ class PapersApp : Application() {
             sync.whileIdle {
                 dao.clear()
                 files.deleteAll()
-                server.lastSeq = "0"
-                server.syncedDb = null
                 server.saveSession(null)
+                drive.pageToken = null
+                drive.syncedEmail = null
+                drive.saveEmail(null)
             }
         }
     }

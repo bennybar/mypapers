@@ -61,6 +61,10 @@ interface DocumentDao {
     @Query("UPDATE documents SET rev = :rev, fileUploaded = :fileUploaded, dirty = CASE WHEN updatedAt = :pushedUpdatedAt THEN 0 ELSE dirty END WHERE id = :id")
     suspend fun markPushed(id: String, rev: String, fileUploaded: Boolean, pushedUpdatedAt: Long)
 
+    /** With Drive, [Document.rev] holds the id of the paper's file there. */
+    @Query("SELECT * FROM documents WHERE rev = :rev")
+    suspend fun byRev(rev: String): Document?
+
     @Query("UPDATE documents SET rev = :rev WHERE id = :id")
     suspend fun setRev(id: String, rev: String?)
 

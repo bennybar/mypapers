@@ -78,7 +78,9 @@ class DocumentsViewModel : ViewModel() {
     val ai = app.ai.config
 
     val syncState = app.sync.state
-    val session = app.server.session
+    /** Signed in as (null: not backed up). */
+    val email = app.drive.email
+    val oldServer = app.server.session
     val gmailFound = app.gmail.observeNewCount()
 
     fun toggleTag(tag: String) = selectedTags.update { if (tag in it) it - tag else it + tag }

@@ -95,7 +95,7 @@ class SyncEngineIntegrationTest {
 }
 
 /** An in-memory DocumentDao with the same semantics as the Room queries. */
-private class FakeDao : DocumentDao {
+internal class FakeDao : DocumentDao {
     private val rows = MutableStateFlow(mapOf<String, Document>())
 
     override fun observeAll(): Flow<List<Document>> = rows.map { m -> m.values.filter { !it.deleted } }
@@ -113,6 +113,7 @@ private class FakeDao : DocumentDao {
         val d = rows.value[id] ?: return
         upsert(d.copy(rev = rev, fileUploaded = fileUploaded, dirty = if (d.updatedAt == pushedUpdatedAt) false else d.dirty))
     }
+    override suspend fun byRev(rev: String) = rows.value.values.firstOrNull { it.rev == rev }
     override suspend fun setRev(id: String, rev: String?) { rows.value[id]?.let { upsert(it.copy(rev = rev)) } }
     override suspend fun markFileLocal(id: String) { rows.value[id]?.let { upsert(it.copy(fileLocal = true)) } }
     override suspend fun clear() { rows.value = emptyMap() }

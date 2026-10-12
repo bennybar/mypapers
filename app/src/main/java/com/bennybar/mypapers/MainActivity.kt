@@ -107,21 +107,6 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
         }
     }
-
-    override fun onResume() {
-        super.onResume()
-        // Renew the server token well before it expires (it lasts 30 days), silently
-        // with the Google account already signed in. Needs an activity, so it's done here.
-        val session = app.server.session.value ?: return
-        if (session.expiresAt - System.currentTimeMillis() > RENEW_WITHIN_MS) return
-        lifecycleScope.launch {
-            runCatching { app.account.renew(this@MainActivity) }.getOrNull()?.let { app.onSignedIn(it) }
-        }
-    }
-
-    private companion object {
-        const val RENEW_WITHIN_MS = 15L * 24 * 60 * 60 * 1000
-    }
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
