@@ -96,7 +96,6 @@ class MainActivity : ComponentActivity() {
             val added = results.filterIsInstance<ImportResult.Added>()
             val duplicates = results.count { it is ImportResult.Duplicate }
             val failed = results.count { it == null }
-            if (added.size == 1 && duplicates == 0 && failed == 0) pendingRoute.value = Route.Document(added.single().id)
             val message = listOfNotNull(
                 added.size.takeIf { it > 0 }?.let { if (it == 1) "Added to My Papers" else "Added $it papers" },
                 duplicates.takeIf { it > 0 }?.let { if (it == 1 && uris.size == 1) "Already in My Papers" else "$it already there" },

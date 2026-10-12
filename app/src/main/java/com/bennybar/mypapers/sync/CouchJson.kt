@@ -1,6 +1,7 @@
 package com.bennybar.mypapers.sync
 
 import com.bennybar.mypapers.data.Document
+import com.bennybar.mypapers.data.KeyDetail
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -43,6 +44,7 @@ fun Document.toCouchJson(keepFile: Boolean): JsonObject = buildJsonObject {
     putJsonArray("tags") { tags.forEach { add(JsonPrimitive(it)) } }
     put("notes", notes)
     put("extractedText", extractedText)
+    putJsonArray("details") { details.forEach { d -> add(buildJsonObject { put("label", d.label); put("value", d.value) }) } }
     put("fileHash", fileHash)
     put("fileName", fileName)
     put("mimeType", mimeType)
@@ -87,6 +89,13 @@ fun JsonObject.toDocument(fileLocal: Boolean): Document = Document(
     tags = (this["tags"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
     notes = str("notes").orEmpty(),
     extractedText = str("extractedText").orEmpty(),
+    details = (this["details"] as? JsonArray)?.mapNotNull { e ->
+        (e as? JsonObject)?.let { o ->
+            val label = (o["label"] as? JsonPrimitive)?.contentOrNull
+            val value = (o["value"] as? JsonPrimitive)?.contentOrNull
+            if (label.isNullOrBlank() || value.isNullOrBlank()) null else KeyDetail(label, value)
+        }
+    }.orEmpty(),
     fileHash = str("fileHash"),
     fileName = str("fileName"),
     mimeType = str("mimeType"),

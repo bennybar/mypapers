@@ -48,8 +48,9 @@ object FuzzySearch {
             .map { it.first }
     }
 
+    /** By the paper's date, or the day it was added when it has none (so a new scan is at the top). */
     private val newestFirst: Comparator<Document> =
-        compareByDescending<Document> { it.date ?: "" }.thenByDescending { it.createdAt }
+        compareByDescending<Document> { Filters.paperDay(it) }.thenByDescending { it.createdAt }
 
     private fun Double?.orZero() = this ?: 0.0
 
@@ -60,6 +61,7 @@ object FuzzySearch {
         doc.tags.flatMap(::words) to 3.0,
         words(doc.docType) to 2.0,
         words(doc.fileName.orEmpty()) to 1.0,
+        doc.details.flatMap { words(it.label) + words(it.value) } to 2.0,
         words(doc.notes) to 1.0,
         words(doc.extractedText) to 1.0,
     )

@@ -110,6 +110,24 @@ class ExtractionTest {
         assertEquals(3534.0, e.total!!, 0.001)
     }
 
+    /** A real call: a glasses prescription's values come back as key details. Needs OPENAI_API_KEY and MYPAPERS_TEST_RX_PDF. */
+    @Test fun livePrescriptionDetails() {
+        val key = System.getenv("OPENAI_API_KEY")
+        val pdf = System.getenv("MYPAPERS_TEST_RX_PDF")?.let(::File)
+        assumeTrue("no OpenAI key", key != null && pdf != null)
+        val part = buildJsonObject {
+            put("type", "input_file")
+            put("filename", "rx.pdf")
+            put("file_data", "data:application/pdf;base64," + Base64.getEncoder().encodeToString(pdf!!.readBytes()))
+        }
+        val e = runBlocking { OpenAiClient().extract(AiConfig(key!!, AiSettings.DEFAULT_MODEL), ExtractionPrompt.build(emptyList(), Locale.forLanguageTag("he-IL")), listOf(part)) }
+        e.details.forEach { println("  ${it.label}: ${it.value}") }
+        println("  title=${e.title} total=${e.total} date=${e.date}")
+        val all = e.details.joinToString(" | ") { it.label + " " + it.value }
+        assertTrue(all, all.contains("-1.25") && all.contains("-0.75") && all.contains("62"))
+        assertEquals("2026-08-15", e.date)
+    }
+
     /** A real call. Runs only with OPENAI_API_KEY and MYPAPERS_TEST_PDF set. */
     @Test fun liveReadsAReceipt() {
         val key = System.getenv("OPENAI_API_KEY")

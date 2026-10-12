@@ -24,6 +24,12 @@ class FuzzySearchTest {
 
     @Test fun blankQueryIsNewestFirst() = assertEquals(listOf("shuf", "wolt", "iec", "paz", "heb"), ids(""))
 
+    @Test fun undatedNewScanIsOnTop() {
+        // No date yet (not read by the AI): sorted by when it was added — today, above older papers.
+        val scan = Document(id = "scan", createdAt = System.currentTimeMillis(), updatedAt = 0)
+        assertEquals("scan", FuzzySearch.search(docs + scan, "", emptySet(), Locale.US).first().id)
+    }
+
     @Test fun typoInVendor() = assertEquals("shuf", ids("shufersl").first())
 
     @Test fun swappedLetters() = assertEquals("shuf", ids("shufesral").first())

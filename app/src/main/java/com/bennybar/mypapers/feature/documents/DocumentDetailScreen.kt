@@ -6,10 +6,12 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDp
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,6 +51,7 @@ import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.AI_FAILED
 import com.bennybar.mypapers.data.AI_PENDING
 import com.bennybar.mypapers.data.Document
+import com.bennybar.mypapers.data.KeyDetail
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
 import com.bennybar.mypapers.nav.documentContainerKey
@@ -209,6 +212,10 @@ private fun DocumentDetails(
             Spacer(Modifier.padding(top = 16.dp))
             TagRow(doc.tags)
         }
+        if (doc.details.isNotEmpty()) {
+            Spacer(Modifier.padding(top = 16.dp))
+            DetailsCard(doc.details)
+        }
         if (doc.notes.isNotBlank()) {
             Spacer(Modifier.padding(top = 16.dp))
             Text(doc.notes, style = MaterialTheme.typography.bodyLarge)
@@ -239,6 +246,26 @@ private fun DuplicateBanner(otherId: String, onOpen: (String) -> Unit, onKeepBot
                 TextButton(onClick = { onOpen(otherId) }) { Text("Open it") }
                 TextButton(onClick = onKeepBoth) { Text("Keep both") }
                 TextButton(onClick = onDelete) { Text("Delete this") }
+            }
+        }
+    }
+}
+
+/** The AI's key details for this paper (a prescription's values, a policy number…). */
+@Composable
+private fun DetailsCard(details: List<KeyDetail>) {
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            details.forEach { d ->
+                Column {
+                    Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(d.value, style = MaterialTheme.typography.bodyLarge)
+                }
             }
         }
     }

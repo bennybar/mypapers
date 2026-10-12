@@ -71,9 +71,11 @@ interface DocumentDao {
 class Converters {
     @TypeConverter fun tagsToJson(tags: List<String>): String = Json.encodeToString(tags)
     @TypeConverter fun tagsFromJson(json: String): List<String> = Json.decodeFromString(json)
+    @TypeConverter fun detailsToJson(details: List<KeyDetail>): String = Json.encodeToString(details)
+    @TypeConverter fun detailsFromJson(json: String): List<KeyDetail> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 5)
+@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 6)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
@@ -82,7 +84,7 @@ abstract class PapersDatabase : RoomDatabase() {
     companion object {
         fun open(context: Context): PapersDatabase =
             Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
 
         /** v2: AI reading state and duplicate marking. */
@@ -115,6 +117,13 @@ abstract class PapersDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE documents ADD COLUMN title TEXT NOT NULL DEFAULT ''")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `gmail_seen` (`gmailId` TEXT NOT NULL, `seenAt` INTEGER NOT NULL, PRIMARY KEY(`gmailId`))")
+            }
+        }
+
+        /** v6: key details read by the AI. */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE documents ADD COLUMN details TEXT NOT NULL DEFAULT '[]'")
             }
         }
 

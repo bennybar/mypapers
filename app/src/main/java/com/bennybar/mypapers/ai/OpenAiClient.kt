@@ -1,5 +1,6 @@
 package com.bennybar.mypapers.ai
 
+import com.bennybar.mypapers.data.KeyDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -127,6 +128,12 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
                 vat = num("vat"),
                 tags = (o["tags"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty(),
                 text = str("text").orEmpty(),
+                details = (o["details"] as? JsonArray)?.mapNotNull { e ->
+                    val d = e as? JsonObject ?: return@mapNotNull null
+                    val label = (d["label"] as? JsonPrimitive)?.contentOrNull?.trim()
+                    val value = (d["value"] as? JsonPrimitive)?.contentOrNull?.trim()
+                    if (label.isNullOrEmpty() || value.isNullOrEmpty()) null else KeyDetail(label, value)
+                }.orEmpty(),
             )
         }
     }

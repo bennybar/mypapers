@@ -1,7 +1,6 @@
 package com.bennybar.mypapers.feature.documents
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
@@ -32,6 +31,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.bennybar.mypapers.data.DocumentFiles
+import com.bennybar.mypapers.data.Images
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -102,10 +102,5 @@ private fun renderPdf(file: File): List<Bitmap> =
         }
     }
 
-private fun decodeImage(file: File): Bitmap? {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(file.path, bounds)
-    var sample = 1
-    while (bounds.outWidth / (sample * 2) >= PREVIEW_WIDTH) sample *= 2
-    return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
-}
+/** Upright, as the camera took it (EXIF orientation). */
+private fun decodeImage(file: File): Bitmap? = Images.decode(file, maxSide = PREVIEW_WIDTH * 2)

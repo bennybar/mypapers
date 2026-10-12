@@ -1,13 +1,13 @@
 package com.bennybar.mypapers.ai
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import android.util.Base64
 import com.bennybar.mypapers.data.DocumentFiles
+import com.bennybar.mypapers.data.Images
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -50,13 +50,8 @@ object AiInput {
         }
     }
 
-    private fun decodeScaled(file: File): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.path, bounds)
-        var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_IMAGE_SIDE) sample *= 2
-        return BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
-    }
+    /** Upright (EXIF orientation), so the model doesn't read a sideways receipt. */
+    private fun decodeScaled(file: File): Bitmap? = Images.decode(file, MAX_IMAGE_SIDE)
 
     private fun pdfPages(file: File): List<Bitmap> =
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->

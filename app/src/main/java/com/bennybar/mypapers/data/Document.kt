@@ -27,6 +27,8 @@ data class Document(
     val notes: String = "",
     /** The document's text as read by the AI, for search. */
     val extractedText: String = "",
+    /** The facts worth keeping for this kind of paper (a prescription's values, a policy number…), from the AI. */
+    val details: List<KeyDetail> = emptyList(),
     /** SHA-256 of the file, for duplicate detection. */
     val fileHash: String? = null,
     val fileName: String? = null,
@@ -53,6 +55,10 @@ data class Document(
     /** The file is on this phone (in [DocumentFiles]). */
     val fileLocal: Boolean = false,
 )
+
+/** One labeled fact on a paper: "Right eye" → "SPH −1.25 · CYL −0.50 · AXIS 90". */
+@kotlinx.serialization.Serializable
+data class KeyDetail(val label: String, val value: String)
 
 val DOCUMENT_TYPES = listOf("Receipt", "Invoice", "Warranty", "Contract", "Other")
 

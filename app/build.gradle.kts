@@ -23,8 +23,8 @@ android {
         applicationId = "com.bennybar.mypapers"
         minSdk = 35
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.5.1"
+        versionCode = 7
+        versionName = "0.6.0"
         // Google OAuth *web* client ID: the audience of the sign-in token the server checks.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("googleWebClientId").getOrElse("")}\"")
     }

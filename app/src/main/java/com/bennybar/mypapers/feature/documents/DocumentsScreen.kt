@@ -29,6 +29,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.DOCUMENT_TYPES
+import com.bennybar.mypapers.data.Images
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -170,12 +174,20 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     val gmailFound by vm.gmailFound.collectAsStateWithLifecycle(0)
     var refreshing by remember { mutableStateOf(false) }
 
-    // One new paper: open it. Already there: say so, with a way to it.
+    // Stays on the list (the new paper is on top; the AI reads it in the background if that's on),
+    // with a way to open it. Already there: say so, with a way to it.
     fun importAll(uris: List<Uri>, name: String? = null) = scope.launch {
         val results = uris.map { vm.import(it, name) }
         val added = results.filterIsInstance<ImportResult.Added>()
         val duplicates = results.filterIsInstance<ImportResult.Duplicate>()
-        if (added.size == 1 && duplicates.isEmpty()) onOpen(added.single().id)
+        if (added.isNotEmpty() && duplicates.isEmpty()) {
+            val one = added.singleOrNull()
+            val r = snackbar.showSnackbar(
+                if (one != null) "Added" else "Added ${added.size} papers",
+                actionLabel = if (one != null) "Open" else null,
+            )
+            if (r == SnackbarResult.ActionPerformed && one != null) onOpen(one.id)
+        }
         if (duplicates.isNotEmpty()) {
             val one = duplicates.singleOrNull()
             val r = snackbar.showSnackbar(
@@ -195,14 +207,25 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
             GmsDocumentScannerOptions.Builder()
                 .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
                 .setGalleryImportAllowed(true)
-                .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_PDF)
+                // Page photos, made into an upright PDF here (the scanner's own PDF showed some scans rotated).
+                .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
                 .build(),
         )
     }
     val scan = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
-        val pdf = GmsDocumentScanningResult.fromActivityResultIntent(result.data)?.pdf ?: return@rememberLauncherForActivityResult
-        importAll(listOf(pdf.uri), name = "Scan ${Format.dateTime(LocalDateTime.now())}.pdf")
+        val pages = GmsDocumentScanningResult.fromActivityResultIntent(result.data)?.pages?.map { it.imageUri }
+        if (pages.isNullOrEmpty()) return@rememberLauncherForActivityResult
+        scope.launch {
+            val pdf = File(context.cacheDir, "scan-${System.currentTimeMillis()}.pdf")
+            val made = withContext(Dispatchers.IO) { runCatching { Images.scanToPdf(context, pages, pdf) } }
+            if (made.isFailure) {
+                snackbar.showSnackbar("Couldn't save the scan: ${made.exceptionOrNull()?.message}")
+                return@launch
+            }
+            importAll(listOf(Uri.fromFile(pdf)), name = "Scan ${Format.dateTime(LocalDateTime.now())}.pdf").join()
+            pdf.delete()
+        }
     }
     fun startScan() {
         val a = activity ?: return
