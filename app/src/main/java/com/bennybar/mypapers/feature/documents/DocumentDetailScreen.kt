@@ -1,5 +1,6 @@
 package com.bennybar.mypapers.feature.documents
 
+import android.content.ClipData
 import android.content.Intent
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -18,11 +19,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
@@ -56,9 +59,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -344,23 +356,53 @@ private fun DuplicateBanner(otherId: String, onOpen: (String) -> Unit, onKeepBot
 /** The AI's key details for this paper (a prescription's values, a policy number…). */
 @Composable
 private fun DetailsCard(details: List<KeyDetail>) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    // Dates the AI wrote as 2027-08-15, in the region's format.
+    fun shown(value: String) = if (Regex("\\d{4}-\\d{2}-\\d{2}").matches(value)) Format.date(value) ?: value else value
     Card(
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            details.forEach { d ->
-                Column {
-                    Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    // Dates the AI wrote as 2027-08-15, in the region's format.
-                    Text(
-                        if (Regex("\\d{4}-\\d{2}-\\d{2}").matches(d.value)) Format.date(d.value) ?: d.value else d.value,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+        Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                // All of them at once, "Label: value" a line.
+                IconButton(onClick = {
+                    val text = details.joinToString("\n") { "${it.label}: ${shown(it.value)}" }
+                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Details", text))) }
+                }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy details") }
+            }
+            // Any part can be selected and copied; web addresses open.
+            SelectionContainer {
+                Column(Modifier.padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    details.forEach { d ->
+                        Column {
+                            Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(withLinks(shown(d.value)), style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+private val URL = Regex("""(?i)\b(?:https?://|www\.)[^\s<>"]+[^\s<>".,;:!?)\]]""")
+
+/** [text] with its web addresses as links. */
+@Composable
+private fun withLinks(text: String): AnnotatedString {
+    val style = TextLinkStyles(SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline))
+    return buildAnnotatedString {
+        var at = 0
+        URL.findAll(text).forEach { m ->
+            append(text.substring(at, m.range.first))
+            val url = if (m.value.startsWith("www.", ignoreCase = true)) "https://${m.value}" else m.value
+            withLink(LinkAnnotation.Url(url, style)) { append(m.value) }
+            at = m.range.last + 1
+        }
+        append(text.substring(at))
     }
 }
