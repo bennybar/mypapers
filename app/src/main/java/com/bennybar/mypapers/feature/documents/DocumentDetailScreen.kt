@@ -52,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -73,6 +75,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -416,16 +419,21 @@ private fun DetailsCard(details: List<KeyDetail>) {
 private fun DetailTable(rows: List<List<String>>) {
     // Each column as wide as its longest cell, within reason.
     val widths = rows.first().indices.map { c -> (rows.maxOf { it[c].length } * 8 + 16).coerceIn(56, 240).dp }
-    Column(Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
-        rows.forEachIndexed { r, cells ->
-            if (r > 0) HorizontalDivider(Modifier.width(widths.fold(0.dp) { a, b -> a + b }), color = MaterialTheme.colorScheme.outlineVariant)
-            Row(Modifier.padding(vertical = 6.dp)) {
-                cells.forEachIndexed { c, cell ->
-                    Text(
-                        withLinks(cell),
-                        style = if (r == 0) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(widths[c]).padding(end = 12.dp),
-                    )
+    // A Hebrew table reads right to left: first column on the right.
+    val all = rows.flatten().joinToString("")
+    val rtl = all.count { it in '\u0590'..'\u05FF' } > all.count { it in 'A'..'Z' || it in 'a'..'z' }
+    CompositionLocalProvider(LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
+        Column(Modifier.fillMaxWidth().padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
+            rows.forEachIndexed { r, cells ->
+                if (r > 0) HorizontalDivider(Modifier.width(widths.fold(0.dp) { a, b -> a + b }), color = MaterialTheme.colorScheme.outlineVariant)
+                Row(Modifier.padding(vertical = 6.dp)) {
+                    cells.forEachIndexed { c, cell ->
+                        Text(
+                            withLinks(cell),
+                            style = if (r == 0) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.width(widths[c]).padding(end = 12.dp),
+                        )
+                    }
                 }
             }
         }
