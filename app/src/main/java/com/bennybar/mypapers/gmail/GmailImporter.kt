@@ -14,7 +14,6 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import android.text.Html
 import android.util.Log
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.DocumentRepository
@@ -50,9 +49,8 @@ class GmailImporter(
     fun observeBusy(): Flow<Boolean> = combine(
         work.getWorkInfosForUniqueWorkFlow("gmail-scan"),
         work.getWorkInfosForUniqueWorkFlow("gmail-import"),
-        work.getWorkInfosForUniqueWorkFlow("gmail-sort"),
-    ) { scan, import, sort ->
-        (scan + import + sort).any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
+    ) { scan, import ->
+        (scan + import).any { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
     }
 
     /** Why the last scan failed (wrong password…), if it did. */
@@ -61,11 +59,6 @@ class GmailImporter(
     }
 
     fun scanNow() = enqueue(OneTimeWorkRequest.Builder(GmailScanWorker::class.java), "gmail-scan")
-
-    /** "Sort with AI" on the review screen, whatever the automatic setting. */
-    fun sortNow() = enqueue(OneTimeWorkRequest.Builder(GmailSortWorker::class.java), "gmail-sort")
-
-    fun observeUnsortedCount() = dao.observeUnsortedCount()
 
     suspend fun queue(keys: List<String>) {
         dao.setStates(keys, GmailCandidate.STATE_QUEUED)
@@ -151,24 +144,6 @@ class GmailImporter(
         return added
     }
 
-    /**
-     * The AI's first pass over what's waiting (what it is, vendor, amount, a clear
-     * title), so the review screen is sorted and labeled. Needs an OpenAI key; without
-     * one the list just isn't sorted.
-     */
-    suspend fun sortWithAi(onProgress: suspend (done: Int, total: Int) -> Unit) {
-        val config = app.ai.config.value
-        if (!config.isSet) return
-        val unsorted = dao.unsorted()
-        unsorted.chunked(GmailTriage.BATCH).forEachIndexed { i, batch ->
-            onProgress(i * GmailTriage.BATCH, unsorted.size)
-            GmailTriage.sort(app.openAi, config, batch).forEach { r ->
-                dao.setTriage(r.key, r.category, r.title, r.vendor, r.totalCents, r.currency, r.paper)
-            }
-        }
-        onProgress(unsorted.size, unsorted.size)
-    }
-
     /** The email's attachments worth offering — or, when it has none, the email itself (a receipt written in it). */
     private fun candidates(m: JsonObject, emailIfNoAttachments: Boolean, now: Long): List<GmailCandidate> {
         val id = m.str("id") ?: return emptyList()
@@ -176,11 +151,9 @@ class GmailImporter(
         val subject = GmailApi.header(payload, "Subject").orEmpty().ifBlank { "(no subject)" }
         val sender = GmailApi.senderName(GmailApi.header(payload, "From").orEmpty())
         val sentAt = m.str("internalDate")?.toLongOrNull() ?: 0L
-        // Gmail's preview comes HTML-escaped (&#39; &amp;).
-        val snippet = m.str("snippet")?.let { Html.fromHtml(it, Html.FROM_HTML_MODE_LEGACY).toString() }.orEmpty()
         fun candidate(kind: String, partId: String, name: String, type: String, size: Long) = GmailCandidate(
             key = "$id:$partId", gmailId = id, subject = subject, sender = sender, sentAt = sentAt,
-            kind = kind, partId = partId, fileName = name, mimeType = type, size = size, foundAt = now, snippet = snippet,
+            kind = kind, partId = partId, fileName = name, mimeType = type, size = size, foundAt = now,
         )
         val attachments = GmailApi.paperParts(m).map { candidate(GmailCandidate.KIND_ATTACHMENT, it.partId, it.fileName, it.mimeType, it.size) }
         return when {
@@ -211,7 +184,7 @@ class GmailImporter(
                         file,
                     )
                 }
-                val docId = when (val result = repository.import(Uri.fromFile(file), importName(candidate))) {
+                val docId = when (val result = repository.import(Uri.fromFile(file), candidate.fileName)) {
                     is ImportResult.Added -> result.id
                     is ImportResult.Duplicate -> result.existing.id
                 }
@@ -226,12 +199,6 @@ class GmailImporter(
             }
         }
         onProgress(queued.size, queued.size)
-    }
-
-    /** The AI's title as the file name when there is one ("019 Mobile bill, September 2026.pdf"). */
-    private fun importName(c: GmailCandidate): String {
-        val ext = c.fileName.substringAfterLast('.', "").ifEmpty { if (c.mimeType == "application/pdf") "pdf" else "jpg" }
-        return c.title?.let { safeFileName(it) + "." + ext } ?: c.fileName
     }
 
     private fun JsonObject.str(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull
@@ -254,14 +221,6 @@ class GmailScanWorker(context: Context, params: WorkerParameters) : CoroutineWor
         return try {
             val found = app.gmail.scan { done, total ->
                 setForeground(GmailNotifications.progress(applicationContext, "Looking for papers in Gmail", done, total))
-            }
-            // Sorting right away only when that's on; a failure (OpenAI busy) doesn't fail the scan.
-            if (app.ai.config.value.autoSortGmail) {
-                runCatching {
-                    app.gmail.sortWithAi { done, total ->
-                        setForeground(GmailNotifications.progress(applicationContext, "Sorting what was found", done, total))
-                    }
-                }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(LOG_TAG, "Sorting failed", it) }
             }
             if (found > 0) GmailNotifications.found(applicationContext, found)
             app.gmail.scheduleSweep()
@@ -302,23 +261,6 @@ class GmailImportWorker(context: Context, params: WorkerParameters) : CoroutineW
             if (e is kotlinx.coroutines.CancellationException) throw e
             Log.w(LOG_TAG, "Gmail import failed", e)
             Result.failure(workDataOf("error" to "Import failed: ${e.message ?: e.javaClass.simpleName}"))
-        }
-    }
-}
-
-class GmailSortWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    override suspend fun getForegroundInfo() = GmailNotifications.progress(applicationContext, "Sorting what was found", 0, 0)
-
-    override suspend fun doWork(): Result {
-        setForeground(getForegroundInfo())
-        return try {
-            app.gmail.sortWithAi { done, total ->
-                setForeground(GmailNotifications.progress(applicationContext, "Sorting what was found", done, total))
-            }
-            Result.success()
-        } catch (e: java.io.IOException) {
-            Log.w(LOG_TAG, "Sorting failed (attempt ${runAttemptCount + 1})", e)
-            if (runAttemptCount < 3) Result.retry() else Result.failure(workDataOf("error" to e.message))
         }
     }
 }

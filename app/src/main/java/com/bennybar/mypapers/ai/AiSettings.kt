@@ -10,8 +10,6 @@ data class AiConfig(
     val model: String,
     /** Read each new paper in the background as it comes in (off: only when asked). */
     val autoRead: Boolean = false,
-    /** Sort what a Gmail scan finds right after the scan (off: only when asked). */
-    val autoSortGmail: Boolean = false,
 ) {
     val isSet get() = apiKey.isNotBlank()
 }
@@ -32,7 +30,6 @@ class AiSettings(context: Context) {
             .putString("apiKey", cipher.encrypt(config.apiKey.trim()))
             .putString("model", config.model.trim().ifBlank { DEFAULT_MODEL })
             .putBoolean("autoRead", config.autoRead)
-            .putBoolean("autoSortGmail", config.autoSortGmail)
             .apply()
         _config.value = read()
     }
@@ -41,7 +38,6 @@ class AiSettings(context: Context) {
         apiKey = prefs.getString("apiKey", null)?.let(cipher::decrypt).orEmpty(),
         model = prefs.getString("model", DEFAULT_MODEL)!!,
         autoRead = prefs.getBoolean("autoRead", false),
-        autoSortGmail = prefs.getBoolean("autoSortGmail", false),
     )
 
     companion object {

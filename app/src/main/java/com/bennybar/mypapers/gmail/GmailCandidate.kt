@@ -36,18 +36,6 @@ data class GmailCandidate(
     /** The document it became. */
     val documentId: String? = null,
     val foundAt: Long,
-    /** Gmail's preview of the email's text (for the AI sorting and the list). */
-    val snippet: String = "",
-    // The AI's sorting, before anything is imported (null = not sorted yet, e.g. no OpenAI key).
-    /** One of [GmailTriage.CATEGORIES]. */
-    val category: String? = null,
-    /** A clear name for it ("019 Mobile bill, September 2026"). */
-    val title: String? = null,
-    val vendor: String? = null,
-    val totalCents: Long? = null,
-    val currency: String? = null,
-    /** The AI thinks it's a paper worth keeping (not a newsletter or an ad). */
-    val likelyPaper: Boolean? = null,
 ) {
     companion object {
         const val KIND_ATTACHMENT = "attachment"
@@ -85,15 +73,6 @@ interface GmailCandidateDao {
 
     @Query("UPDATE gmail_candidates SET state = :state WHERE key IN (:keys)")
     suspend fun setStates(keys: List<String>, state: String)
-
-    @Query("SELECT * FROM gmail_candidates WHERE state = 'new' AND category IS NULL")
-    suspend fun unsorted(): List<GmailCandidate>
-
-    @Query("SELECT COUNT(*) FROM gmail_candidates WHERE state = 'new' AND category IS NULL")
-    fun observeUnsortedCount(): Flow<Int>
-
-    @Query("UPDATE gmail_candidates SET category = :category, title = :title, vendor = :vendor, totalCents = :totalCents, currency = :currency, likelyPaper = :likelyPaper WHERE key = :key")
-    suspend fun setTriage(key: String, category: String, title: String?, vendor: String?, totalCents: Long?, currency: String?, likelyPaper: Boolean)
 
     @Query("SELECT gmailId FROM gmail_seen")
     suspend fun seenIds(): List<String>

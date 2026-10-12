@@ -110,17 +110,10 @@ abstract class PapersDatabase : RoomDatabase() {
             }
         }
 
-        /** v5: the AI's sorting of what Gmail found, and which emails were already looked at. */
+        /** v5: document titles, and which Gmail emails were already looked at. */
         private val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN snippet TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN category TEXT")
-                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN title TEXT")
                 db.execSQL("ALTER TABLE documents ADD COLUMN title TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN vendor TEXT")
-                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN totalCents INTEGER")
-                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN currency TEXT")
-                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN likelyPaper INTEGER")
                 db.execSQL("CREATE TABLE IF NOT EXISTS `gmail_seen` (`gmailId` TEXT NOT NULL, `seenAt` INTEGER NOT NULL, PRIMARY KEY(`gmailId`))")
             }
         }

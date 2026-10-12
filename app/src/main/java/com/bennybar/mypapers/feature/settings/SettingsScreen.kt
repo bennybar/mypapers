@@ -217,11 +217,6 @@ private fun AiSection() {
                 "In the background as each one comes in. Off: only when you ask.",
                 saved.autoRead,
             ) { app.ai.save(saved.copy(autoRead = it)) }
-            SettingSwitch(
-                "Sort Gmail finds automatically",
-                "Right after each Gmail scan: what each item is, who from, the amount. Off: from the review screen when you ask.",
-                saved.autoSortGmail,
-            ) { app.ai.save(saved.copy(autoSortGmail = it)) }
             if (unread.isNotEmpty()) {
                 OutlinedButton(onClick = { scope.launch { app.repository.readUnread() } }) {
                     Text(if (unread.size == 1) "Read 1 unread paper now" else "Read ${unread.size} unread papers now")
@@ -265,8 +260,9 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
         if (r.resultCode == Activity.RESULT_OK && GmailAuth.tokenFrom(context, r.data) != null && email != null) connected(email)
         else status = "Gmail wasn't connected"
     }
-    // The scan's progress shows as a notification; ask once (Android 13+).
-    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { app.gmail.scanNow() }
+    // The scan's progress shows as a notification; ask once (Android 13+). The scan doesn't wait for
+    // the answer: this screen is left right away, which would drop the callback.
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("Gmail")
@@ -322,8 +318,9 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
                 Button(
                     enabled = !busy,
                     onClick = {
+                        app.gmail.scanNow()
                         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                        if (granted) app.gmail.scanNow() else askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        if (!granted) askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
                         onOpenGmail()
                     },
                 ) { Text(if (busy) "Scanning…" else if (app.gmail.settings.lastScanAt == 0L) "Scan now" else "Scan again") }
