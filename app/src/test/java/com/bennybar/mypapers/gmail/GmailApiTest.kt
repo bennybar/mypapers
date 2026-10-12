@@ -42,6 +42,15 @@ class GmailApiTest {
         assertEquals("noreply@x.com", GmailApi.senderName("<noreply@x.com>"))
     }
 
+    @Test fun scansOnlyWhatsNewAfterTheFirst() {
+        // First scan, and a widened window: the whole window.
+        assertEquals("newer_than:6m", GmailApi.scanWindow(lastScanAt = 0, coveredMonths = 0, monthsBack = 6))
+        assertEquals("newer_than:24m", GmailApi.scanWindow(lastScanAt = 1_791_800_000_000, coveredMonths = 6, monthsBack = 24))
+        // After that (daily sweep, scan again): since the last scan, an hour earlier.
+        assertEquals("after:1791796400", GmailApi.scanWindow(lastScanAt = 1_791_800_000_000, coveredMonths = 24, monthsBack = 24))
+        assertEquals("after:1791796400", GmailApi.scanWindow(lastScanAt = 1_791_800_000_000, coveredMonths = 24, monthsBack = 6))
+    }
+
     @Test fun partById() {
         assertEquals("a3", GmailApi.partById(message, "1")!!["body"]!!.jsonObject["attachmentId"].toString().trim('"'))
         assertNull(GmailApi.partById(message, "9"))

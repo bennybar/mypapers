@@ -151,15 +151,24 @@ class GmailApi(private val token: suspend (refresh: Boolean) -> String, private 
         private const val MIN_IMAGE_BYTES = 30_000
 
         /** Gmail searches: attachments, and emails that read like receipts (most of which have no attachment). */
+        /**
+         * Which mail a scan looks at: since the last completed scan (an hour's overlap, so
+         * nothing at the edge is missed), or the whole window for the first scan and when
+         * the window was widened since.
+         */
+        fun scanWindow(lastScanAt: Long, coveredMonths: Int, monthsBack: Int): String =
+            if (lastScanAt == 0L || monthsBack > coveredMonths) "newer_than:${monthsBack}m"
+            else "after:${(lastScanAt - 3_600_000) / 1000}"
+
         fun attachmentQuery(window: String) =
-            "newer_than:$window has:attachment (filename:pdf OR filename:jpg OR filename:jpeg OR filename:png OR filename:heic)"
+            "$window has:attachment (filename:pdf OR filename:jpg OR filename:jpeg OR filename:png OR filename:heic)"
 
         /**
          * Receipts written in the email: by subject, or Gmail's Purchases category when the
          * email talks money — minus shipping and tracking updates, which Gmail files there too.
          */
         fun receiptQuery(window: String) =
-            "newer_than:$window (subject:(receipt OR invoice OR \"tax invoice\" OR \"order confirmation\" OR \"payment confirmation\" OR \"payment received\" OR \"your order\" OR קבלה OR חשבונית OR \"אישור הזמנה\" OR \"אישור תשלום\") " +
+            "$window (subject:(receipt OR invoice OR \"tax invoice\" OR \"order confirmation\" OR \"payment confirmation\" OR \"payment received\" OR \"your order\" OR קבלה OR חשבונית OR \"אישור הזמנה\" OR \"אישור תשלום\") " +
                 "OR (category:purchases (receipt OR invoice OR total OR קבלה OR חשבונית))) " +
                 "-subject:(shipped OR delivered OR \"out for delivery\" OR \"at customs\" OR tracking OR package OR shipment OR משלוח OR נשלח OR \"נמסר\")"
 

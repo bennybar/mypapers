@@ -22,10 +22,21 @@ class GmailSettings(context: Context) {
     private val _config = MutableStateFlow(read())
     val config: StateFlow<GmailConfig> = _config
 
-    /** When the last scan finished (epoch ms); 0 = never — the next scan is the first, full one. */
+
+    /** When the last completed scan started (epoch ms); 0 = never — the next scan is the first, full one. */
     var lastScanAt: Long
         get() = prefs.getLong("lastScanAt", 0)
         set(value) = prefs.edit().putLong("lastScanAt", value).apply()
+
+    /** How many months back the completed scans have covered; a longer window scans the rest once. */
+    var coveredMonths: Int
+        get() = prefs.getInt("coveredMonths", 0)
+        set(value) = prefs.edit().putInt("coveredMonths", value).apply()
+
+    init {
+        // Scans completed before coverage was recorded covered the window that was set.
+        if (lastScanAt > 0 && !prefs.contains("coveredMonths")) coveredMonths = _config.value.monthsBack
+    }
 
     fun save(config: GmailConfig) {
         val accountChanged = config.email != _config.value.email
@@ -33,7 +44,7 @@ class GmailSettings(context: Context) {
             .putString("email", config.email)
             .putInt("monthsBack", config.monthsBack)
             .putBoolean("dailySweep", config.dailySweep)
-            .also { if (accountChanged) it.putLong("lastScanAt", 0) } // another mailbox: full first scan again
+            .also { if (accountChanged) it.putLong("lastScanAt", 0).putInt("coveredMonths", 0) } // another mailbox: full first scan again
             .apply()
         _config.value = read()
     }

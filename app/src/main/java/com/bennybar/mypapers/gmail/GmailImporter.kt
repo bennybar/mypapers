@@ -112,16 +112,16 @@ class GmailImporter(
     }
 
     /**
-     * Looks through Gmail back [GmailConfig.monthsBack] months. Emails already looked
-     * at (by an earlier or interrupted scan) aren't fetched again, so this is also how
-     * a scan resumes, how a longer window fills in, and what the daily sweep runs.
-     * Returns how many new things it found.
+     * Looks through Gmail: only mail since the last completed scan (the daily sweep,
+     * "Scan again"), or the whole [GmailConfig.monthsBack] window the first time and
+     * once more when it's widened. Emails already looked at aren't fetched again, so an
+     * interrupted scan resumes where it stopped. Returns how many new things it found.
      */
     suspend fun scan(onProgress: suspend (done: Int, total: Int) -> Unit): Int {
         val c = settings.config.value
         if (!c.isConnected) return 0
         val startedAt = System.currentTimeMillis()
-        val window = "${c.monthsBack}m"
+        val window = GmailApi.scanWindow(settings.lastScanAt, settings.coveredMonths, c.monthsBack)
         val gmail = api()
         onProgress(0, 0)
         val seen = dao.seenIds().toSet()
@@ -139,7 +139,9 @@ class GmailImporter(
             dao.markSeen(batch.map { GmailSeen(it.first, startedAt) })
         }
         onProgress(all.size, all.size)
+        // Only now, after the whole scan: an interrupted one runs again (skipping what it fetched).
         settings.lastScanAt = startedAt
+        settings.coveredMonths = maxOf(settings.coveredMonths, c.monthsBack)
         Log.i(LOG_TAG, "Gmail scan ($window): ${withAttachments.size} with attachments, ${receipts.size} receipt emails, ${all.size} not seen before, $added new")
         return added
     }
