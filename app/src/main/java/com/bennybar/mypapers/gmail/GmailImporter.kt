@@ -22,6 +22,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -65,7 +69,7 @@ class GmailImporter(
     /** The daily look for new papers, when on and after the first scan. */
     fun scheduleSweep() {
         val c = settings.config.value
-        if (!c.isSet || !c.dailySweep || settings.lastScanAt == 0L) {
+        if (!c.isConnected || !c.dailySweep || settings.lastScanAt == 0L) {
             work.cancelUniqueWork("gmail-sweep")
             return
         }
@@ -91,66 +95,106 @@ class GmailImporter(
         work.enqueueUniqueWork(name, ExistingWorkPolicy.KEEP, request)
     }
 
+    /** The Gmail API with the connected account's token (asked once, renewed if Google says it expired). */
+    private fun api(): GmailApi {
+        val email = settings.config.value.email
+        var cached: String? = null
+        return GmailApi({ refresh ->
+            cached?.takeUnless { refresh } ?: when (val r = GmailAuth.authorize(context, email)) {
+                is GmailAuth.Result.Token -> r.accessToken
+                is GmailAuth.Result.NeedsConsent -> throw GmailException("Connect Gmail again in Settings", needsReconnect = true)
+            }.also { cached = it }
+        })
+    }
+
     /**
      * Looks through Gmail: the first time back [GmailConfig.monthsBack] months,
      * later since the last scan. Returns how many new things it found.
      */
-    suspend fun scan(onProgress: suspend (done: Int, total: Int) -> Unit): Int = withContext(Dispatchers.IO) {
+    suspend fun scan(onProgress: suspend (done: Int, total: Int) -> Unit): Int {
         val c = settings.config.value
-        if (!c.isSet) return@withContext 0
+        if (!c.isConnected) return 0
         val startedAt = System.currentTimeMillis()
         val last = settings.lastScanAt
         // Gmail's newer_than: months for the first scan; days (with a day's overlap) after that.
         val window = if (last == 0L) "${c.monthsBack}m" else "${TimeUnit.MILLISECONDS.toDays(startedAt - last) + 2}d"
-        GmailClient.connect(c.address, c.appPassword).use { gmail ->
-            val withAttachments = gmail.search(GmailClient.attachmentQuery(window)).toSet()
-            val receipts = gmail.search(GmailClient.receiptQuery(window)).toSet() - withAttachments
-            val all = (withAttachments.map { it to false } + receipts.map { it to true }).sortedByDescending { it.first }
-            var added = 0
-            // In batches: one round trip per batch for the email structures.
-            all.chunked(BATCH).forEachIndexed { i, batch ->
-                onProgress(i * BATCH, all.size)
-                val found = batch.groupBy({ it.second }, { it.first }).flatMap { (emails, uids) ->
-                    gmail.describe(uids, includeEmails = emails, now = startedAt)
-                }
-                added += dao.insertNew(found).count { it != -1L }
-            }
-            settings.lastScanAt = startedAt
-            added
+        val gmail = api()
+        onProgress(0, 0)
+        val withAttachments = gmail.search(GmailApi.attachmentQuery(window))
+        val receipts = gmail.search(GmailApi.receiptQuery(window)) - withAttachments.toSet()
+        val all = withAttachments.map { it to false } + receipts.map { it to true }
+        var added = 0
+        all.chunked(BATCH).forEachIndexed { i, batch ->
+            onProgress(i * BATCH, all.size)
+            val emailsToo = batch.toMap()
+            val found = gmail.messages(batch.map { it.first }).flatMap { m -> candidates(m, emailsToo[m.str("id")] == true, startedAt) }
+            added += dao.insertNew(found).count { it != -1L }
+        }
+        onProgress(all.size, all.size)
+        settings.lastScanAt = startedAt
+        return added
+    }
+
+    /** The email's attachments worth offering — or, when it has none, the email itself (a receipt written in it). */
+    private fun candidates(m: JsonObject, emailIfNoAttachments: Boolean, now: Long): List<GmailCandidate> {
+        val id = m.str("id") ?: return emptyList()
+        val payload = m["payload"]?.jsonObject ?: return emptyList()
+        val subject = GmailApi.header(payload, "Subject").orEmpty().ifBlank { "(no subject)" }
+        val sender = GmailApi.senderName(GmailApi.header(payload, "From").orEmpty())
+        val sentAt = m.str("internalDate")?.toLongOrNull() ?: 0L
+        fun candidate(kind: String, partId: String, name: String, type: String, size: Long) = GmailCandidate(
+            key = "$id:$partId", gmailId = id, subject = subject, sender = sender, sentAt = sentAt,
+            kind = kind, partId = partId, fileName = name, mimeType = type, size = size, foundAt = now,
+        )
+        val attachments = GmailApi.paperParts(m).map { candidate(GmailCandidate.KIND_ATTACHMENT, it.partId, it.fileName, it.mimeType, it.size) }
+        return when {
+            attachments.isNotEmpty() -> attachments
+            emailIfNoAttachments -> listOf(
+                candidate(GmailCandidate.KIND_EMAIL, "", safeFileName(subject) + ".pdf", "application/pdf", m.str("sizeEstimate")?.toLongOrNull() ?: 0L),
+            )
+            else -> emptyList()
         }
     }
 
     /** Brings in what was picked, one by one; each then gets the AI reading like any new paper. */
-    suspend fun importQueued(onProgress: suspend (done: Int, total: Int) -> Unit) = withContext(Dispatchers.IO) {
+    suspend fun importQueued(onProgress: suspend (done: Int, total: Int) -> Unit) {
         val queued = dao.queued()
-        if (queued.isEmpty()) return@withContext
-        val c = settings.config.value
+        if (queued.isEmpty()) return
+        val gmail = api()
         val dir = File(context.cacheDir, "gmail").apply { mkdirs() }
-        GmailClient.connect(c.address, c.appPassword).use { gmail ->
-            queued.forEachIndexed { i, candidate ->
-                onProgress(i, queued.size)
-                val file = File(dir, "import-${System.nanoTime()}")
-                try {
-                    when (candidate.kind) {
-                        GmailCandidate.KIND_EMAIL -> HtmlToPdf.render(context, gmail.emailHtml(candidate), file)
-                        else -> gmail.downloadPart(candidate, file)
-                    }
-                    val result = repository.import(Uri.fromFile(file), candidate.fileName)
-                    val docId = when (result) {
-                        is ImportResult.Added -> result.id
-                        is ImportResult.Duplicate -> result.existing.id
-                    }
-                    dao.setState(candidate.key, GmailCandidate.STATE_IMPORTED, documentId = docId)
-                } catch (e: Exception) {
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    dao.setState(candidate.key, GmailCandidate.STATE_FAILED, error = e.message ?: e.javaClass.simpleName)
-                } finally {
-                    file.delete()
+        queued.forEachIndexed { i, candidate ->
+            onProgress(i, queued.size)
+            val file = File(dir, "import-${System.nanoTime()}")
+            try {
+                val message = gmail.message(candidate.gmailId)
+                when (candidate.kind) {
+                    GmailCandidate.KIND_EMAIL -> HtmlToPdf.render(context, gmail.emailHtml(candidate.gmailId, message), file)
+                    else -> gmail.savePart(
+                        candidate.gmailId,
+                        GmailApi.partById(message, candidate.partId) ?: throw GmailException("The attachment is no longer in this email"),
+                        file,
+                    )
                 }
+                val docId = when (val result = repository.import(Uri.fromFile(file), candidate.fileName)) {
+                    is ImportResult.Added -> result.id
+                    is ImportResult.Duplicate -> result.existing.id
+                }
+                dao.setState(candidate.key, GmailCandidate.STATE_IMPORTED, documentId = docId)
+            } catch (e: GmailException) {
+                if (e.needsReconnect) throw e
+                dao.setState(candidate.key, GmailCandidate.STATE_FAILED, error = e.message)
+            } catch (e: java.io.IOException) {
+                dao.setState(candidate.key, GmailCandidate.STATE_FAILED, error = e.message ?: e.javaClass.simpleName)
+            } finally {
+                withContext(Dispatchers.IO) { file.delete() }
             }
-            onProgress(queued.size, queued.size)
         }
+        onProgress(queued.size, queued.size)
     }
+
+    private fun JsonObject.str(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull
+
+    private fun safeFileName(s: String) = s.replace(Regex("[\\\\/:*?\"<>|]"), " ").trim().take(80).ifBlank { "Email" }
 
     companion object {
         const val TAG = "gmail"
@@ -171,10 +215,9 @@ class GmailScanWorker(context: Context, params: WorkerParameters) : CoroutineWor
             app.gmail.scheduleSweep()
             Result.success()
         } catch (e: GmailException) {
+            if (e.needsReconnect) GmailNotifications.reconnect(applicationContext)
             Result.failure(workDataOf("error" to e.message))
         } catch (e: java.io.IOException) {
-            if (runAttemptCount < 3) Result.retry() else Result.failure(workDataOf("error" to e.message))
-        } catch (e: javax.mail.MessagingException) {
             if (runAttemptCount < 3) Result.retry() else Result.failure(workDataOf("error" to e.message))
         }
     }
@@ -191,8 +234,9 @@ class GmailImportWorker(context: Context, params: WorkerParameters) : CoroutineW
             }
             Result.success()
         } catch (e: GmailException) {
+            if (e.needsReconnect) GmailNotifications.reconnect(applicationContext)
             Result.failure(workDataOf("error" to e.message))
-        } catch (e: javax.mail.MessagingException) {
+        } catch (e: java.io.IOException) {
             if (runAttemptCount < 3) Result.retry() else Result.failure(workDataOf("error" to e.message))
         }
     }

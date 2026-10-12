@@ -118,7 +118,7 @@ fun GmailScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(24.dp),
                 )
             }
-            val emails = pending.groupBy { it.uidValidity to it.uid }.values.toList()
+            val emails = pending.groupBy { it.gmailId }.values.toList()
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),

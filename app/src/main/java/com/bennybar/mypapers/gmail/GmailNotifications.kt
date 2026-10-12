@@ -22,6 +22,7 @@ object GmailNotifications {
     /** Opens the Gmail review screen. */
     const val EXTRA_OPEN = "open"
     const val OPEN_GMAIL = "gmail"
+    const val OPEN_SETTINGS = "settings"
 
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
@@ -55,9 +56,25 @@ object GmailNotifications {
         NotificationManagerCompat.from(context).notify(ID_FOUND, n)
     }
 
-    private fun openGmail(context: Context) = PendingIntent.getActivity(
-        context, 0,
-        Intent(context, MainActivity::class.java).putExtra(EXTRA_OPEN, OPEN_GMAIL).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+    /** Google stopped accepting the app's Gmail access: connect again in Settings. */
+    fun reconnect(context: Context) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+        val n = NotificationCompat.Builder(context, CHANNEL_FOUND)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Reconnect Gmail")
+            .setContentText("My Papers can't read Gmail anymore. Tap to connect again.")
+            .setAutoCancel(true)
+            .setContentIntent(open(context, OPEN_SETTINGS, 1))
+            .build()
+        @Suppress("MissingPermission") // checked above
+        NotificationManagerCompat.from(context).notify(ID_FOUND, n)
+    }
+
+    private fun openGmail(context: Context) = open(context, OPEN_GMAIL, 0)
+
+    private fun open(context: Context, what: String, requestCode: Int) = PendingIntent.getActivity(
+        context, requestCode,
+        Intent(context, MainActivity::class.java).putExtra(EXTRA_OPEN, what).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 }

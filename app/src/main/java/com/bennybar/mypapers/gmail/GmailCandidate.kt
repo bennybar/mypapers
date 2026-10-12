@@ -15,20 +15,18 @@ import kotlinx.coroutines.flow.Flow
  */
 @Entity(tableName = "gmail_candidates")
 data class GmailCandidate(
-    /** "<UIDVALIDITY>:<UID>:<part path>", stable while Gmail keeps the folder's UIDVALIDITY. */
+    /** "<Gmail message id>:<part id>". */
     @PrimaryKey val key: String,
-    val uid: Long,
-    val uidValidity: Long,
-    /** The email's Message-ID, to find it again if the UIDs change. */
-    val messageId: String?,
+    /** The Gmail API's message id. */
+    val gmailId: String,
     val subject: String,
     val sender: String,
     /** When the email was sent (epoch ms). */
     val sentAt: Long,
     /** [KIND_ATTACHMENT] or [KIND_EMAIL]. */
     val kind: String,
-    /** Indexes through the email's parts, e.g. "1.0"; "" for the email as a whole. */
-    val partPath: String,
+    /** The part's id in the Gmail API's message payload (e.g. "1"); "" for the email as a whole. */
+    val partId: String,
     val fileName: String,
     val mimeType: String,
     val size: Long,

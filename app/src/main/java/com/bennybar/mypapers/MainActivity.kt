@@ -73,8 +73,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
-        if (intent.getStringExtra(GmailNotifications.EXTRA_OPEN) == GmailNotifications.OPEN_GMAIL) pendingRoute.value = Route.Gmail
-        else importShared(intent)
+        when (intent.getStringExtra(GmailNotifications.EXTRA_OPEN)) {
+            GmailNotifications.OPEN_GMAIL -> pendingRoute.value = Route.Gmail
+            GmailNotifications.OPEN_SETTINGS -> pendingRoute.value = Route.Settings
+            else -> importShared(intent)
+        }
     }
 
     /** PDFs and photos shared from another app: add them, and open the one if it's just one. */

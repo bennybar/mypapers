@@ -72,7 +72,7 @@ class Converters {
     @TypeConverter fun tagsFromJson(json: String): List<String> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class, GmailCandidate::class], version = 3)
+@Database(entities = [Document::class, GmailCandidate::class], version = 4)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
@@ -81,7 +81,7 @@ abstract class PapersDatabase : RoomDatabase() {
     companion object {
         fun open(context: Context): PapersDatabase =
             Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
         /** v2: AI reading state and duplicate marking. */
@@ -93,17 +93,27 @@ abstract class PapersDatabase : RoomDatabase() {
             }
         }
 
-        /** v3: what the Gmail scan found. */
+        /** v3: what the Gmail scan found (over IMAP; replaced in v4). */
         private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) = createGmailCandidates(db)
+        }
+
+        /**
+         * v4: Gmail over the Gmail API instead of IMAP. The table only holds scan
+         * results on this phone, so it's rebuilt; the next scan finds them again.
+         */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    "CREATE TABLE IF NOT EXISTS `gmail_candidates` (`key` TEXT NOT NULL, `uid` INTEGER NOT NULL, " +
-                        "`uidValidity` INTEGER NOT NULL, `messageId` TEXT, `subject` TEXT NOT NULL, `sender` TEXT NOT NULL, " +
-                        "`sentAt` INTEGER NOT NULL, `kind` TEXT NOT NULL, `partPath` TEXT NOT NULL, `fileName` TEXT NOT NULL, " +
-                        "`mimeType` TEXT NOT NULL, `size` INTEGER NOT NULL, `state` TEXT NOT NULL, `error` TEXT, " +
-                        "`documentId` TEXT, `foundAt` INTEGER NOT NULL, PRIMARY KEY(`key`))",
-                )
+                db.execSQL("DROP TABLE IF EXISTS `gmail_candidates`")
+                createGmailCandidates(db)
             }
         }
+
+        private fun createGmailCandidates(db: SupportSQLiteDatabase) = db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `gmail_candidates` (`key` TEXT NOT NULL, `gmailId` TEXT NOT NULL, " +
+                "`subject` TEXT NOT NULL, `sender` TEXT NOT NULL, `sentAt` INTEGER NOT NULL, `kind` TEXT NOT NULL, " +
+                "`partId` TEXT NOT NULL, `fileName` TEXT NOT NULL, `mimeType` TEXT NOT NULL, `size` INTEGER NOT NULL, " +
+                "`state` TEXT NOT NULL, `error` TEXT, `documentId` TEXT, `foundAt` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        )
     }
 }

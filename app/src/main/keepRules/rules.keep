@@ -5,11 +5,3 @@
 -keep class com.google.mlkit.** { *; }
 -keep class com.google.android.gms.internal.mlkit_** { *; }
 
-# JavaMail (Gmail over IMAP): providers and handlers are loaded by class name.
--keep class com.sun.mail.** { *; }
--keep class javax.mail.** { *; }
--keep class javax.activation.** { *; }
--keep class myjava.awt.datatransfer.** { *; }
--dontwarn java.awt.**
--dontwarn javax.security.**
--dontwarn java.beans.**

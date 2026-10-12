@@ -1,8 +1,10 @@
 package com.bennybar.mypapers.feature.settings
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -35,7 +37,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,7 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.ai.AiConfig
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.app
-import com.bennybar.mypapers.gmail.GmailConfig
+import com.bennybar.mypapers.gmail.GmailAuth
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -208,76 +209,96 @@ private fun AiSection() {
 @Composable
 private fun GmailSection(onOpenGmail: () -> Unit) {
     val saved by app.gmail.settings.config.collectAsStateWithLifecycle()
+    val session by app.server.session.collectAsStateWithLifecycle()
     val busy by app.gmail.observeBusy().collectAsStateWithLifecycle(false)
     val error by app.gmail.observeScanError().collectAsStateWithLifecycle(null)
     val newCount by app.gmail.observeNewCount().collectAsStateWithLifecycle(0)
-    var address by remember { mutableStateOf(saved.address) }
-    var password by remember { mutableStateOf(saved.appPassword) }
-    var months by remember { mutableIntStateOf(saved.monthsBack) }
-    var daily by remember { mutableStateOf(saved.dailySweep) }
-    val config = GmailConfig(address.trim(), password.replace(" ", ""), months, daily)
+    var status by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val email = session?.email
+
+    fun connected(address: String) {
+        app.gmail.settings.save(saved.copy(email = address))
+        app.gmail.scheduleSweep()
+        status = null
+    }
+    // Google's consent screen for read-only Gmail access.
+    val consent = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
+        if (r.resultCode == Activity.RESULT_OK && GmailAuth.tokenFrom(context, r.data) != null && email != null) connected(email)
+        else status = "Gmail wasn't connected"
+    }
     // The scan's progress shows as a notification; ask once (Android 13+).
     val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { app.gmail.scanNow() }
-    val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("Gmail")
         Text(
-            "Finds receipts and documents in your Gmail (attachments, and receipts written in the email) for you to pick from. " +
-                "Uses an app password: Google Account → Security → 2-Step Verification → App passwords.",
+            if (saved.isConnected) "Connected to ${saved.email} (read-only). Finds receipts and documents — attachments, and receipts written in the email — for you to pick from."
+            else "Finds receipts and documents in your Gmail — attachments, and receipts written in the email — for you to pick from. Read-only: My Papers can't change, send or delete anything.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedTextField(
-            address, { address = it },
-            label = { Text("Gmail address") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            password, { password = it },
-            label = { Text("App password") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text("First scan goes back", style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(3, 6, 12, 24).forEach { m ->
-                FilterChip(selected = months == m, onClick = { months = m }, label = { Text("$m months") }, shape = CircleShape)
+        if (saved.isConnected) {
+            Text("First scan goes back", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(3, 6, 12, 24).forEach { m ->
+                    FilterChip(
+                        selected = saved.monthsBack == m,
+                        onClick = { app.gmail.settings.save(saved.copy(monthsBack = m)) },
+                        label = { Text("$m months") },
+                        shape = CircleShape,
+                    )
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Check daily for new papers", style = MaterialTheme.typography.bodyLarge)
+                    Text("A notification when there's something new", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = saved.dailySweep, onCheckedChange = {
+                    app.gmail.settings.save(saved.copy(dailySweep = it))
+                    app.gmail.scheduleSweep()
+                })
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Check daily for new papers", style = MaterialTheme.typography.bodyLarge)
-                Text("A notification when there's something new", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Switch(checked = daily, onCheckedChange = { daily = it })
-        }
-        error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+        (status ?: error)?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                enabled = config.isSet && config != saved,
-                onClick = {
+            if (!saved.isConnected || error?.contains("Connect Gmail again") == true) {
+                Button(
+                    enabled = email != null,
+                    onClick = {
+                        scope.launch {
+                            status = try {
+                                when (val r = GmailAuth.authorize(context, email!!)) {
+                                    is GmailAuth.Result.Token -> { connected(email); null }
+                                    is GmailAuth.Result.NeedsConsent -> { consent.launch(IntentSenderRequest.Builder(r.intent).build()); null }
+                                }
+                            } catch (e: Exception) {
+                                e.message ?: e.javaClass.simpleName
+                            }
+                        }
+                    },
+                ) { Text(if (saved.isConnected) "Connect again" else "Connect Gmail") }
+            }
+            if (saved.isConnected) {
+                Button(
+                    enabled = !busy,
+                    onClick = {
+                        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                        if (granted) app.gmail.scanNow() else askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        onOpenGmail()
+                    },
+                ) { Text(if (busy) "Scanning…" else if (app.gmail.settings.lastScanAt == 0L) "Scan now" else "Scan again") }
+                OutlinedButton(onClick = {
                     scope.launch {
-                        if (config.address != saved.address) app.gmail.reset()
-                        app.gmail.settings.save(config)
-                        app.gmail.scheduleSweep()
+                        app.gmail.reset()
+                        app.gmail.settings.save(saved.copy(email = ""))
                     }
-                },
-            ) { Text("Save") }
-            OutlinedButton(
-                enabled = saved.isSet && config == saved && !busy,
-                onClick = {
-                    val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                    if (granted) app.gmail.scanNow() else askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    onOpenGmail()
-                },
-            ) { Text(if (busy) "Scanning…" else if (app.gmail.settings.lastScanAt == 0L) "Scan now" else "Scan again") }
+                }) { Text("Disconnect") }
+            }
         }
+        if (email == null) Text("Sign in first (above) — Gmail uses the same Google account.", style = MaterialTheme.typography.bodySmall)
         if (newCount > 0) TextButton(onClick = onOpenGmail) { Text("Review $newCount found in Gmail") }
     }
 }

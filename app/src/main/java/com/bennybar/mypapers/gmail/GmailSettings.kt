@@ -1,26 +1,23 @@
 package com.bennybar.mypapers.gmail
 
 import android.content.Context
-import com.bennybar.mypapers.data.KeystoreCipher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 data class GmailConfig(
-    val address: String,
-    /** A Gmail app password (Google account → Security → App passwords; needs 2-Step Verification). */
-    val appPassword: String,
+    /** The Google account Gmail was connected with (the signed-in one); "" = not connected. */
+    val email: String,
     /** How far back the first scan looks. */
     val monthsBack: Int,
     /** Look for new papers once a day after the first scan. */
     val dailySweep: Boolean,
 ) {
-    val isSet get() = address.isNotBlank() && appPassword.isNotBlank()
+    val isConnected get() = email.isNotBlank()
 }
 
-/** The Gmail login (app password encrypted with the Android Keystore, this phone only) and scan progress. */
+/** Which Gmail is connected, the scan options, and scan progress (this phone only). */
 class GmailSettings(context: Context) {
     private val prefs = context.getSharedPreferences("gmail", Context.MODE_PRIVATE)
-    private val cipher = KeystoreCipher("mypapers_gmail")
 
     private val _config = MutableStateFlow(read())
     val config: StateFlow<GmailConfig> = _config
@@ -31,23 +28,18 @@ class GmailSettings(context: Context) {
         set(value) = prefs.edit().putLong("lastScanAt", value).apply()
 
     fun save(config: GmailConfig) {
-        val accountChanged = config.address.trim() != _config.value.address
+        val accountChanged = config.email != _config.value.email
         prefs.edit()
-            .putString("address", config.address.trim())
-            .putString("appPassword", cipher.encrypt(config.appPassword.replace(" ", "")))
+            .putString("email", config.email)
             .putInt("monthsBack", config.monthsBack)
             .putBoolean("dailySweep", config.dailySweep)
-            .apply {
-                // Another mailbox: its first scan is a full one again.
-                if (accountChanged) putLong("lastScanAt", 0)
-            }
+            .also { if (accountChanged) it.putLong("lastScanAt", 0) } // another mailbox: full first scan again
             .apply()
         _config.value = read()
     }
 
     private fun read() = GmailConfig(
-        address = prefs.getString("address", "")!!,
-        appPassword = prefs.getString("appPassword", null)?.let(cipher::decrypt).orEmpty(),
+        email = prefs.getString("email", "")!!,
         monthsBack = prefs.getInt("monthsBack", 6),
         dailySweep = prefs.getBoolean("dailySweep", true),
     )

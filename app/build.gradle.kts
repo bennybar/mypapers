@@ -54,11 +54,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    packaging {
-        // JavaMail ships its provider lists here; keep them, drop the duplicate license files.
-        resources.excludes += setOf("META-INF/LICENSE.md", "META-INF/NOTICE.md")
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -81,8 +76,8 @@ dependencies {
     implementation(libs.androidx.credentials.play.services)
     implementation(libs.googleid)
     implementation(libs.document.scanner)
-    implementation(libs.android.mail)
-    implementation(libs.android.activation)
+    implementation(libs.play.services.auth)
+    implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(platform(libs.compose.bom))
