@@ -22,6 +22,23 @@ class DocumentFiles(filesDir: File) {
     fun delete(id: String) = file(id).delete()
 
     fun deleteAll() = dir.listFiles()?.forEach { it.delete() }
+
+    companion object {
+        /** The file's type from its first bytes, for when the sender doesn't say (e.g. the scanner's file:// result). */
+        fun sniffMimeType(file: File): String? {
+            val head = ByteArray(8)
+            val n = runCatching { file.inputStream().use { it.read(head) } }.getOrDefault(-1)
+            if (n < 4) return null
+            return when {
+                head[0] == '%'.code.toByte() && head[1] == 'P'.code.toByte() && head[2] == 'D'.code.toByte() && head[3] == 'F'.code.toByte() -> "application/pdf"
+                head[0] == 0xFF.toByte() && head[1] == 0xD8.toByte() && head[2] == 0xFF.toByte() -> "image/jpeg"
+                head[0] == 0x89.toByte() && head[1] == 'P'.code.toByte() && head[2] == 'N'.code.toByte() && head[3] == 'G'.code.toByte() -> "image/png"
+                n >= 8 && String(head, 4, 4, Charsets.US_ASCII) == "ftyp" -> "image/heic"
+                head[0] == 'R'.code.toByte() && head[1] == 'I'.code.toByte() && head[2] == 'F'.code.toByte() && head[3] == 'F'.code.toByte() -> "image/webp"
+                else -> null
+            }
+        }
+    }
 }
 
 sealed interface ImportResult {
@@ -40,8 +57,11 @@ class DocumentRepository(
 
     fun observe(id: String): Flow<Document?> = dao.observe(id)
 
-    /** Copies a picked or shared file in; the same file twice is a duplicate. */
-    suspend fun import(uri: Uri): ImportResult = withContext(Dispatchers.IO) {
+    /**
+     * Copies a picked, scanned or shared file in; the same file twice is a duplicate.
+     * [name]: the file name to keep, if not the one the file comes with.
+     */
+    suspend fun import(uri: Uri, name: String? = null): ImportResult = withContext(Dispatchers.IO) {
         val temp = files.temp()
         val digest = MessageDigest.getInstance("SHA-256")
         resolver.openInputStream(uri)!!.use { input ->
@@ -67,8 +87,8 @@ class DocumentRepository(
             Document(
                 id = id,
                 fileHash = hash,
-                fileName = displayName(uri),
-                mimeType = resolver.getType(uri),
+                fileName = name ?: displayName(uri),
+                mimeType = resolver.getType(uri) ?: DocumentFiles.sniffMimeType(files.file(id)),
                 createdAt = now,
                 updatedAt = now,
                 fileLocal = true,

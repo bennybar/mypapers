@@ -1,6 +1,9 @@
 package com.bennybar.mypapers
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -23,6 +26,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bennybar.mypapers.data.ImportResult
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -44,13 +52,46 @@ import com.bennybar.mypapers.ui.theme.AppTheme.Emphasized
 import com.bennybar.mypapers.ui.theme.PapersTheme
 
 class MainActivity : ComponentActivity() {
+    /** A document to show once the UI is up (a single shared file, just added). */
+    private val openDocument = MutableStateFlow<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
-        setContent { PapersTheme { AppRoot() } }
+        setContent { PapersTheme { AppRoot(openDocument) } }
+        if (savedInstanceState == null) importShared(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        importShared(intent)
+    }
+
+    /** PDFs and photos shared from another app: add them, and open the one if it's just one. */
+    private fun importShared(intent: Intent) {
+        val uris = when (intent.action) {
+            Intent.ACTION_SEND -> listOfNotNull(intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java))
+            Intent.ACTION_SEND_MULTIPLE -> intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+            else -> return
+        }
+        if (uris.isEmpty()) return
+        // The read permission lasts while this activity is alive: copy them in now.
+        lifecycleScope.launch {
+            val results = uris.map { runCatching { app.repository.import(it) }.getOrNull() }
+            val added = results.filterIsInstance<ImportResult.Added>()
+            val duplicates = results.count { it is ImportResult.Duplicate }
+            val failed = results.count { it == null }
+            if (added.size == 1 && duplicates == 0 && failed == 0) openDocument.value = added.single().id
+            val message = listOfNotNull(
+                added.size.takeIf { it > 0 }?.let { if (it == 1) "Added to My Papers" else "Added $it papers" },
+                duplicates.takeIf { it > 0 }?.let { if (it == 1 && uris.size == 1) "Already in My Papers" else "$it already there" },
+                failed.takeIf { it > 0 }?.let { "$it couldn't be read" },
+            ).joinToString(" · ")
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onResume() {
@@ -71,8 +112,15 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun AppRoot() {
+private fun AppRoot(openDocument: MutableStateFlow<String?>) {
     val controller = rememberNavController()
+    val pendingOpen by openDocument.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingOpen) {
+        pendingOpen?.let {
+            controller.navigate(Route.Document(it))
+            openDocument.value = null
+        }
+    }
     SharedTransitionLayout(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
             NavHost(

@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import com.bennybar.mypapers.data.DocumentFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -74,7 +75,7 @@ fun DocumentPreview(file: File, mimeType: String?, available: Boolean, modifier:
 }
 
 private fun render(file: File, mimeType: String?): List<Bitmap> =
-    if (mimeType == "application/pdf") renderPdf(file) else listOfNotNull(decodeImage(file))
+    if ((mimeType ?: DocumentFiles.sniffMimeType(file)) == "application/pdf") renderPdf(file) else listOfNotNull(decodeImage(file))
 
 private fun renderPdf(file: File): List<Bitmap> =
     ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->

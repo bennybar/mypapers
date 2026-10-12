@@ -43,9 +43,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            // The whole app (optimizing only androidx/kotlin packages crashed at launch: IllegalAccessError).
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }
     }
@@ -75,6 +75,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services)
     implementation(libs.googleid)
+    implementation(libs.document.scanner)
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(platform(libs.compose.bom))

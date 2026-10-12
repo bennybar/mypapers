@@ -41,7 +41,7 @@ class DocumentsViewModel : ViewModel() {
 
     fun toggleTag(tag: String) = selectedTags.update { if (tag in it) it - tag else it + tag }
 
-    suspend fun import(uri: Uri): ImportResult = app.repository.import(uri)
+    suspend fun import(uri: Uri, name: String? = null): ImportResult = app.repository.import(uri, name)
 
     suspend fun refresh() = app.sync.sync()
 }
