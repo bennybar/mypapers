@@ -1,0 +1,162 @@
+{
+ "object": "response",
+ "created_at": 1791804331,
+ "status": "completed",
+ "access_programs": null,
+ "background": false,
+ "billing": {
+  "payer": "developer"
+ },
+ "completed_at": 1791804333,
+ "error": null,
+ "frequency_penalty": 0.0,
+ "incomplete_details": null,
+ "instructions": null,
+ "max_output_tokens": null,
+ "max_tool_calls": null,
+ "model": "gpt-5.4-mini-2026-03-17",
+ "moderation": null,
+ "output": [
+  {
+   "id": "rs_0e7d13f4ff79f443006accc3acc91c87d19c1178e12a57949a",
+   "type": "reasoning",
+   "content": [],
+   "encrypted_content": "gAAAAABqzMOtBjXlVH9YsjCbIzO8mFZ6vhpIEMFuM_xAWkw7mqz8kvhWHQMERLGpvoQmnjnwh-DVwAmivQz-hwnzYaQcPj-PbR4nWD8ZKgZIYC2p-G_8X_epBYmWqXo6TjEe-4TSEoXRbnNYduIH4l_ojLhXVmwLIyvUPXrbxm4XLbG0m892v9Ckrtx-Ft-RaQwYILcvInymnynGSB00VdE4fA8tPaMtSLc2PHHNl31qqz8wMvotrGXklsqC6HtIk-XZVZjaH2YdeC2sbaesQaPcyxZ9ZokSk2VP0MQqed7qSEElzBRZAkiHnrR4tnMsmAz98bWebalz4rjYPju7VsykNI2cIMMMJxCOW0T_z57PZcb-0ItSh9VTCoP9D2hcRwQaUb_SybWXSEhT9e3tt34PTPlDJ4eoAogl2Pg6ditUCz6I4pkf3VVwbwC3-D7xfV2jXOm3xV2McE1KdfvnJEoUzkhoFNSTzY6LHg2vWB6-G5nHTboPAAkhhQO4PnP_3zNzyC1WwnIiI_xFfgctFR8-WITQb5Z0LpmIkQOIoYlZGFCEVPE9QcmzAxwn5YPR6-6zSVFF1MjGMxKNYVaVtF-KZcTAJNvnanQCZGg1Eka3EkgYPDvaSjn2jf9JXMXjKoiDbZcc48OZS6NuDaAeNTC2CA3sm77zrvGDGE-reVHyw9lu-h0BXkPLrG18ZTIpg4IzNqy5hU-WBDi2N33UBkDwaLTHO-lCezGfvbWKeO1uX0AWOkz2cj0jyp2H08reSEzXyjJPZgiDBb4tqWUNANdnXOTlLosVJmS51CI1BfxOSatB9L22R9Kl-pIj6cvnkNpFvj_7GXQ5ACWgLSwDkqG31F-TeLCgNhQW3QSwEM5t1VR3lA8W0hKddJBRDa9vHqonA98KNBnN8vV0PCcQ8dhmiAEK8_4ZqK5U45V9Hy7X-Homs84W5ZhpDM7mBKswVLtbbao0wHUvzk8d5WHjVykIBHb1i3KwL_rmgk91tthDw0ZfGL-u68cSenMVkCpuyRTRn0p1Vo3Xip0f91T6xHbwuIcoif0vOhLxtZzEh_WdPfsqR1snFcYCHxKzHBUiqmLQ6WO0vXlCW8DK_unEoQp10gyfR_f0tn3bd-uxFZKYhZtJnZdz3KhR_yAI7SzqBZmTlbKdC3RfTzJbgtB508loFn6yg2c7EH-Fzw_fIK75s30eQfCMzI638HOppyx-8-51vdUIcylO2qGPi_NEx4O9Ur99_ByHm3ZrjcLLVxz58ipzN-iN3a2b0ToNb0Vt4NLvq6D1R50m0Xf9y9_0Q6kRkP2UE0BeZMYeaCHhS5SfYyfz2Yf6gLMi0W0kmJw6WKZrDa4sxgNh3JfPdDmsYN_WR1UjFR7nyI5PtVCjHFyvlVCsCciZgtFfbRr-QL65nnArufkXsu4-9iC-a2Krf5PDxdMLWpImoFhbUyBPxAFYvfqJE8cc29wBwDu57DKrbbepgIowDKIqmMwjXX676RM-ODrWggD2khVWiDy0csa6519bDVHiXxVy0scAk6KhT0Gmz-x0yUthz8p_EjqZFZka2fVXM_u81OkEtmKAkKTM2JbzyFMUerdLKG7F6e_tMgQzsXxfG4eb1aTNThRIF4jQM7FShcwnDb_jGxgwoUq4ItISiG2SUN_SKuDviqnELelma0AN_tZ30Jv8AtFc4lGY3MPrK4r2XYotUjAYXkym0edKMH6Vj2Jtbd659ulepmSi2LGOvelFZNzOSs5ZSwSWKICXIYW0Xzq9oGcoIG_rZj803g0GN48HwxAN650GaS1mfeibrjuEctgZQFYXOnGSYKr6YS6ZY8Yn80390ffh6aHu8Z241I8HHdVp_iS0g1gkFKpHMLO6BHGEL0fzw5ipGNQEt78yaL3Tstyj2Qb8kl_PnJdHlETvfZJy2ynIO70_mNk4LX2Bomnj3jYP9QIQ_mT8dJVR4S87P72tOX9qx57m2qqx2g8mS57QsDyNK9m0bY7S9CjssuswdaTZgTXXnkkApm22noAIXRz_Tsh0ah83_M3pv_gGB79JW0gdnRBc0mbGIH6fzrmH1Wwy2jVGOXCiGzjStsVf5NFVFWjlj5visyOzLKRvpx3CWfqkJEO53eDLiB0OJQH1s5Qop1fcA03KX60u72hPcBuZLAYvcSVHdCktythc-mw7sSM6RIOraYY2nowvw9tpX34j04m06RZhnxen4mwOx-Opqsisz6nRscYC12nj6whDyFKEjYAjMEh6ks3b5EPqRJwqbJ6DCH3z6U2ZJDyLlXZyvzbu_kvgiBd5LOEhljH6lYl1AtGQbc85FxU2n3L0svUJ4d8PvuUiF_afpNdyHZvIyo_Xg35Zh8yBLz2C5ykXsNdzB_nhiLmlhRgVY5sdRGCdp0aoly5u5vS5JK-MAWvyr6NqHN9yBCpq5YsGEmzKBRyFhLB9F9JkN_xt4vjkD1jUhAcmmsMDbnPhxYSwUzCwJQ2iBFB4jp5DA1BASqdK_1_6Yziyo9N0roJs",
+   "summary": []
+  },
+  {
+   "id": "msg_0e7d13f4ff79f443006accc3ad561487d1927a93ccf0797e53",
+   "type": "message",
+   "status": "completed",
+   "content": [
+    {
+     "type": "output_text",
+     "annotations": [],
+     "logprobs": [],
+     "text": "{\"vendor\":\"SHUFERSAL DEAL\",\"docType\":\"Receipt\",\"date\":null,\"total\":59.3,\"currency\":\"ILS\",\"vat\":null,\"tags\":[\"Groceries\",\"Food\"],\"text\":\"SHUFERSAL DEAL\\nReceipt 4411\\n\\nMilk              6.90\\nBread            12.50\\nCoffee           39.90\\n\\nTOTAL ILS        59.30\"}"
+    }
+   ],
+   "phase": "final_answer",
+   "role": "assistant"
+  }
+ ],
+ "parallel_tool_calls": true,
+ "presence_penalty": 0.0,
+ "previous_response_id": null,
+ "prompt_cache_retention": "24h",
+ "reasoning": {
+  "context": "current_turn",
+  "effort": "low",
+  "mode": "standard",
+  "summary": null
+ },
+ "service_tier": "default",
+ "store": true,
+ "temperature": 1.0,
+ "text": {
+  "format": {
+   "type": "json_schema",
+   "description": null,
+   "name": "document",
+   "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "vendor",
+     "docType",
+     "date",
+     "total",
+     "currency",
+     "vat",
+     "tags",
+     "text"
+    ],
+    "properties": {
+     "vendor": {
+      "type": "string"
+     },
+     "docType": {
+      "type": "string",
+      "enum": [
+       "Receipt",
+       "Invoice",
+       "Warranty",
+       "Contract",
+       "Other"
+      ]
+     },
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "total": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "currency": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "vat": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "tags": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "text": {
+      "type": "string"
+     }
+    }
+   },
+   "strict": true
+  },
+  "verbosity": "medium"
+ },
+ "tool_choice": "auto",
+ "tool_usage": {
+  "image_gen": {
+   "input_tokens": 0,
+   "input_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "output_tokens": 0,
+   "output_tokens_details": {
+    "image_tokens": 0,
+    "text_tokens": 0
+   },
+   "total_tokens": 0
+  },
+  "web_search": {
+   "num_requests": 0
+  }
+ },
+ "tools": [],
+ "top_logprobs": 0,
+ "top_p": 0.98,
+ "truncation": "disabled",
+ "usage": {
+  "input_tokens": 184,
+  "input_tokens_details": {
+   "cache_write_tokens": 0,
+   "cached_tokens": 0
+  },
+  "output_tokens": 178,
+  "output_tokens_details": {
+   "reasoning_tokens": 84
+  },
+  "total_tokens": 362
+ }
+}

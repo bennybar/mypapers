@@ -9,6 +9,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 
@@ -26,6 +28,9 @@ interface DocumentDao {
 
     @Query("SELECT * FROM documents WHERE deleted = 0 AND fileHash = :hash LIMIT 1")
     suspend fun findByHash(hash: String): Document?
+
+    @Query("SELECT * FROM documents WHERE deleted = 0")
+    suspend fun all(): List<Document>
 
     @Query("SELECT * FROM documents WHERE dirty = 1")
     suspend fun dirty(): List<Document>
@@ -65,13 +70,24 @@ class Converters {
     @TypeConverter fun tagsFromJson(json: String): List<String> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class], version = 1)
+@Database(entities = [Document::class], version = 2)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
 
     companion object {
         fun open(context: Context): PapersDatabase =
-            Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db").build()
+            Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
+
+        /** v2: AI reading state and duplicate marking. */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE documents ADD COLUMN aiState TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE documents ADD COLUMN aiError TEXT")
+                db.execSQL("ALTER TABLE documents ADD COLUMN duplicateOf TEXT")
+            }
+        }
     }
 }

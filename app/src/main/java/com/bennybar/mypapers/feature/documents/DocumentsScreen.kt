@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -37,6 +38,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
@@ -72,6 +74,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bennybar.mypapers.data.AI_FAILED
+import com.bennybar.mypapers.data.AI_PENDING
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.ImportResult
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
@@ -343,8 +347,26 @@ private fun DocumentCard(doc: Document, onClick: () -> Unit) {
                     Spacer(Modifier.padding(top = 12.dp))
                     TagRow(doc.tags)
                 }
+                AiStatus(doc, Modifier.padding(top = 12.dp))
             }
         }
+    }
+}
+
+/** Reading with the AI / couldn't read / looks like a duplicate — nothing when all is settled. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun AiStatus(doc: Document, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
+    val (text, color) = when {
+        doc.aiState == AI_PENDING -> "Reading with AI…" to cs.primary
+        doc.aiState == AI_FAILED -> "Couldn't read it: ${doc.aiError.orEmpty()}" to cs.error
+        doc.duplicateOf != null -> "Possible duplicate" to cs.tertiary
+        else -> return
+    }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (doc.aiState == AI_PENDING) LoadingIndicator(Modifier.size(24.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = color, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 

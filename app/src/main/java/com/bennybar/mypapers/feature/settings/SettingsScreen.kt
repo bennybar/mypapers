@@ -4,9 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,9 +32,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bennybar.mypapers.ai.AiConfig
+import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.app
 import kotlinx.coroutines.launch
 
@@ -58,6 +65,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(32.dp),
         ) {
             AccountSection()
+            AiSection()
         }
     }
 }
@@ -125,5 +133,59 @@ private fun AccountSection() {
             },
             dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+private fun AiSection() {
+    val saved by app.ai.config.collectAsStateWithLifecycle()
+    var apiKey by remember { mutableStateOf(saved.apiKey) }
+    var model by remember { mutableStateOf(saved.model) }
+    var status by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val config = AiConfig(apiKey.trim(), model.trim().ifBlank { AiSettings.DEFAULT_MODEL })
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("AI reading")
+        Text(
+            "Your own OpenAI key reads each new paper and fills in the vendor, amounts, date and tags. It stays on this phone.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            apiKey, { apiKey = it; status = null },
+            label = { Text("OpenAI API key") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            model, { model = it; status = null },
+            label = { Text("Model") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        status?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(
+                enabled = config.isSet && !busy,
+                onClick = {
+                    scope.launch {
+                        busy = true
+                        status = runCatching { app.openAi.check(config) }.fold({ "Key and model work" }, { it.message })
+                        busy = false
+                    }
+                },
+            ) { Text("Test") }
+            Button(
+                enabled = !busy && config != saved,
+                onClick = {
+                    app.ai.save(config)
+                    status = "Saved"
+                },
+            ) { Text("Save") }
+        }
     }
 }

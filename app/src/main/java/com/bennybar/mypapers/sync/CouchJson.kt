@@ -47,6 +47,9 @@ fun Document.toCouchJson(keepFile: Boolean): JsonObject = buildJsonObject {
     put("mimeType", mimeType)
     put("createdAt", createdAt)
     put("updatedAt", updatedAt)
+    put("aiState", aiState)
+    put("aiError", aiError)
+    put("duplicateOf", duplicateOf)
     if (keepFile) putJsonObject("_attachments") { putJsonObject(FILE_ATTACHMENT) { put("stub", true) } }
 }
 
@@ -87,6 +90,9 @@ fun JsonObject.toDocument(fileLocal: Boolean): Document = Document(
     mimeType = str("mimeType"),
     createdAt = long("createdAt") ?: 0L,
     updatedAt = updatedAt(),
+    aiState = str("aiState").orEmpty(),
+    aiError = str("aiError"),
+    duplicateOf = str("duplicateOf"),
     rev = rev(),
     dirty = false,
     deleted = false,

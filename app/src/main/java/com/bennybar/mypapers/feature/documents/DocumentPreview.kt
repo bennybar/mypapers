@@ -68,7 +68,8 @@ fun DocumentPreview(file: File, mimeType: String?, available: Boolean, modifier:
                 page.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.FillWidth,
-                modifier = Modifier.fillMaxWidth().clip(shape),
+                // On white, like paper (a transparent image would show dark text on the dark page).
+                modifier = Modifier.fillMaxWidth().clip(shape).background(androidx.compose.ui.graphics.Color.White),
             )
         }
     }

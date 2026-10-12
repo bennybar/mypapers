@@ -147,7 +147,12 @@ private fun AppRoot(openDocument: MutableStateFlow<String?>) {
                 // Not opaque: the page itself is the container growing out of the card.
                 screen<Route.Document>(opaque = false) {
                     val id = it.toRoute<Route.Document>().id
-                    DocumentDetailScreen(id, onBack = controller::popBackStack, onEdit = { controller.navigate(Route.EditDocument(id)) })
+                    DocumentDetailScreen(
+                        id,
+                        onBack = controller::popBackStack,
+                        onEdit = { controller.navigate(Route.EditDocument(id)) },
+                        onOpen = { controller.navigate(Route.Document(it)) },
+                    )
                 }
                 screen<Route.EditDocument> { EditDocumentScreen(it.toRoute<Route.EditDocument>().id, onDone = controller::popBackStack) }
                 screen<Route.Settings> { SettingsScreen(onBack = controller::popBackStack) }

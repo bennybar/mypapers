@@ -3,11 +3,17 @@ package com.bennybar.mypapers.data
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.bennybar.mypapers.ai.AiInput
+import com.bennybar.mypapers.ai.AiSettings
+import com.bennybar.mypapers.ai.ExtractionPrompt
+import com.bennybar.mypapers.ai.OpenAiClient
+import com.bennybar.mypapers.ai.withExtraction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
+import java.util.Locale
 import java.util.UUID
 
 /** Each document's file, stored as `files/docs/<id>`. */
@@ -50,8 +56,12 @@ class DocumentRepository(
     private val dao: DocumentDao,
     val files: DocumentFiles,
     private val resolver: ContentResolver,
+    private val ai: AiSettings,
+    private val openAi: OpenAiClient,
     /** Called after every local change, to schedule a sync. */
     private val onChanged: () -> Unit,
+    /** Schedules the AI reading of a document (in the background). */
+    private val onNeedsReading: (String) -> Unit,
 ) {
     fun observeAll(): Flow<List<Document>> = dao.observeAll()
 
@@ -92,9 +102,11 @@ class DocumentRepository(
                 createdAt = now,
                 updatedAt = now,
                 fileLocal = true,
+                aiState = if (ai.config.value.isSet) AI_PENDING else "",
             ),
         )
         onChanged()
+        if (ai.config.value.isSet) onNeedsReading(id)
         ImportResult.Added(id)
     }
 
@@ -110,6 +122,46 @@ class DocumentRepository(
         else dao.upsert(doc.copy(deleted = true, dirty = true, updatedAt = System.currentTimeMillis()))
         files.delete(id)
         onChanged()
+    }
+
+    /** Reads (or re-reads) a document with the AI. */
+    suspend fun requestReading(id: String) {
+        val doc = dao.get(id) ?: return
+        update(doc.copy(aiState = AI_PENDING, aiError = null))
+        onNeedsReading(id)
+    }
+
+    /**
+     * The AI reading itself (run by [com.bennybar.mypapers.ai.ExtractWorker]):
+     * fills the fields, adds tags (reusing existing ones), and flags a likely duplicate.
+     */
+    suspend fun extract(id: String) {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return
+        val config = ai.config.value
+        if (!config.isSet) {
+            update(doc.copy(aiState = ""))
+            return
+        }
+        if (!doc.fileLocal) return
+        val all = dao.all()
+        val existingTags = all.flatMap { it.tags }.distinctBy { it.lowercase() }.sorted()
+        val parts = withContext(Dispatchers.IO) { AiInput.parts(files.file(id), doc.mimeType, doc.fileName) }
+        val extraction = openAi.extract(config, ExtractionPrompt.build(existingTags, Locale.getDefault()), parts)
+        // The latest copy: it may have been edited while the model was reading.
+        val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
+        val read = latest.withExtraction(extraction, existingTags)
+        update(read.copy(duplicateOf = Duplicates.find(read, all)?.id))
+    }
+
+    suspend fun markExtractionFailed(id: String, message: String) {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return
+        update(doc.copy(aiState = AI_FAILED, aiError = message))
+    }
+
+    /** Not a duplicate after all. */
+    suspend fun keepBoth(id: String) {
+        val doc = dao.get(id) ?: return
+        update(doc.copy(duplicateOf = null))
     }
 
     private fun displayName(uri: Uri): String? =

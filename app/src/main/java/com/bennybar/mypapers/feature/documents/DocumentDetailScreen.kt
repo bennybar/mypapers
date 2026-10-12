@@ -7,6 +7,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,6 +19,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,12 +39,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.app
+import com.bennybar.mypapers.data.AI_FAILED
+import com.bennybar.mypapers.data.AI_PENDING
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
@@ -51,7 +57,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
+fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onOpen: (String) -> Unit) {
     val flow = remember(id) { app.repository.observe(id) }
     val doc by flow.collectAsStateWithLifecycle(null)
     var seen by remember { mutableStateOf(false) }
@@ -68,6 +74,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val aiSet = app.ai.config.collectAsStateWithLifecycle().value.isSet
 
     with(LocalSharedTransitionScope.current) {
         Scaffold(
@@ -104,6 +111,14 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
                                     }
                                 },
                             )
+                            DropdownMenuItem(
+                                text = { Text("Read with AI") },
+                                enabled = aiSet && doc?.fileLocal == true && doc?.aiState != AI_PENDING,
+                                onClick = {
+                                    menu = false
+                                    scope.launch { app.repository.requestReading(id) }
+                                },
+                            )
                             DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; confirmDelete = true })
                         }
                     },
@@ -111,7 +126,15 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
                 )
             },
         ) { padding ->
-            doc?.let { d -> DocumentDetails(d, Modifier.padding(padding), onEdit) }
+            doc?.let { d ->
+                DocumentDetails(
+                    d, Modifier.padding(padding), onEdit,
+                    onRetry = { scope.launch { app.repository.requestReading(id) } },
+                    onOpen = onOpen,
+                    onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
+                    onDelete = { confirmDelete = true },
+                )
+            }
         }
     }
 
@@ -132,7 +155,15 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
 }
 
 @Composable
-private fun DocumentDetails(doc: Document, modifier: Modifier, onEdit: () -> Unit) {
+private fun DocumentDetails(
+    doc: Document,
+    modifier: Modifier,
+    onEdit: () -> Unit,
+    onRetry: () -> Unit,
+    onOpen: (String) -> Unit,
+    onKeepBoth: () -> Unit,
+    onDelete: () -> Unit,
+) {
     Column(
         modifier
             .fillMaxSize()
@@ -149,6 +180,13 @@ private fun DocumentDetails(doc: Document, modifier: Modifier, onEdit: () -> Uni
             Spacer(Modifier.padding(top = 4.dp))
             Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (doc.aiState == AI_PENDING || doc.aiState == AI_FAILED) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                AiStatus(doc, Modifier.weight(1f))
+                if (doc.aiState == AI_FAILED) TextButton(onClick = onRetry) { Text("Retry") }
+            }
+        }
+        doc.duplicateOf?.let { otherId -> DuplicateBanner(otherId, onOpen, onKeepBoth, onDelete) }
         Spacer(Modifier.padding(top = 16.dp))
         if (doc.totalCents != null) {
             Text(Format.amount(doc.totalCents, doc.currency), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
@@ -160,7 +198,7 @@ private fun DocumentDetails(doc: Document, modifier: Modifier, onEdit: () -> Uni
                 )
             }
         } else {
-            Text(
+            if (doc.aiState != AI_PENDING) Text(
                 "Add the amount, date and tags",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
@@ -178,5 +216,30 @@ private fun DocumentDetails(doc: Document, modifier: Modifier, onEdit: () -> Uni
         Spacer(Modifier.padding(top = 24.dp))
         DocumentPreview(app.repository.files.file(doc.id), doc.mimeType, available = doc.fileLocal)
         Spacer(Modifier.padding(top = 24.dp))
+    }
+}
+
+/** "Looks like a duplicate of …": open the other one, keep both, or delete this one. */
+@Composable
+private fun DuplicateBanner(otherId: String, onOpen: (String) -> Unit, onKeepBoth: () -> Unit, onDelete: () -> Unit) {
+    val other by remember(otherId) { app.repository.observe(otherId) }.collectAsStateWithLifecycle(null)
+    val o = other ?: return // the other one is gone: nothing to compare with
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+        modifier = Modifier.padding(top = 16.dp),
+    ) {
+        Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 4.dp)) {
+            Text(
+                "Looks like a duplicate of ${o.title()}" + (Format.date(o.date)?.let { " ($it)" } ?: ""),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            Row {
+                TextButton(onClick = { onOpen(otherId) }) { Text("Open it") }
+                TextButton(onClick = onKeepBoth) { Text("Keep both") }
+                TextButton(onClick = onDelete) { Text("Delete this") }
+            }
+        }
     }
 }

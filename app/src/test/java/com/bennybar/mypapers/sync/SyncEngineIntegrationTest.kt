@@ -102,6 +102,7 @@ private class FakeDao : DocumentDao {
     override fun observe(id: String): Flow<Document?> = rows.map { it[id]?.takeIf { d -> !d.deleted } }
     override suspend fun get(id: String) = rows.value[id]
     override suspend fun findByHash(hash: String) = rows.value.values.firstOrNull { !it.deleted && it.fileHash == hash }
+    override suspend fun all() = rows.value.values.filter { !it.deleted }
     override suspend fun dirty() = rows.value.values.filter { it.dirty }
     override suspend fun missingFiles() = rows.value.values.filter { !it.deleted && it.fileUploaded && !it.fileLocal }
     override suspend fun upsert(doc: Document) { rows.value = rows.value + (doc.id to doc) }

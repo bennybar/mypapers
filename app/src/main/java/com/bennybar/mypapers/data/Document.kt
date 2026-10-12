@@ -32,6 +32,12 @@ data class Document(
     val createdAt: Long,
     /** Last edit (epoch ms) — the newer side wins a sync conflict. */
     val updatedAt: Long,
+    /** AI reading: "" (not asked), [AI_PENDING], [AI_DONE] or [AI_FAILED]. */
+    val aiState: String = "",
+    /** Why the AI reading failed, for [AI_FAILED]. */
+    val aiError: String? = null,
+    /** Another document this one seems to repeat (same vendor, amount and date), until kept or deleted. */
+    val duplicateOf: String? = null,
 
     // Sync bookkeeping (local only).
     /** The CouchDB revision this row is based on; null = never pushed. */
@@ -47,3 +53,7 @@ data class Document(
 )
 
 val DOCUMENT_TYPES = listOf("Receipt", "Invoice", "Warranty", "Contract", "Other")
+
+const val AI_PENDING = "pending"
+const val AI_DONE = "done"
+const val AI_FAILED = "failed"

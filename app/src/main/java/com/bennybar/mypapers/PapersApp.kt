@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.bennybar.mypapers.ai.AiSettings
+import com.bennybar.mypapers.ai.ExtractWorker
+import com.bennybar.mypapers.ai.OpenAiClient
 import com.bennybar.mypapers.data.DocumentDao
 import com.bennybar.mypapers.data.DocumentFiles
 import com.bennybar.mypapers.data.DocumentRepository
@@ -31,6 +34,8 @@ class PapersApp : Application() {
     lateinit var repository: DocumentRepository
     lateinit var sync: SyncEngine
     lateinit var account: Account
+    lateinit var ai: AiSettings
+    val openAi = OpenAiClient()
     private lateinit var dao: DocumentDao
     private lateinit var files: DocumentFiles
     private var pendingSync: Job? = null
@@ -42,7 +47,12 @@ class PapersApp : Application() {
         files = DocumentFiles(filesDir)
         server = ServerSettings(this)
         account = Account()
-        repository = DocumentRepository(dao, files, contentResolver, onChanged = { requestSync() })
+        ai = AiSettings(this)
+        repository = DocumentRepository(
+            dao, files, contentResolver, ai, openAi,
+            onChanged = { requestSync() },
+            onNeedsReading = { ExtractWorker.enqueue(this, it) },
+        )
         sync = SyncEngine(dao, files, server) {
             server.session.value?.takeUnless { it.isExpired() }
                 ?.let { CouchClient(ServerSettings.SERVER_URL, it.db, "Bearer ${it.token}") }
