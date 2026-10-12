@@ -24,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraphBuilder
@@ -33,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.bennybar.mypapers.feature.documents.DocumentDetailScreen
 import com.bennybar.mypapers.feature.documents.DocumentsScreen
+import com.bennybar.mypapers.feature.documents.EditDocumentScreen
 import com.bennybar.mypapers.feature.settings.SettingsScreen
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
@@ -48,6 +51,21 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
         setContent { PapersTheme { AppRoot() } }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Renew the server token well before it expires (it lasts 30 days), silently
+        // with the Google account already signed in. Needs an activity, so it's done here.
+        val session = app.server.session.value ?: return
+        if (session.expiresAt - System.currentTimeMillis() > RENEW_WITHIN_MS) return
+        lifecycleScope.launch {
+            runCatching { app.account.renew(this@MainActivity) }.getOrNull()?.let { app.onSignedIn(it) }
+        }
+    }
+
+    private companion object {
+        const val RENEW_WITHIN_MS = 15L * 24 * 60 * 60 * 1000
     }
 }
 
@@ -79,7 +97,11 @@ private fun AppRoot() {
                     )
                 }
                 // Not opaque: the page itself is the container growing out of the card.
-                screen<Route.Document>(opaque = false) { DocumentDetailScreen(it.toRoute<Route.Document>().id, onBack = controller::popBackStack) }
+                screen<Route.Document>(opaque = false) {
+                    val id = it.toRoute<Route.Document>().id
+                    DocumentDetailScreen(id, onBack = controller::popBackStack, onEdit = { controller.navigate(Route.EditDocument(id)) })
+                }
+                screen<Route.EditDocument> { EditDocumentScreen(it.toRoute<Route.EditDocument>().id, onDone = controller::popBackStack) }
                 screen<Route.Settings> { SettingsScreen(onBack = controller::popBackStack) }
             }
         }

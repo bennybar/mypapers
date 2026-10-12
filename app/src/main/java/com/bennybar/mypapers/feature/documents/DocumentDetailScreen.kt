@@ -1,50 +1,74 @@
 package com.bennybar.mypapers.feature.documents
 
+import android.content.Intent
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bennybar.mypapers.app
+import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
 import com.bennybar.mypapers.nav.documentContainerKey
+import com.bennybar.mypapers.ui.Format
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun DocumentDetailScreen(id: String, onBack: () -> Unit) {
-    val doc = placeholderDocuments.first { it.id == id }
+fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit) {
+    val flow = remember(id) { app.repository.observe(id) }
+    val doc by flow.collectAsStateWithLifecycle(null)
+    var seen by remember { mutableStateOf(false) }
+    // Deleted (here or on another device) while open: leave.
+    LaunchedEffect(doc) { if (doc != null) seen = true else if (seen) onBack() }
+
     val animatedScope = LocalNavAnimatedScope.current
     // The page's corners round off as it shrinks back into the card (28dp, the card's radius).
     val corner by animatedScope.transition.animateDp(label = "corner") {
         if (it == EnterExitState.Visible) 0.dp else 28.dp
     }
     val shape = RoundedCornerShape(corner)
+    var menu by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
     with(LocalSharedTransitionScope.current) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -58,50 +82,101 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit) {
                 TopAppBar(
                     title = {},
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    },
+                    actions = {
+                        IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Open with…") },
+                                enabled = doc?.fileLocal == true,
+                                onClick = {
+                                    menu = false
+                                    doc?.let { d ->
+                                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", app.repository.files.file(d.id))
+                                        context.startActivity(
+                                            Intent.createChooser(
+                                                Intent(Intent.ACTION_VIEW).setDataAndType(uri, d.mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                                                null,
+                                            ),
+                                        )
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; confirmDelete = true })
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
             },
         ) { padding ->
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(padding)
-                    .padding(horizontal = 24.dp),
-            ) {
-                Text(doc.vendor, style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.padding(top = 4.dp))
+            doc?.let { d -> DocumentDetails(d, Modifier.padding(padding), onEdit) }
+        }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete this document?") },
+            text = { Text("It will be removed from all your devices.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    scope.launch { app.repository.delete(id) }
+                }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+        )
+    }
+}
+
+@Composable
+private fun DocumentDetails(doc: Document, modifier: Modifier, onEdit: () -> Unit) {
+    Column(
+        modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp),
+    ) {
+        Text(
+            doc.title(),
+            style = MaterialTheme.typography.headlineMedium,
+            color = if (doc.vendor.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+        )
+        val subtitle = doc.subtitle()
+        if (subtitle.isNotEmpty()) {
+            Spacer(Modifier.padding(top = 4.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.padding(top = 16.dp))
+        if (doc.totalCents != null) {
+            Text(Format.amount(doc.totalCents, doc.currency), style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
+            doc.vatCents?.let {
                 Text(
-                    "${doc.type} · ${doc.date}",
-                    style = MaterialTheme.typography.bodyLarge,
+                    "VAT ${Format.amount(it, doc.currency)}",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.padding(top = 16.dp))
-                Text(doc.amount, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.padding(top = 16.dp))
-                TagRow(doc.tags)
-                Spacer(Modifier.padding(top = 24.dp))
-                // Where the document preview goes once files exist.
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(0.71f)
-                        .background(MaterialTheme.colorScheme.surfaceContainerLowest, MaterialTheme.shapes.large),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Outlined.Description,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(24.dp),
-                    )
-                }
-                Spacer(Modifier.padding(top = 24.dp))
             }
+        } else {
+            Text(
+                "Add the amount, date and tags",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable(onClick = onEdit),
+            )
         }
+        if (doc.tags.isNotEmpty()) {
+            Spacer(Modifier.padding(top = 16.dp))
+            TagRow(doc.tags)
+        }
+        if (doc.notes.isNotBlank()) {
+            Spacer(Modifier.padding(top = 16.dp))
+            Text(doc.notes, style = MaterialTheme.typography.bodyLarge)
+        }
+        Spacer(Modifier.padding(top = 24.dp))
+        DocumentPreview(app.repository.files.file(doc.id), doc.mimeType, available = doc.fileLocal)
+        Spacer(Modifier.padding(top = 24.dp))
     }
 }

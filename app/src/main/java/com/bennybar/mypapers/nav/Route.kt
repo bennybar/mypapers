@@ -6,5 +6,6 @@ import kotlinx.serialization.Serializable
 sealed interface Route {
     @Serializable data object Documents : Route
     @Serializable data class Document(val id: String) : Route
+    @Serializable data class EditDocument(val id: String) : Route
     @Serializable data object Settings : Route
 }
