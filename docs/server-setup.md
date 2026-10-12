@@ -25,6 +25,7 @@ Each Google account has its own database; only that account's CouchDB user
 | CouchDB admin for MyPapers | `/opt/couchdb/etc/local.d/20-mypapers-admin.ini` (`mypapers-admin`, hashed) |
 | CouchDB JWT settings | `/opt/couchdb/etc/local.d/30-mypapers-jwt.ini` (HMAC key = `JWT_SECRET` in the env file) |
 | nginx route | `location /mypapers-api/` in the `couchdb.ibarak.me` site (`couchdb.conf`) |
+| Homepage + privacy policy (for Google's consent screen) | `/var/www/mypapers/` (from `server/site`), served at `/mypapers-api/home` and `/mypapers-api/privacy` |
 | Nightly backup | `/etc/cron.d/couchdb-backup` → `/var/backups/couchdb-YYYY-MM-DD.tgz`, 14 days |
 
 CouchDB already required a login for every request and allowed 50 MB documents; nothing else changed there.
