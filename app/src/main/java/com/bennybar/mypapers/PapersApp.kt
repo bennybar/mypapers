@@ -12,6 +12,7 @@ import com.bennybar.mypapers.gmail.GmailImporter
 import com.bennybar.mypapers.gmail.GmailNotifications
 import com.bennybar.mypapers.gmail.GmailSettings
 import com.bennybar.mypapers.data.DocumentFiles
+import com.bennybar.mypapers.data.FormatSettings
 import com.bennybar.mypapers.data.DocumentRepository
 import com.bennybar.mypapers.data.PapersDatabase
 import com.bennybar.mypapers.data.ServerSettings
@@ -39,6 +40,7 @@ class PapersApp : Application() {
     lateinit var account: Account
     lateinit var ai: AiSettings
     lateinit var gmail: GmailImporter
+    lateinit var formats: FormatSettings
     val openAi = OpenAiClient()
     private lateinit var dao: DocumentDao
     private lateinit var files: DocumentFiles
@@ -47,6 +49,7 @@ class PapersApp : Application() {
     override fun onCreate() {
         super.onCreate()
         app = this
+        formats = FormatSettings(this)
         val db = PapersDatabase.open(this)
         dao = db.documents()
         files = DocumentFiles(filesDir)

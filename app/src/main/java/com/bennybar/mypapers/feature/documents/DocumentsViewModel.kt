@@ -7,6 +7,7 @@ import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.ImportResult
 import com.bennybar.mypapers.search.FuzzySearch
+import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,7 +27,7 @@ class DocumentsViewModel : ViewModel() {
 
     /** Null while the database is first read. */
     val results: StateFlow<List<Document>?> = combine(all, query, selectedTags) { docs, q, tags ->
-        docs?.let { FuzzySearch.search(it, q, tags) }
+        docs?.let { FuzzySearch.search(it, q, tags, Format.locale) }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Every tag in use, most used first, for the filter chips. */

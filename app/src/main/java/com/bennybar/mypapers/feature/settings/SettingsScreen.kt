@@ -6,7 +6,9 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
@@ -21,8 +23,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +58,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.ai.AiConfig
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.app
+import com.bennybar.mypapers.data.FormatSettings
+import com.bennybar.mypapers.ui.Format
+import java.util.Locale
 import com.bennybar.mypapers.gmail.GmailAuth
 import kotlinx.coroutines.launch
 
@@ -81,6 +89,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenGmail: () -> Unit) {
             AccountSection()
             AiSection()
             GmailSection(onOpenGmail)
+            FormatsSection()
         }
     }
 }
@@ -300,5 +309,50 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
         }
         if (email == null) Text("Sign in first (above) — Gmail uses the same Google account.", style = MaterialTheme.typography.bodySmall)
         if (newCount > 0) TextButton(onClick = onOpenGmail) { Text("Review $newCount found in Gmail") }
+    }
+}
+
+/** Which region's date and number formats to show (and to read typed amounts and ambiguous dates with). */
+@Composable
+private fun FormatsSection() {
+    val region by app.formats.region.collectAsStateWithLifecycle()
+    var open by remember { mutableStateOf(false) }
+    val phone = Locale.getDefault()
+    fun label(tag: String) =
+        if (tag.isEmpty()) "Phone setting (${phone.getDisplayName(phone)})"
+        else Locale.forLanguageTag(tag).let { it.getDisplayName(it) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitle("Dates and amounts")
+        Text(
+            "How dates and amounts are shown, the currency new papers start with, and how a date like 03/04 is read when the paper itself gives no clue.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Box {
+            OutlinedTextField(
+                value = label(region),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Region") },
+                trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            // Over the field, so a tap anywhere on it opens the menu (a read-only field still takes focus).
+            Box(Modifier.matchParentSize().clickable { open = true })
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                (listOf("") + FormatSettings.REGIONS).forEach { tag ->
+                    DropdownMenuItem(
+                        text = { Text(label(tag)) },
+                        onClick = { app.formats.save(tag); open = false },
+                    )
+                }
+            }
+        }
+        // What it looks like: today and an amount in the region's currency.
+        Text(
+            "${Format.date(java.time.LocalDate.now().toString())} · ${Format.amount(124950, Format.defaultCurrency().ifEmpty { null })}",
+            style = MaterialTheme.typography.bodyLarge,
+        )
     }
 }

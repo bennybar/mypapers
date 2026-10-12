@@ -18,7 +18,7 @@ object FuzzySearch {
     /** How far off an amount may be and still match, relative to the number typed. */
     private const val AMOUNT_TOLERANCE = 0.5
 
-    fun search(docs: List<Document>, query: String, tags: Set<String> = emptySet(), locale: Locale = Locale.getDefault()): List<Document> {
+    fun search(docs: List<Document>, query: String, tags: Set<String> = emptySet(), locale: Locale): List<Document> {
         val tagged = if (tags.isEmpty()) docs else docs.filter { it.tags.containsAll(tags) }
         val tokens = query.split(Regex("\\s+")).filter { it.isNotBlank() }
         if (tokens.isEmpty()) return tagged.sortedWith(newestFirst)

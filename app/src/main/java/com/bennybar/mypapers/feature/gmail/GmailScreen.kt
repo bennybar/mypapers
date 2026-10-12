@@ -47,11 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.gmail.GmailCandidate
+import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 /** What the Gmail scan found, grouped by email: pick what to add, or mark it "not a paper". */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -134,8 +131,6 @@ fun GmailScreen(onBack: () -> Unit) {
     }
 }
 
-private val dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-
 @Composable
 private fun EmailCard(items: List<GmailCandidate>, chosen: Set<String>, onToggle: (String) -> Unit) {
     val first = items.first()
@@ -149,7 +144,7 @@ private fun EmailCard(items: List<GmailCandidate>, chosen: Set<String>, onToggle
             Column(Modifier.padding(horizontal = 20.dp)) {
                 Text(first.subject, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${first.sender} · ${Instant.ofEpochMilli(first.sentAt).atZone(ZoneId.systemDefault()).format(dateFormat)}",
+                    "${first.sender} · ${Format.day(first.sentAt)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

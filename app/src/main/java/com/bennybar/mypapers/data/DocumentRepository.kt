@@ -8,12 +8,12 @@ import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.OpenAiClient
 import com.bennybar.mypapers.ai.withExtraction
+import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
-import java.util.Locale
 import java.util.UUID
 
 /** Each document's file, stored as `files/docs/<id>`. */
@@ -146,7 +146,7 @@ class DocumentRepository(
         val all = dao.all()
         val existingTags = all.flatMap { it.tags }.distinctBy { it.lowercase() }.sorted()
         val parts = withContext(Dispatchers.IO) { AiInput.parts(files.file(id), doc.mimeType, doc.fileName) }
-        val extraction = openAi.extract(config, ExtractionPrompt.build(existingTags, Locale.getDefault()), parts)
+        val extraction = openAi.extract(config, ExtractionPrompt.build(existingTags, Format.locale), parts)
         // The latest copy: it may have been edited while the model was reading.
         val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
         val read = latest.withExtraction(extraction, existingTags)

@@ -57,7 +57,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Currency
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +89,7 @@ private fun EditForm(doc: Document, allTags: List<String>, modifier: Modifier, o
     var date by remember { mutableStateOf(doc.date) }
     var total by remember { mutableStateOf(Format.amountInput(doc.totalCents)) }
     var currency by remember {
-        mutableStateOf(doc.currency ?: runCatching { Currency.getInstance(Locale.getDefault()).currencyCode }.getOrDefault(""))
+        mutableStateOf(doc.currency ?: Format.defaultCurrency())
     }
     var vat by remember { mutableStateOf(Format.amountInput(doc.vatCents)) }
     var tags by remember { mutableStateOf(doc.tags) }

@@ -90,11 +90,6 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-
-/** "12 Oct 2026, 14:05" in the phone's format, for naming scans. */
-private val scanTimeFormat = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -142,7 +137,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
     val scan = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
         if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
         val pdf = GmsDocumentScanningResult.fromActivityResultIntent(result.data)?.pdf ?: return@rememberLauncherForActivityResult
-        importAll(listOf(pdf.uri), name = "Scan ${scanTimeFormat.format(LocalDateTime.now())}.pdf")
+        importAll(listOf(pdf.uri), name = "Scan ${Format.dateTime(LocalDateTime.now())}.pdf")
     }
     fun startScan() {
         val a = activity ?: return
