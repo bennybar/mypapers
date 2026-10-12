@@ -9,31 +9,39 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -44,10 +52,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,6 +71,7 @@ import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
 import com.bennybar.mypapers.nav.documentContainerKey
 import com.bennybar.mypapers.ui.Format
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -81,10 +93,33 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val aiSet = app.ai.config.collectAsStateWithLifecycle().value.isSet
+    var askDialog by rememberSaveable { mutableStateOf(false) }
+    var asking by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+
+    fun ask(instruction: String) {
+        asking = instruction
+        // Runs on if the page is left; the answer lands in the paper's details either way.
+        val answer = app.scope.async { runCatching { app.repository.ask(id, instruction) } }
+        scope.launch {
+            val result = answer.await()
+            asking = null
+            val found = result.getOrNull()
+            snackbar.showSnackbar(
+                when {
+                    found == null -> "Couldn't ask: ${result.exceptionOrNull()?.message}"
+                    found.isEmpty() -> "Not found in this paper"
+                    found.size == 1 -> "Added to details: ${found.single().label}"
+                    else -> "Added ${found.size} details"
+                },
+            )
+        }
+    }
 
     with(LocalSharedTransitionScope.current) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            snackbarHost = { SnackbarHost(snackbar) },
             modifier = Modifier.sharedBounds(
                 rememberSharedContentState(documentContainerKey(id)),
                 animatedScope,
@@ -130,6 +165,11 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                                 },
                             )
                             DropdownMenuItem(
+                                text = { Text("Ask AI…") },
+                                enabled = aiSet && doc?.fileLocal == true && asking == null,
+                                onClick = { menu = false; askDialog = true },
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Move to trash", color = MaterialTheme.colorScheme.error) },
                                 // Restorable from the trash for 30 days: no need to ask. The page closes as it goes.
                                 onClick = { menu = false; scope.launch { app.repository.trash(id) } },
@@ -144,6 +184,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                 DocumentDetails(
                     d, Modifier.padding(padding), onEdit,
                     canRead = aiSet,
+                    asking = asking,
                     onRead = { scope.launch { app.repository.requestReading(id) } },
                     onOpen = onOpen,
                     onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
@@ -152,14 +193,46 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
             }
         }
     }
+    if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
 }
 
+/** "What should the AI find?": a one-off instruction for this paper. */
+@Composable
+private fun AskDialog(onDismiss: () -> Unit, onAsk: (String) -> Unit) {
+    var text by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ask AI") },
+        text = {
+            Column {
+                Text(
+                    "What should it find in this paper? The answer is added to its key details.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    text, { text = it },
+                    placeholder = { Text("e.g. extract the URL") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onAsk(text.trim()) }),
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                )
+            }
+        },
+        confirmButton = { TextButton(enabled = text.isNotBlank(), onClick = { onAsk(text.trim()) }) { Text("Ask") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun DocumentDetails(
     doc: Document,
     modifier: Modifier,
     onEdit: () -> Unit,
     canRead: Boolean,
+    asking: String?,
     onRead: () -> Unit,
     onOpen: (String) -> Unit,
     onKeepBoth: () -> Unit,
@@ -185,6 +258,17 @@ private fun DocumentDetails(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
                 AiStatus(doc, Modifier.weight(1f))
                 if (doc.aiState == AI_FAILED && canRead) TextButton(onClick = onRead) { Text("Retry") }
+            }
+        }
+        if (asking != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                LoadingIndicator(Modifier.size(28.dp))
+                Text(
+                    "Asking the AI: $asking",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
             }
         }
         ExpiryLabel(doc, Modifier.padding(top = 12.dp))

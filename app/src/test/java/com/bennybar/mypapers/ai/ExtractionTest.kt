@@ -77,6 +77,12 @@ class ExtractionTest {
         assertEquals("Receipt", d.docType)
     }
 
+    @Test fun askedDetailsReplaceSameLabel() {
+        val before = listOf(KeyDetail("Order number", "A-1"), KeyDetail("URL", "old"))
+        val after = mergeDetails(before, listOf(KeyDetail("url", "https://example.com/order/A-1")))
+        assertEquals(listOf(KeyDetail("Order number", "A-1"), KeyDetail("url", "https://example.com/order/A-1")), after)
+    }
+
     @Test fun dateOrderFollowsTheLocale() {
         assertTrue(ExtractionPrompt.dayFirst(Locale.forLanguageTag("he-IL")))
         assertTrue(ExtractionPrompt.dayFirst(Locale.UK))
@@ -180,5 +186,25 @@ class ExtractionTest {
         assertEquals("2026-04-03", e.date) // printed 03/04/2026: day first in Israel
         assertTrue(e.tags.contains("Groceries"))
         assertTrue(e.title.isNotBlank())
+    }
+
+    /** A real call: "extract the URL" comes back as a detail; asking for something absent comes back empty. Needs OPENAI_API_KEY and MYPAPERS_TEST_ASK_PDF. */
+    @Test fun liveAsk() {
+        val key = System.getenv("OPENAI_API_KEY")
+        val pdf = System.getenv("MYPAPERS_TEST_ASK_PDF")?.let(::File)
+        assumeTrue("no OpenAI key", key != null && pdf != null)
+        val part = buildJsonObject {
+            put("type", "input_file")
+            put("filename", "order.pdf")
+            put("file_data", "data:application/pdf;base64," + Base64.getEncoder().encodeToString(pdf!!.readBytes()))
+        }
+        val config = AiConfig(key!!, AiSettings.DEFAULT_MODEL)
+        fun ask(q: String) = OpenAiClient.parseExtraction(runBlocking { OpenAiClient().complete(config, ExtractionPrompt.ask(q), listOf(part), "answer", ExtractionPrompt.ASK_SCHEMA) }).details
+        val url = ask("extract the URL")
+        println("  url: $url")
+        assertTrue(url.toString(), url.any { it.value.contains("https://track.example-shop.com/orders/77412") })
+        val none = ask("extract the IBAN")
+        println("  iban: $none")
+        assertTrue(none.toString(), none.isEmpty())
     }
 }

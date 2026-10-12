@@ -56,6 +56,15 @@ object ExtractionPrompt {
         """.trimIndent()
     }
 
+    /** A one-off question about one paper ("extract the URL"): the answer as key details. */
+    fun ask(instruction: String): String = """
+        You read a document from a personal paper archive. The user asks: "${instruction.trim()}"
+        Answer only that, from the attached document, as details: short label/value pairs, in the document's language (e.g. "URL" → "https://…", "Order number" → "A-1234"). One entry per value found, values copied exactly as printed. Write a date as YYYY-MM-DD. If the document doesn't have it, return no details.
+    """.trimIndent()
+
+    const val ASK_SCHEMA = """{"type":"object","additionalProperties":false,"required":["details"],
+"properties":{"details":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["label","value"],"properties":{"label":{"type":"string"},"value":{"type":"string"}}}}}}"""
+
     /** The JSON schema the answer must follow (strict structured output). */
     const val SCHEMA = """{"type":"object","additionalProperties":false,
 "required":["title","vendor","docType","date","total","currency","vat","tags","details","keywords","text"],
@@ -63,6 +72,14 @@ object ExtractionPrompt {
 "date":{"type":["string","null"]},"total":{"type":["number","null"]},"currency":{"type":["string","null"]},
 "vat":{"type":["number","null"]},"tags":{"type":"array","items":{"type":"string"}},"keywords":{"type":"array","items":{"type":"string"}},
 "details":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["label","value"],"properties":{"label":{"type":"string"},"value":{"type":"string"}}}},"text":{"type":"string"}}}"""
+}
+
+/**
+ * [details] with the [found] ones added; one with the same label (any case) is replaced.
+ */
+fun mergeDetails(details: List<KeyDetail>, found: List<KeyDetail>): List<KeyDetail> {
+    val labels = found.map { it.label.lowercase() }.toSet()
+    return details.filter { it.label.lowercase() !in labels } + found
 }
 
 /**

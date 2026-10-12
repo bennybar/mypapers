@@ -3,11 +3,13 @@ package com.bennybar.mypapers.data
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.bennybar.mypapers.ai.AiException
 import com.bennybar.mypapers.ai.AiInput
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.OpenAiClient
 import com.bennybar.mypapers.ai.ReadAllWorker
+import com.bennybar.mypapers.ai.mergeDetails
 import com.bennybar.mypapers.ai.withExtraction
 import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.Dispatchers
@@ -224,6 +226,24 @@ class DocumentRepository(
         val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
         val read = latest.withExtraction(extraction, existingTags)
         update(read.copy(duplicateOf = Duplicates.find(read, all)?.id))
+    }
+
+    /**
+     * Asks the AI one thing about a paper ("extract the URL") and adds the answer to its key details.
+     * They count as the user's: a later reading leaves them. Returns what was found (empty: nothing).
+     */
+    suspend fun ask(id: String, instruction: String): List<KeyDetail> {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return emptyList()
+        val config = ai.config.value
+        if (!config.isSet) throw AiException("Add your OpenAI key in Settings first", retryable = false)
+        if (!doc.fileLocal) throw AiException("The file isn't on this phone yet", retryable = false)
+        val parts = withContext(Dispatchers.IO) { AiInput.parts(files.file(id), doc.mimeType, doc.fileName) }
+        val answer = openAi.complete(config, ExtractionPrompt.ask(instruction), parts, "answer", ExtractionPrompt.ASK_SCHEMA)
+        val found = OpenAiClient.parseExtraction(answer).details
+        if (found.isEmpty()) return found
+        val latest = dao.get(id)?.takeUnless { it.deleted } ?: return found
+        update(latest.copy(details = mergeDetails(latest.details, found), edited = (latest.edited + "details").distinct()))
+        return found
     }
 
     suspend fun markExtractionFailed(id: String, message: String) {
