@@ -20,7 +20,7 @@ object AiInput {
     private const val MAX_IMAGE_SIDE = 2048
 
     /** PDFs up to this size go as they are (the model reads their text and pages); bigger ones as page images. */
-    private const val MAX_PDF_BYTES = 20L * 1024 * 1024
+    private const val MAX_PDF_BYTES = 8L * 1024 * 1024
     private const val MAX_PDF_PAGES_AS_IMAGES = 5
 
     fun parts(file: File, mimeType: String?, fileName: String?): List<JsonObject> {
@@ -35,7 +35,7 @@ object AiInput {
             )
             type == "application/pdf" -> pdfPages(file).map(::imagePart)
             else -> listOfNotNull(decodeScaled(file)?.let(::imagePart))
-        }
+        }.ifEmpty { throw AiException("Can't read this kind of file", retryable = false) }
     }
 
     private fun imagePart(bitmap: Bitmap): JsonObject {

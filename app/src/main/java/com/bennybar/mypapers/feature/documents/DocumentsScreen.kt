@@ -1,5 +1,9 @@
 package com.bennybar.mypapers.feature.documents
 
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -58,6 +62,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -120,6 +125,7 @@ import com.bennybar.mypapers.nav.LocalSharedTransitionScope
 import com.bennybar.mypapers.nav.documentContainerKey
 import com.bennybar.mypapers.sync.SyncState
 import com.bennybar.mypapers.ui.Format
+import com.bennybar.mypapers.ui.layoutStart
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
@@ -156,13 +162,17 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
         val ids = vm.hide(all)
         if (ids.isEmpty()) return@launch // already being deleted
         vm.clearSelection()
-        val r = snackbar.showSnackbar(
-            if (ids.size == 1) "Deleted" else "Deleted ${ids.size} papers",
-            actionLabel = "Undo",
-            duration = SnackbarDuration.Long,
-        )
-        if (r != SnackbarResult.ActionPerformed) vm.delete(ids)
-        vm.unhide(ids)
+        var undone = false
+        try {
+            undone = snackbar.showSnackbar(
+                if (ids.size == 1) "Deleted" else "Deleted ${ids.size} papers",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Long,
+            ) == SnackbarResult.ActionPerformed
+        } finally {
+            // Also when the snackbar is cut short (another screen opened, the phone rotated): delete anyway.
+            vm.finishDelete(ids, undone)
+        }
     }
 
     fun share(docs: List<Document>) = scope.launch {
@@ -328,6 +338,8 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                         IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
                     },
                     scrollBehavior = scroll,
+                    // One colour with the search and chips below it (no seam when scrolled).
+                    colors = TopAppBarDefaults.topAppBarColors(scrolledContainerColor = MaterialTheme.colorScheme.surface),
                 )
                 SearchField(query, onChange = { vm.query.value = it }, filterCount = filters.activeCount, onFilters = { filterSheet = true })
                 ActiveFilters(filters, onChange = { vm.filters.value = it }, Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
@@ -380,36 +392,32 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
+                // One notice at a time, the most important; none while searching or selecting.
                 val s = session
-                if (s == null || s.isExpired()) {
-                    item(key = "account") {
+                val failed = syncState as? SyncState.Failed
+                val progress = reading
+                if (!narrowed && !selecting) when {
+                    s == null || s.isExpired() -> item(key = "account") {
                         Notice(
                             if (s == null) "Sign in to back up and sync your papers." else "Your sign-in expired. Sign in again to sync.",
-                            "Sign in",
+                            "Set up",
                             onSettings,
                         )
                     }
-                } else (syncState as? SyncState.Failed)?.let {
-                    item(key = "syncError") { Notice("Sync failed: ${it.message}", "Settings", onSettings) }
-                }
-                reading?.let { (done, total) ->
-                    item(key = "reading") {
-                        Notice("Reading papers with AI · ${done + 1} of $total", null, {}, Icons.Outlined.AutoAwesome)
+                    failed != null -> item(key = "syncError") { Notice("Sync failed: ${failed.message}", "Settings", onSettings) }
+                    progress != null -> item(key = "reading") {
+                        Notice("Reading papers with AI · ${progress.first + 1} of ${progress.second}", null, {}, Icons.Outlined.AutoAwesome)
                     }
-                }
-                if (unread > 0 && reading == null) {
-                    item(key = "unread") {
-                        val n = if (unread == 1) "1 paper isn't" else "$unread papers aren't"
-                        if (ai.isSet) Notice("$n read by the AI yet.", "Read now", { vm.readUnread() }, Icons.Outlined.AutoAwesome)
-                        else Notice("$n read yet. Add your OpenAI key to fill in titles, amounts and tags.", "Add key", onSettings, Icons.Outlined.AutoAwesome)
-                    }
-                }
-                if (gmailFound > 0) {
-                    item(key = "gmail") {
+                    gmailFound > 0 -> item(key = "gmail") {
                         Notice(
                             if (gmailFound == 1) "1 paper found in Gmail" else "$gmailFound papers found in Gmail",
                             "Review", onGmail, Icons.Outlined.Email,
                         )
+                    }
+                    unread > 0 -> item(key = "unread") {
+                        val n = if (unread == 1) "1 paper isn't" else "$unread papers aren't"
+                        if (ai.isSet) Notice("$n read by the AI yet.", "Read now", { vm.readUnread() }, Icons.Outlined.AutoAwesome)
+                        else Notice("$n read yet. Add your OpenAI key to fill in titles, amounts and tags.", "Add key", onSettings, Icons.Outlined.AutoAwesome)
                     }
                 }
                 val list = results
@@ -568,6 +576,7 @@ fun openWith(context: Context, doc: Document) {
 
 @Composable
 private fun SearchField(query: String, onChange: (String) -> Unit, filterCount: Int, onFilters: () -> Unit) {
+    val keyboard = LocalSoftwareKeyboardController.current
     TextField(
         value = query,
         onValueChange = onChange,
@@ -584,6 +593,9 @@ private fun SearchField(query: String, onChange: (String) -> Unit, filterCount: 
             }
         },
         singleLine = true,
+        // Results show as you type; Search just puts the keyboard away.
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
         shape = CircleShape,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -609,12 +621,23 @@ private fun Notice(text: String, action: String?, onAction: () -> Unit, icon: Im
     }
 }
 
-/** What a document is called in lists: its title, else its vendor, else its file name. */
-fun Document.title(): String = title.ifBlank { vendor.ifBlank { fileName ?: "Untitled" } }
+/** What a document is called in lists: its title, else its vendor, else its file name (without ".pdf"). */
+fun Document.title(): String = title.ifBlank { vendor.ifBlank { fileName?.substringBeforeLast('.')?.ifBlank { null } ?: "Untitled" } }
 
-/** "Shufersal · Receipt · 8 Oct 2026", skipping what isn't set (the vendor when it's already the title). */
+/**
+ * "Shufersal · Receipt · 8 Oct 2026", skipping what isn't set (the vendor when it's already the title).
+ * Nothing known yet: "Added 12 Oct 2026 · PDF".
+ */
 fun Document.subtitle(): String =
     listOfNotNull(vendor.takeIf { it.isNotBlank() && title.isNotBlank() }, docType.ifBlank { null }, Format.date(date)).joinToString(" · ")
+        .ifEmpty {
+            val kind = when {
+                mimeType == "application/pdf" -> "PDF"
+                mimeType?.startsWith("image/") == true -> "Photo"
+                else -> null
+            }
+            listOfNotNull("Added ${Format.day(createdAt)}", kind).joinToString(" · ")
+        }
 
 /** The card is the container that grows into the detail page (container transform). */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
@@ -625,7 +648,8 @@ private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, 
     with(LocalSharedTransitionScope.current) {
         Card(
             shape = shape,
-            colors = CardDefaults.cardColors(containerColor = if (selected) cs.secondaryContainer else cs.surfaceContainerHigh),
+            // Not secondaryContainer: that's the notices' and the tags' colour.
+            colors = CardDefaults.cardColors(containerColor = if (selected) cs.tertiaryContainer else cs.surfaceContainerHigh),
             border = if (selected) BorderStroke(2.dp, cs.primary) else null,
             modifier = Modifier
                 .fillMaxWidth()
@@ -640,9 +664,16 @@ private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, 
         ) {
             Column(Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (selected) {
+                        Icon(
+                            Icons.Filled.CheckCircle, contentDescription = "Selected", tint = cs.tertiary,
+                            modifier = Modifier.padding(end = 12.dp).size(24.dp),
+                        )
+                    }
                     Text(
                         doc.title(),
                         style = MaterialTheme.typography.titleMedium,
+                        textAlign = layoutStart(),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
@@ -659,7 +690,10 @@ private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, 
                 val subtitle = doc.subtitle()
                 if (subtitle.isNotEmpty()) {
                     Spacer(Modifier.padding(top = 4.dp))
-                    Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = layoutStart(), modifier = Modifier.fillMaxWidth(),
+                    )
                 }
                 if (doc.tags.isNotEmpty()) {
                     Spacer(Modifier.padding(top = 12.dp))

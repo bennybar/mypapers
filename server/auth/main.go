@@ -97,10 +97,14 @@ type keySource interface {
 
 // googleKeys caches Google's signing keys (they rotate; the response says for how long).
 type googleKeys struct {
-	mu      sync.Mutex
-	keys    map[string]*rsa.PublicKey
-	expires time.Time
+	mu        sync.Mutex
+	keys      map[string]*rsa.PublicKey
+	expires   time.Time
+	lastFetch time.Time
 }
+
+// certsClient gives up on a slow Google rather than holding every sign-in behind it.
+var certsClient = &http.Client{Timeout: 10 * time.Second}
 
 func (g *googleKeys) key(kid string) (*rsa.PublicKey, error) {
 	g.mu.Lock()
@@ -108,6 +112,11 @@ func (g *googleKeys) key(kid string) (*rsa.PublicKey, error) {
 	if k, ok := g.keys[kid]; ok && time.Now().Before(g.expires) {
 		return k, nil
 	}
+	// An unknown kid with fresh keys: refetch at most once a minute (junk tokens can't force a fetch each).
+	if time.Now().Before(g.expires) && time.Since(g.lastFetch) < time.Minute {
+		return nil, fmt.Errorf("unknown key %q", kid)
+	}
+	g.lastFetch = time.Now()
 	if err := g.fetch(); err != nil {
 		return nil, err
 	}
@@ -120,7 +129,7 @@ func (g *googleKeys) key(kid string) (*rsa.PublicKey, error) {
 var maxAge = regexp.MustCompile(`max-age=(\d+)`)
 
 func (g *googleKeys) fetch() error {
-	resp, err := http.Get(googleCertsURL)
+	resp, err := certsClient.Get(googleCertsURL)
 	if err != nil {
 		return err
 	}

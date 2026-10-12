@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -131,6 +132,8 @@ private fun AccountSection() {
                                 null
                             } catch (_: GetCredentialCancellationException) {
                                 null
+                            } catch (_: androidx.credentials.exceptions.NoCredentialException) {
+                                "No Google account on this phone. Add one in the phone's Settings → Accounts."
                             } catch (e: Exception) {
                                 e.message ?: e.javaClass.simpleName
                             }
@@ -151,7 +154,7 @@ private fun AccountSection() {
             confirmButton = {
                 TextButton(onClick = {
                     confirmSignOut = false
-                    scope.launch { app.signOut() }
+                    app.signOut()
                 }) { Text("Sign out") }
             },
             dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
@@ -340,10 +343,7 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
                     },
                 ) { Text(if (busy) "Scanning…" else if (app.gmail.settings.lastScanAt == 0L) "Scan now" else "Scan again") }
                 OutlinedButton(onClick = {
-                    scope.launch {
-                        app.gmail.reset()
-                        app.gmail.settings.save(saved.copy(email = ""))
-                    }
+                    scope.launch { app.gmail.disconnect() }
                 }) { Text("Disconnect") }
             }
         }
@@ -357,7 +357,7 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
 private fun FormatsSection() {
     val region by app.formats.region.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
-    val phone = Locale.getDefault()
+    val phone = LocalConfiguration.current.locales[0]
     fun label(tag: String) =
         if (tag.isEmpty()) "Phone setting (${phone.getDisplayName(phone)})"
         else Locale.forLanguageTag(tag).let { it.getDisplayName(it) }

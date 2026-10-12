@@ -37,8 +37,11 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Pages wider than this are drawn scaled down (a phone-width preview, not print quality). */
-private const val PREVIEW_WIDTH = 1400
-private const val MAX_PAGES = 20
+private const val PREVIEW_WIDTH = 1080
+private const val MAX_PAGES = 10
+
+/** A very long receipt is cut off at this many widths, so one page can't take all the memory. */
+private const val MAX_PAGE_ASPECT = 4f
 
 /** The document's pages: a photo as itself, a PDF page by page. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -51,7 +54,11 @@ fun DocumentPreview(file: File, mimeType: String?, available: Boolean, modifier:
     val list = pages
     if (list.isNullOrEmpty()) {
         Box(
-            modifier.fillMaxWidth().aspectRatio(0.71f).background(MaterialTheme.colorScheme.surfaceContainerLowest, shape),
+            modifier.fillMaxWidth().aspectRatio(0.71f).background(
+                // Loading: paper-coloured already, so the page doesn't flash from dark to white.
+                if (available && list == null) androidx.compose.ui.graphics.Color.White else MaterialTheme.colorScheme.surfaceContainerLowest,
+                shape,
+            ),
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -93,9 +100,10 @@ private fun renderPdf(file: File): List<Bitmap> =
             (0 until minOf(pdf.pageCount, MAX_PAGES)).map { i ->
                 pdf.openPage(i).use { page ->
                     val scale = PREVIEW_WIDTH.toFloat() / page.width
-                    val bitmap = Bitmap.createBitmap(PREVIEW_WIDTH, (page.height * scale).toInt(), Bitmap.Config.ARGB_8888)
+                    val height = minOf(page.height * scale, PREVIEW_WIDTH * MAX_PAGE_ASPECT).toInt()
+                    val bitmap = Bitmap.createBitmap(PREVIEW_WIDTH, height, Bitmap.Config.ARGB_8888)
                     bitmap.eraseColor(Color.WHITE)
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    page.render(bitmap, null, android.graphics.Matrix().apply { setScale(scale, scale) }, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                     bitmap
                 }
             }

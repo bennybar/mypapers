@@ -1,6 +1,9 @@
 package com.bennybar.mypapers.feature.documents
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -17,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -39,7 +43,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -66,24 +69,19 @@ fun EditDocumentScreen(id: String, onDone: () -> Unit) {
     val allTags by remember {
         app.repository.observeAll().map { docs -> docs.flatMap { it.tags }.distinct().sorted() }
     }.collectAsStateWithLifecycle(emptyList())
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Edit") },
-                navigationIcon = {
-                    IconButton(onClick = onDone) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                },
-            )
-        },
-    ) { padding ->
-        // Fields start from the first value read; later syncs don't overwrite what's being typed.
-        doc?.let { EditForm(remember(id) { it }, allTags, Modifier.padding(padding), onDone) }
+    // Fields start from the first value read; later syncs don't overwrite what's being typed.
+    val first = doc
+    if (first == null) {
+        // Still reading the paper (a moment): just the bar.
+        TopAppBar(title = { Text("Edit") })
+        return
     }
+    EditForm(remember(id) { first }, allTags, onDone)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EditForm(doc: Document, allTags: List<String>, modifier: Modifier, onDone: () -> Unit) {
+private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
     var title by remember { mutableStateOf(doc.title) }
     var vendor by remember { mutableStateOf(doc.vendor) }
     var docType by remember { mutableStateOf(doc.docType) }
@@ -97,6 +95,8 @@ private fun EditForm(doc: Document, allTags: List<String>, modifier: Modifier, o
     var tagInput by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf(doc.notes) }
     var pickDate by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val totalBad = total.isNotBlank() && Format.parseAmount(total) == null
@@ -108,139 +108,180 @@ private fun EditForm(doc: Document, allTags: List<String>, modifier: Modifier, o
         tagInput = ""
     }
 
-    Column(
-        modifier
-            .fillMaxSize()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        OutlinedTextField(
-            title, { title = it },
-            label = { Text("Title") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            vendor, { vendor = it },
-            label = { Text("Vendor") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DOCUMENT_TYPES.forEach { type ->
-                FilterChip(
-                    selected = docType == type,
-                    onClick = { docType = if (docType == type) "" else type },
-                    label = { Text(type) },
-                    shape = CircleShape,
+    val changed = title != doc.title || vendor != doc.vendor || docType != doc.docType || date != doc.date ||
+        total != Format.amountInput(doc.totalCents) || currency != (doc.currency ?: Format.defaultCurrency()) ||
+        vat != Format.amountInput(doc.vatCents) || tags != doc.tags || notes != doc.notes || tagInput.isNotBlank()
+
+    fun save() {
+        if (saving) return // a second tap would leave the screen twice
+        saving = true
+        if (tagInput.isNotBlank()) addTag(tagInput)
+        scope.launch {
+            // The latest copy, and only what was changed here: the AI may have filled the rest meanwhile.
+            val c = app.repository.observe(doc.id).first() ?: return@launch onDone()
+            app.repository.update(
+                c.copy(
+                    title = if (title != doc.title) title.trim() else c.title,
+                    vendor = if (vendor != doc.vendor) vendor.trim() else c.vendor,
+                    docType = if (docType != doc.docType) docType else c.docType,
+                    date = if (date != doc.date) date else c.date,
+                    totalCents = if (total != Format.amountInput(doc.totalCents)) Format.parseAmount(total) else c.totalCents,
+                    currency = if (currency != (doc.currency ?: Format.defaultCurrency())) currency.trim().ifBlank { null } else c.currency ?: currency.trim().ifBlank { null },
+                    vatCents = if (vat != Format.amountInput(doc.vatCents)) Format.parseAmount(vat) else c.vatCents,
+                    tags = if (tags != doc.tags) tags else c.tags,
+                    notes = if (notes != doc.notes) notes.trim() else c.notes,
+                ),
+            )
+            onDone()
+        }
+    }
+
+    fun leave() {
+        if (changed) confirmDiscard = true else onDone()
+    }
+    BackHandler { leave() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Edit") },
+                navigationIcon = {
+                    IconButton(onClick = ::leave) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
+                actions = {
+                    // Always in reach, whatever the font size or keyboard.
+                    Button(
+                        enabled = !totalBad && !vatBad && !saving,
+                        onClick = ::save,
+                        modifier = Modifier.padding(end = 8.dp),
+                    ) { Text("Save") }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            OutlinedTextField(
+                title, { title = it },
+                label = { Text("Title") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                vendor, { vendor = it },
+                label = { Text("Vendor") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DOCUMENT_TYPES.forEach { type ->
+                    FilterChip(
+                        selected = docType == type,
+                        onClick = { docType = if (docType == type) "" else type },
+                        label = { Text(type) },
+                        shape = CircleShape,
+                    )
+                }
+            }
+            // The whole field opens the picker (a read-only field takes the tap otherwise).
+            Box {
+                OutlinedTextField(
+                    Format.date(date).orEmpty(), {},
+                    label = { Text("Date") },
+                    readOnly = true,
+                    trailingIcon = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Box(Modifier.matchParentSize().clickable(onClickLabel = "Pick date") { pickDate = true })
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    total, { total = it },
+                    label = { Text("Total") },
+                    isError = totalBad,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(2f),
+                )
+                OutlinedTextField(
+                    currency, { currency = it.uppercase().take(3) },
+                    label = { Text("Currency") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                    modifier = Modifier.weight(1f),
                 )
             }
-        }
-        OutlinedTextField(
-            Format.date(date).orEmpty(), {},
-            label = { Text("Date") },
-            readOnly = true,
-            trailingIcon = { IconButton(onClick = { pickDate = true }) { Icon(Icons.Outlined.CalendarMonth, contentDescription = "Pick date") } },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
-                total, { total = it },
-                label = { Text("Total") },
-                isError = totalBad,
+                vat, { vat = it },
+                label = { Text("VAT") },
+                isError = vatBad,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.weight(2f),
+                modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
-                currency, { currency = it.uppercase().take(3) },
-                label = { Text("Currency") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-                modifier = Modifier.weight(1f),
-            )
-        }
-        OutlinedTextField(
-            vat, { vat = it },
-            label = { Text("VAT") },
-            isError = vatBad,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (tags.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    tags.forEach { tag ->
-                        InputChip(
-                            selected = false,
-                            onClick = { tags = tags - tag },
-                            label = { Text(tag) },
-                            trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "Remove $tag") },
-                            shape = CircleShape,
-                        )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (tags.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        tags.forEach { tag ->
+                            InputChip(
+                                selected = false,
+                                onClick = { tags = tags - tag },
+                                label = { Text(tag) },
+                                trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "Remove $tag") },
+                                shape = CircleShape,
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    tagInput,
+                    { if (it.endsWith(",")) addTag(it) else tagInput = it },
+                    label = { Text("Add tag") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, capitalization = KeyboardCapitalization.Words),
+                    keyboardActions = KeyboardActions(onDone = { addTag(tagInput) }),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // Existing tags first, so the same thing isn't tagged two ways.
+                val suggestions = allTags.filter { t ->
+                    tags.none { it.equals(t, ignoreCase = true) } && (tagInput.isBlank() || t.contains(tagInput.trim(), ignoreCase = true))
+                }.take(12)
+                if (suggestions.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        suggestions.forEach { t -> SuggestionChip(onClick = { addTag(t) }, label = { Text(t) }, shape = CircleShape) }
                     }
                 }
             }
             OutlinedTextField(
-                tagInput,
-                { if (it.endsWith(",")) addTag(it) else tagInput = it },
-                label = { Text("Add tag") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, capitalization = KeyboardCapitalization.Words),
-                keyboardActions = KeyboardActions(onDone = { addTag(tagInput) }),
+                notes, { notes = it },
+                label = { Text("Notes") },
+                minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
-            // Existing tags first, so the same thing isn't tagged two ways.
-            val suggestions = allTags.filter { t ->
-                tags.none { it.equals(t, ignoreCase = true) } && (tagInput.isBlank() || t.contains(tagInput.trim(), ignoreCase = true))
-            }.take(12)
-            if (suggestions.isNotEmpty()) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    suggestions.forEach { t -> SuggestionChip(onClick = { addTag(t) }, label = { Text(t) }, shape = CircleShape) }
-                }
-            }
         }
-        OutlinedTextField(
-            notes, { notes = it },
-            label = { Text("Notes") },
-            minLines = 3,
-            modifier = Modifier.fillMaxWidth(),
+    }
+
+    if (confirmDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = false },
+            title = { Text("Discard changes?") },
+            confirmButton = { TextButton(onClick = { confirmDiscard = false; onDone() }) { Text("Discard") } },
+            dismissButton = { TextButton(onClick = { confirmDiscard = false }) { Text("Keep editing") } },
         )
-        Button(
-            enabled = !totalBad && !vatBad,
-            onClick = {
-                if (tagInput.isNotBlank()) addTag(tagInput)
-                scope.launch {
-                    // The latest copy, so a file or sync change since opening isn't lost.
-                    val current = app.repository.observe(doc.id).first() ?: return@launch onDone()
-                    app.repository.update(
-                        current.copy(
-                            title = title.trim(),
-                            vendor = vendor.trim(),
-                            docType = docType,
-                            date = date,
-                            totalCents = Format.parseAmount(total),
-                            currency = currency.trim().ifBlank { null },
-                            vatCents = Format.parseAmount(vat),
-                            tags = tags,
-                            notes = notes.trim(),
-                        ),
-                    )
-                    onDone()
-                }
-            },
-            modifier = Modifier.align(Alignment.End),
-        ) { Text("Save") }
     }
 
     if (pickDate) {
         val state = rememberDatePickerState(
-            initialSelectedDateMillis = date?.let { LocalDate.parse(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() },
+            initialSelectedDateMillis = date?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli(),
         )
         DatePickerDialog(
             onDismissRequest = { pickDate = false },

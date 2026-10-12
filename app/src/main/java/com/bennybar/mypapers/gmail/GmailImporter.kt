@@ -62,7 +62,8 @@ class GmailImporter(
 
     suspend fun queue(keys: List<String>) {
         dao.setStates(keys, GmailCandidate.STATE_QUEUED)
-        enqueue(OneTimeWorkRequest.Builder(GmailImportWorker::class.java), "gmail-import")
+        // Running already: it picks these up before it ends; queued after it if it's just ending.
+        enqueue(OneTimeWorkRequest.Builder(GmailImportWorker::class.java), "gmail-import", ExistingWorkPolicy.APPEND_OR_REPLACE)
     }
 
     suspend fun dismiss(keys: List<String>) = dao.setStates(keys, GmailCandidate.STATE_DISMISSED)
@@ -90,13 +91,20 @@ class GmailImporter(
         work.cancelUniqueWork("gmail-sweep")
     }
 
-    private fun enqueue(builder: OneTimeWorkRequest.Builder, name: String) {
+    /** Disconnects Gmail: no more scans, sweeps or imports, and nothing found is kept. */
+    suspend fun disconnect() {
+        work.cancelAllWorkByTag(TAG)
+        reset()
+        settings.save(settings.config.value.copy(email = ""))
+    }
+
+    private fun enqueue(builder: OneTimeWorkRequest.Builder, name: String, policy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP) {
         val request = builder
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .addTag(TAG)
             .build()
-        work.enqueueUniqueWork(name, ExistingWorkPolicy.KEEP, request)
+        work.enqueueUniqueWork(name, policy, request)
     }
 
     /** The Gmail API with the connected account's token (asked once, renewed if Google says it expired). */
@@ -169,38 +177,41 @@ class GmailImporter(
 
     /** Brings in what was picked, one by one; each then gets the AI reading like any new paper. */
     suspend fun importQueued(onProgress: suspend (done: Int, total: Int) -> Unit) {
-        val queued = dao.queued()
-        if (queued.isEmpty()) return
-        val gmail = api()
+        val gmail by lazy { api() }
         val dir = File(context.cacheDir, "gmail").apply { mkdirs() }
-        queued.forEachIndexed { i, candidate ->
-            onProgress(i, queued.size)
-            val file = File(dir, "import-${System.nanoTime()}")
-            try {
-                val message = gmail.message(candidate.gmailId)
-                when (candidate.kind) {
-                    GmailCandidate.KIND_EMAIL -> HtmlToPdf.render(context, gmail.emailHtml(candidate.gmailId, message), file)
-                    else -> gmail.savePart(
-                        candidate.gmailId,
-                        GmailApi.partById(message, candidate.partId) ?: throw GmailException("The attachment is no longer in this email"),
-                        file,
-                    )
+        // Again until none is left: papers queued while this runs are added too.
+        while (true) {
+            val queued = dao.queued()
+            if (queued.isEmpty()) return
+            queued.forEachIndexed { i, candidate ->
+                onProgress(i, queued.size)
+                val file = File(dir, "import-${System.nanoTime()}")
+                try {
+                    val message = gmail.message(candidate.gmailId)
+                    when (candidate.kind) {
+                        GmailCandidate.KIND_EMAIL -> HtmlToPdf.render(context, gmail.emailHtml(candidate.gmailId, message), file)
+                        else -> gmail.savePart(
+                            candidate.gmailId,
+                            GmailApi.partById(message, candidate.partId) ?: throw GmailException("The attachment is no longer in this email"),
+                            file,
+                        )
+                    }
+                    val docId = when (val result = repository.import(Uri.fromFile(file), candidate.fileName)) {
+                        is ImportResult.Added -> result.id
+                        is ImportResult.Duplicate -> result.existing.id
+                    }
+                    dao.setState(candidate.key, GmailCandidate.STATE_IMPORTED, documentId = docId)
+                } catch (e: GmailException) {
+                    if (e.needsReconnect) throw e
+                    dao.setState(candidate.key, GmailCandidate.STATE_FAILED, error = e.message)
+                } catch (e: java.io.IOException) {
+                    dao.setState(candidate.key, GmailCandidate.STATE_FAILED, error = e.message ?: e.javaClass.simpleName)
+                } finally {
+                    withContext(Dispatchers.IO) { file.delete() }
                 }
-                val docId = when (val result = repository.import(Uri.fromFile(file), candidate.fileName)) {
-                    is ImportResult.Added -> result.id
-                    is ImportResult.Duplicate -> result.existing.id
-                }
-                dao.setState(candidate.key, GmailCandidate.STATE_IMPORTED, documentId = docId)
-            } catch (e: GmailException) {
-                if (e.needsReconnect) throw e
-                dao.setState(candidate.key, GmailCandidate.STATE_FAILED, error = e.message)
-            } catch (e: java.io.IOException) {
-                dao.setState(candidate.key, GmailCandidate.STATE_FAILED, error = e.message ?: e.javaClass.simpleName)
-            } finally {
-                withContext(Dispatchers.IO) { file.delete() }
             }
+            onProgress(queued.size, queued.size)
         }
-        onProgress(queued.size, queued.size)
     }
 
     private fun JsonObject.str(key: String) = (this[key] as? JsonPrimitive)?.contentOrNull
@@ -219,10 +230,11 @@ class GmailScanWorker(context: Context, params: WorkerParameters) : CoroutineWor
     override suspend fun getForegroundInfo() = GmailNotifications.progress(applicationContext, "Looking for papers in Gmail", 0, 0)
 
     override suspend fun doWork(): Result {
-        setForeground(getForegroundInfo())
+        // Not allowed from the background on newer Android: then it runs without the notification.
+        runCatching { setForeground(getForegroundInfo()) }
         return try {
             val found = app.gmail.scan { done, total ->
-                setForeground(GmailNotifications.progress(applicationContext, "Looking for papers in Gmail", done, total))
+                runCatching { setForeground(GmailNotifications.progress(applicationContext, "Looking for papers in Gmail", done, total)) }
             }
             if (found > 0) GmailNotifications.found(applicationContext, found)
             app.gmail.scheduleSweep()
@@ -246,10 +258,11 @@ class GmailImportWorker(context: Context, params: WorkerParameters) : CoroutineW
     override suspend fun getForegroundInfo() = GmailNotifications.progress(applicationContext, "Adding papers from Gmail", 0, 0)
 
     override suspend fun doWork(): Result {
-        setForeground(getForegroundInfo())
+        // Not allowed from the background on newer Android: then it runs without the notification.
+        runCatching { setForeground(getForegroundInfo()) }
         return try {
             app.gmail.importQueued { done, total ->
-                setForeground(GmailNotifications.progress(applicationContext, "Adding papers from Gmail", done, total))
+                runCatching { setForeground(GmailNotifications.progress(applicationContext, "Adding papers from Gmail", done, total)) }
             }
             Result.success()
         } catch (e: GmailException) {

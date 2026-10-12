@@ -121,9 +121,8 @@ class DocumentRepository(
 
     suspend fun delete(id: String) {
         val doc = dao.get(id) ?: return
-        // Never pushed: nothing to tell the server.
-        if (doc.rev == null) dao.remove(id)
-        else dao.upsert(doc.copy(deleted = true, dirty = true, updatedAt = System.currentTimeMillis()))
+        // Always a tombstone, even if never pushed: a push may be on its way (the sync clears it).
+        dao.upsert(doc.copy(deleted = true, dirty = true, updatedAt = System.currentTimeMillis()))
         files.delete(id)
         onChanged()
     }
@@ -147,8 +146,10 @@ class DocumentRepository(
         if (ai.config.value.isSet) onReadAll(true)
     }
 
-    /** Every paper whose file is on this phone. */
-    suspend fun readableIds(): List<String> = dao.all().filter { it.fileLocal }.sortedByDescending { it.createdAt }.map { it.id }
+    /** Every paper whose file is on this phone, but those read since [notReadSince] (by a re-read that was interrupted). */
+    suspend fun readableIds(notReadSince: Long = 0): List<String> = dao.all()
+        .filter { it.fileLocal && !(it.aiState == AI_DONE && notReadSince > 0 && it.updatedAt >= notReadSince) }
+        .sortedByDescending { it.createdAt }.map { it.id }
 
     fun observeReadableCount(): Flow<Int> = dao.observeAll().map { docs -> docs.count { it.fileLocal } }
 
@@ -184,7 +185,10 @@ class DocumentRepository(
             update(doc.copy(aiState = ""))
             return
         }
-        if (!doc.fileLocal) return
+        if (!doc.fileLocal) {
+            markExtractionFailed(id, "The file isn't on this phone yet")
+            return
+        }
         val all = dao.all()
         val existingTags = all.flatMap { it.tags }.distinctBy { it.lowercase() }.sorted()
         val parts = withContext(Dispatchers.IO) { AiInput.parts(files.file(id), doc.mimeType, doc.fileName) }

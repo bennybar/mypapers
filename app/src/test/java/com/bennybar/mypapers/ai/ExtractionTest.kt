@@ -3,6 +3,7 @@ package com.bennybar.mypapers.ai
 import com.bennybar.mypapers.data.AI_DONE
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.Duplicates
+import com.bennybar.mypapers.data.KeyDetail
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -88,10 +89,22 @@ class ExtractionTest {
             doc("c", "Shufersal", 5931, "2026-10-08"),      // other amount
             doc("e", "Shufersal", 5930, "2026-10-09"),      // other day
         )
-        assertEquals("a", Duplicates.find(doc("new", "SHUFERSAL DEAL", 5930, "2026-10-08"), others)?.id)
-        assertEquals("a", Duplicates.find(doc("new", "Shufersl", 5930, "2026-10-08"), others)?.id) // typo
-        assertNull(Duplicates.find(doc("new", "Paz", 5930, "2026-10-08"), others))
-        assertNull(Duplicates.find(doc("new", "Shufersal", null, "2026-10-08"), others)) // no amount: can't tell
+        assertEquals("a", Duplicates.find(doc("new", "SHUFERSAL DEAL", 5930, "2026-10-08", createdAt = 9), others)?.id)
+        assertEquals("a", Duplicates.find(doc("new", "Shufersl", 5930, "2026-10-08", createdAt = 9), others)?.id) // typo
+        assertNull(Duplicates.find(doc("new", "Paz", 5930, "2026-10-08", createdAt = 9), others))
+        assertNull(Duplicates.find(doc("new", "Shufersal", null, "2026-10-08", createdAt = 9), others)) // no amount vs an amount
+        // Only the newer copy is flagged.
+        assertNull(Duplicates.find(shuf, others + doc("new", "Shufersal", 5930, "2026-10-08", createdAt = 9)))
+    }
+
+    @Test fun duplicatesWithoutAmount() {
+        val rx = Document(id = "rx", vendor = "קשר עין", docType = "Medical", date = "2026-01-12", createdAt = 1, updatedAt = 0,
+            details = listOf(KeyDetail("PD", "62 mm")))
+        val again = rx.copy(id = "again", createdAt = 2, details = emptyList())
+        assertEquals("rx", Duplicates.find(again, listOf(rx))?.id)
+        assertNull(Duplicates.find(again.copy(details = listOf(KeyDetail("PD", "64 mm"))), listOf(rx))) // a newer prescription
+        assertNull(Duplicates.find(again.copy(date = "2026-08-27"), listOf(rx)))
+        assertNull(Duplicates.find(again.copy(vendor = ""), listOf(rx.copy(vendor = ""))))
     }
 
     /** A real call: an Israeli invoice on a US-locale phone still reads day-first. Needs OPENAI_API_KEY and MYPAPERS_TEST_IL_PDF. */

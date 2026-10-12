@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class DocumentsViewModel : ViewModel() {
     val query = MutableStateFlow("")
@@ -39,10 +40,12 @@ class DocumentsViewModel : ViewModel() {
     private val all = app.repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    /** Null while the database is first read. */
-    private val filtered = combine(all, selectedTypes, hidden, filters) { docs, types, gone, f ->
+    /** Without the papers waiting out an Undo. Null while the database is first read. */
+    private val visible = combine(all, hidden) { docs, gone -> docs?.filter { it.id !in gone } }
+
+    private val filtered = combine(visible, selectedTypes, filters) { docs, types, f ->
         val today = LocalDate.now()
-        docs?.filter { it.id !in gone && (types.isEmpty() || it.docType in types) && f.matches(it, today) }
+        docs?.filter { (types.isEmpty() || it.docType in types) && f.matches(it, today) }
     }
 
     val results: StateFlow<List<Document>?> = combine(filtered, query, selectedTags, filters) { docs, q, tags, f ->
@@ -50,26 +53,26 @@ class DocumentsViewModel : ViewModel() {
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Every tag in use, most used first, for the filter chips. */
-    val tags: StateFlow<List<String>> = all.map { docs ->
+    val tags: StateFlow<List<String>> = visible.map { docs ->
         docs.orEmpty().flatMap { it.tags }.groupingBy { it }.eachCount()
             .entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
             .map { it.key }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** The document types in use, in the usual order, for the filter chips. */
-    val types: StateFlow<List<String>> = all.map { docs ->
+    val types: StateFlow<List<String>> = visible.map { docs ->
         val used = docs.orEmpty().map { it.docType }.toSet()
         DOCUMENT_TYPES.filter { it in used }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Vendors in use, most papers first, for the filter sheet. */
-    val vendors: StateFlow<List<String>> = all.map { docs ->
+    val vendors: StateFlow<List<String>> = visible.map { docs ->
         docs.orEmpty().map { it.vendor }.filter { it.isNotBlank() }.groupingBy { it }.eachCount()
             .entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key }).map { it.key }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Papers the AI hasn't read yet (and nobody filled in). */
-    val unread = app.repository.observeUnread().map { it.size }
+    val unread = combine(app.repository.observeUnread(), hidden) { docs, gone -> docs.count { it.id !in gone } }
     val ai = app.ai.config
 
     val syncState = app.sync.state
@@ -97,8 +100,13 @@ class DocumentsViewModel : ViewModel() {
         hidden.update { it + new }
         return new
     }
-    fun unhide(ids: Collection<String>) = hidden.update { it - ids.toSet() }
-    suspend fun delete(ids: Collection<String>) = ids.forEach { app.repository.delete(it) }
+    /** After the Undo window: deletes (unless undone) in the app's scope, so leaving the screen can't stop it. */
+    fun finishDelete(ids: Collection<String>, undone: Boolean) {
+        app.scope.launch {
+            if (!undone) ids.forEach { app.repository.delete(it) }
+            hidden.update { it - ids.toSet() }
+        }
+    }
 
     suspend fun addTag(ids: Collection<String>, tag: String) = app.repository.addTag(ids, tag)
     suspend fun setType(ids: Collection<String>, type: String) = app.repository.setType(ids, type)

@@ -15,8 +15,11 @@ object Sharing {
     /** False when none of them has its file on this phone yet. */
     suspend fun share(context: Context, docs: List<Document>): Boolean {
         val files = withContext(Dispatchers.IO) {
-            // Named copies: the stored files are called by their ids.
-            val dir = File(context.cacheDir, "share").apply { deleteRecursively(); mkdirs() }
+            // Named copies: the stored files are called by their ids. A folder per share: the app
+            // shared to earlier may not have read its file yet (an email not sent). Old ones go after a day.
+            val root = File(context.cacheDir, "share")
+            root.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 24 * 60 * 60 * 1000L }?.forEach { it.deleteRecursively() }
+            val dir = File(root, System.currentTimeMillis().toString()).apply { mkdirs() }
             val used = mutableSetOf<String>()
             docs.filter { it.fileLocal }.map { d ->
                 val base = d.title().replace(Regex("[\\\\/:*?\"<>|]"), " ").trim().take(80).ifBlank { "Paper" }

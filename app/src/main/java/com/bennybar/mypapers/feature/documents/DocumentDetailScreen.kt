@@ -5,11 +5,16 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDp
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -78,6 +83,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val aiSet = app.ai.config.collectAsStateWithLifecycle().value.isSet
+    val signedIn = app.server.session.collectAsStateWithLifecycle().value != null
 
     with(LocalSharedTransitionScope.current) {
         Scaffold(
@@ -95,6 +101,10 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                     },
                     actions = {
+                        IconButton(
+                            enabled = doc?.fileLocal == true,
+                            onClick = { doc?.let { d -> scope.launch { Sharing.share(context, listOf(d)) } } },
+                        ) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
                         IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
                         IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -122,7 +132,10 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                                     scope.launch { app.repository.requestReading(id) }
                                 },
                             )
-                            DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; confirmDelete = true })
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                                onClick = { menu = false; confirmDelete = true },
+                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -132,7 +145,8 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
             doc?.let { d ->
                 DocumentDetails(
                     d, Modifier.padding(padding), onEdit,
-                    onRetry = { scope.launch { app.repository.requestReading(id) } },
+                    canRead = aiSet,
+                    onRead = { scope.launch { app.repository.requestReading(id) } },
                     onOpen = onOpen,
                     onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
                     onDelete = { confirmDelete = true },
@@ -144,13 +158,15 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete this document?") },
-            text = { Text("It will be removed from all your devices.") },
+            title = { Text("Delete this paper?") },
+            text = {
+                Text(if (signedIn) "It's removed from all your devices." else "It's removed from this phone.")
+            },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
                     scope.launch { app.repository.delete(id) }
-                }) { Text("Delete") }
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
         )
@@ -162,7 +178,8 @@ private fun DocumentDetails(
     doc: Document,
     modifier: Modifier,
     onEdit: () -> Unit,
-    onRetry: () -> Unit,
+    canRead: Boolean,
+    onRead: () -> Unit,
     onOpen: (String) -> Unit,
     onKeepBoth: () -> Unit,
     onDelete: () -> Unit,
@@ -186,7 +203,7 @@ private fun DocumentDetails(
         if (doc.aiState == AI_PENDING || doc.aiState == AI_FAILED) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
                 AiStatus(doc, Modifier.weight(1f))
-                if (doc.aiState == AI_FAILED) TextButton(onClick = onRetry) { Text("Retry") }
+                if (doc.aiState == AI_FAILED && canRead) TextButton(onClick = onRead) { Text("Retry") }
             }
         }
         doc.duplicateOf?.let { otherId -> DuplicateBanner(otherId, onOpen, onKeepBoth, onDelete) }
@@ -200,13 +217,20 @@ private fun DocumentDetails(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        } else {
-            if (doc.aiState != AI_PENDING) Text(
-                "Add the amount, date and tags",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable(onClick = onEdit),
-            )
+        } else if (doc.aiState.isEmpty() && doc.title.isBlank() && doc.vendor.isBlank()) {
+            // Nothing known about it yet: the ways to fill it in.
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (canRead && doc.fileLocal) {
+                    FilledTonalButton(onClick = onRead) {
+                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Read with AI")
+                    }
+                    OutlinedButton(onClick = onEdit) { Text("Fill in by hand") }
+                } else {
+                    FilledTonalButton(onClick = onEdit) { Text("Fill in by hand") }
+                }
+            }
         }
         if (doc.tags.isNotEmpty()) {
             Spacer(Modifier.padding(top = 16.dp))

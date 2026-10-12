@@ -42,7 +42,7 @@ object JpegPdf {
         }
         val xref = body.size()
         val table = StringBuilder("xref\n0 ${offsets.size + 1}\n0000000000 65535 f \n")
-        offsets.forEach { table.append(String.format("%010d 00000 n \n", it)) }
+        offsets.forEach { table.append(String.format(java.util.Locale.ROOT, "%010d 00000 n \n", it)) }
         table.append("trailer\n<< /Size ${offsets.size + 1} /Root 1 0 R >>\nstartxref\n$xref\n%%EOF\n")
         body.write(table.toString().toByteArray())
         body.writeTo(out)

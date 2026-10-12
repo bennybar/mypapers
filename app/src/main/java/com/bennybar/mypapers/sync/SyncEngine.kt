@@ -84,6 +84,11 @@ class SyncEngine(
             }
             return
         }
+        // Our file never got to the server (another edit won the race): keep it, and upload it on the next push.
+        if (local != null && local.fileLocal && !local.fileUploaded && !remote.hasFile()) {
+            dao.upsert(remote.toDocument(fileLocal = true).copy(fileHash = local.fileHash, mimeType = local.mimeType, dirty = true))
+            return
+        }
         // Keep the file we have if it's still the same one.
         val sameFile = local != null && local.fileLocal && local.fileHash == remote.fileHash()
         if (local != null && !sameFile) files.delete(id)
@@ -98,8 +103,13 @@ class SyncEngine(
         var doc = start
         repeat(3) {
             if (doc.deleted && doc.rev == null) {
-                dao.remove(doc.id)
-                return
+                // Deleted before we knew of a push; one may have got there anyway.
+                val remote = couch.get(doc.id)
+                if (remote == null) {
+                    dao.remove(doc.id)
+                    return
+                }
+                doc = doc.copy(rev = remote.rev())
             }
             try {
                 var rev = couch.put(doc.id, doc.toCouchJson(keepFile = doc.fileUploaded))
@@ -108,7 +118,8 @@ class SyncEngine(
                     return
                 }
                 var uploaded = doc.fileUploaded
-                if (!uploaded && doc.fileLocal) {
+                // The file is gone if the paper was deleted meanwhile: the tombstone's push follows.
+                if (!uploaded && doc.fileLocal && files.file(doc.id).exists()) {
                     rev = couch.putAttachment(
                         doc.id, rev, FILE_ATTACHMENT, files.file(doc.id), doc.mimeType ?: "application/octet-stream",
                     )

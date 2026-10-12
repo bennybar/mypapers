@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.gmail.GmailCandidate
 import com.bennybar.mypapers.ui.Format
+import com.bennybar.mypapers.ui.layoutStart
 import kotlinx.coroutines.launch
 
 /** What the Gmail scan found, grouped by email: pick what to add, or mark it "not a paper". */
@@ -200,10 +201,15 @@ private fun EmailCard(items: List<GmailCandidate>, chosen: Set<String>, onToggle
     ) {
         Column(Modifier.padding(vertical = 12.dp)) {
             Column(Modifier.padding(horizontal = 20.dp)) {
-                Text(first.subject, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    first.subject, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    textAlign = layoutStart(), modifier = Modifier.fillMaxWidth(),
+                )
                 Text(
                     "${first.sender} · ${Format.day(first.sentAt)}",
                     style = MaterialTheme.typography.bodyMedium,
+                    textAlign = layoutStart(),
+                    modifier = Modifier.fillMaxWidth(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -232,6 +238,8 @@ private fun EmailCard(items: List<GmailCandidate>, chosen: Set<String>, onToggle
                         Text(
                             if (c.kind == GmailCandidate.KIND_EMAIL) "The email itself (as a PDF)" else c.fileName,
                             style = MaterialTheme.typography.bodyLarge,
+                            textAlign = layoutStart(),
+                            modifier = Modifier.fillMaxWidth(),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

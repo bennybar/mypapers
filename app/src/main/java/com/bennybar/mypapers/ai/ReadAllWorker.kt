@@ -15,7 +15,9 @@ import androidx.work.workDataOf
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.gmail.GmailNotifications
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 /**
  * Reads every unread paper with the AI, one after another, as one background job
@@ -26,12 +28,15 @@ class ReadAllWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     override suspend fun getForegroundInfo() = GmailNotifications.progress(applicationContext, TITLE, 0, 0)
 
     override suspend fun doWork(): Result {
-        setForeground(getForegroundInfo())
+        // Not allowed from the background on newer Android: then it just runs without the notification.
+        runCatching { setForeground(getForegroundInfo()) }
         // Everything (after an upgrade, to refresh titles and fields) or only what was never read.
-        val ids = if (inputData.getBoolean(ALL, false)) app.repository.readableIds() else app.repository.unreadIds()
+        // A retried re-read skips what this run already read, so the key isn't charged twice.
+        val since = inputData.getLong(SINCE, 0)
+        val ids = if (inputData.getBoolean(ALL, false)) app.repository.readableIds(notReadSince = since) else app.repository.unreadIds()
         var failures = 0
         ids.forEachIndexed { i, id ->
-            setForeground(GmailNotifications.progress(applicationContext, TITLE, i, ids.size))
+            runCatching { setForeground(GmailNotifications.progress(applicationContext, TITLE, i, ids.size)) }
             setProgress(workDataOf(DONE to i, TOTAL to ids.size))
             try {
                 app.repository.markReading(id)
@@ -49,7 +54,11 @@ class ReadAllWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 app.repository.markUnread(id)
                 return if (runAttemptCount < 5) Result.retry() else Result.failure()
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
+                if (e is kotlinx.coroutines.CancellationException) {
+                    // Stopped (no network, the system's limits): back to unread, so the next run reads it.
+                    withContext(NonCancellable) { app.repository.markUnread(id) }
+                    throw e
+                }
                 failures++
                 app.repository.markExtractionFailed(id, e.message ?: e.javaClass.simpleName)
             }
@@ -59,16 +68,17 @@ class ReadAllWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     }
 
     companion object {
-        private const val NAME = "ai-read-all"
+        const val NAME = "ai-read-all"
         private const val TITLE = "Reading papers with AI"
         private const val DONE = "done"
         private const val TOTAL = "total"
         private const val ALL = "all"
+        private const val SINCE = "since"
 
         /** [all]: re-read every paper, not only unread ones. */
         fun start(context: Context, all: Boolean = false) {
             val request = OneTimeWorkRequestBuilder<ReadAllWorker>()
-                .setInputData(workDataOf(ALL to all))
+                .setInputData(workDataOf(ALL to all, SINCE to System.currentTimeMillis()))
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()

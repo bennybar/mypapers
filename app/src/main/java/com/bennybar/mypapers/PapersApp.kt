@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.work.WorkManager
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.ExtractWorker
 import com.bennybar.mypapers.ai.OpenAiClient
@@ -70,12 +71,16 @@ class PapersApp : Application() {
         gmail = GmailImporter(this, db.gmailCandidates(), GmailSettings(this), repository)
         GmailNotifications.createChannels(this)
         gmail.scheduleSweep()
-        // With automatic reading on: papers that came in while there was no key, or synced from elsewhere.
-        if (ai.config.value.autoRead) repository.readUnread()
+        // Signed out by an older version, which left Gmail connected.
+        if (server.session.value == null && gmail.settings.config.value.isConnected) scope.launch { gmail.disconnect() }
         SyncWorker.schedule(this)
-        // Catch up whenever the app comes to the front.
+        // Catch up whenever the app comes to the front; with automatic reading on, also read papers
+        // that came in while there was no key, or synced from elsewhere (not on every background start).
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) = requestSync(debounceMs = 0)
+            override fun onStart(owner: LifecycleOwner) {
+                requestSync(debounceMs = 0)
+                if (ai.config.value.autoRead) scope.launch { if (repository.unreadIds().isNotEmpty()) repository.readUnread() }
+            }
         })
     }
 
@@ -95,13 +100,25 @@ class PapersApp : Application() {
         requestSync(debounceMs = 0)
     }
 
-    /** Signs out and removes this account's papers from the phone (they stay on the server). */
-    suspend fun signOut() = sync.whileIdle {
-        server.saveSession(null)
-        dao.clear()
-        files.deleteAll()
-        server.lastSeq = "0"
-        server.syncedDb = null
+    /**
+     * Signs out and removes this account's papers from the phone (they stay on the server), and
+     * disconnects Gmail. In the app's scope, so leaving the screen can't stop it halfway; the papers
+     * go first, so none can be uploaded into the next account.
+     */
+    fun signOut() {
+        scope.launch {
+            val work = WorkManager.getInstance(this@PapersApp)
+            work.cancelUniqueWork(ReadAllWorker.NAME)
+            work.cancelAllWorkByTag(ExtractWorker.TAG)
+            gmail.disconnect()
+            sync.whileIdle {
+                dao.clear()
+                files.deleteAll()
+                server.lastSeq = "0"
+                server.syncedDb = null
+                server.saveSession(null)
+            }
+        }
     }
 
     /** Syncs shortly after the last of a burst of local changes. */

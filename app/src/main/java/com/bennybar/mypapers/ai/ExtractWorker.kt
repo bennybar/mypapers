@@ -34,10 +34,16 @@ class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 app.repository.markExtractionFailed(id, e.message ?: e.javaClass.simpleName)
                 Result.failure()
             }
+        } catch (e: Exception) {
+            // Anything else (an odd answer, a locked PDF): failed, not stuck on "Reading…".
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            app.repository.markExtractionFailed(id, e.message ?: e.javaClass.simpleName)
+            Result.failure()
         }
     }
 
     companion object {
+        const val TAG = "extract"
         private const val KEY_ID = "id"
         private const val MAX_ATTEMPTS = 4
 
@@ -46,6 +52,7 @@ class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 .setInputData(workDataOf(KEY_ID to id))
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                .addTag(TAG)
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork("extract-$id", ExistingWorkPolicy.REPLACE, request)
         }
