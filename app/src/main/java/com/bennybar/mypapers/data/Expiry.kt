@@ -20,15 +20,20 @@ object Expiry {
     private val MONTHS = listOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     private val NAMED = Regex("""\b(?:(\d{1,2})\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(?:(\d{1,2}),?\s+)?(\d{4})\b""", RegexOption.IGNORE_CASE)
 
-    /** The paper's expiry date, or null. [dayFirst]: how to read 03/04/2027 (the region setting). */
-    fun date(doc: Document, dayFirst: Boolean): LocalDate? =
-        doc.details.filter { LABEL.containsMatchIn(it.label) }.mapNotNull { parse(it.value, dayFirst) }.maxOrNull()
+    /**
+     * The paper's next expiry or due date (a bill due next week before a validity ending next year),
+     * else the latest one already past; null if none. [dayFirst]: how to read 03/04/2027 (the region setting).
+     */
+    fun date(doc: Document, dayFirst: Boolean, today: LocalDate = LocalDate.now()): LocalDate? {
+        val dates = doc.details.filter { LABEL.containsMatchIn(it.label) }.mapNotNull { parse(it.value, dayFirst) }
+        return dates.filter { !it.isBefore(today) }.minOrNull() ?: dates.maxOrNull()
+    }
 
     /** Days from [today] to the expiry: negative once past. */
     fun daysLeft(expires: LocalDate, today: LocalDate): Long = ChronoUnit.DAYS.between(today, expires)
 
     fun isSoon(doc: Document, today: LocalDate, dayFirst: Boolean): Boolean =
-        date(doc, dayFirst)?.let { daysLeft(it, today) in 0..SOON_DAYS.toLong() } == true
+        date(doc, dayFirst, today)?.let { daysLeft(it, today) in 0..SOON_DAYS.toLong() } == true
 
     fun parse(value: String, dayFirst: Boolean): LocalDate? {
         ISO.find(value)?.let { m ->

@@ -54,7 +54,7 @@ object ExpiryReminders {
         val today = LocalDate.now()
         val dayFirst = ExtractionPrompt.dayFirst(Format.locale)
         app.repository.observeAll().first().forEach { doc ->
-            val expires = Expiry.date(doc, dayFirst) ?: return@forEach
+            val expires = Expiry.date(doc, dayFirst, today) ?: return@forEach
             val left = Expiry.daysLeft(expires, today)
             if (left < 0) return@forEach
             // The nearest reminder that's due (7 days left: the 7-day one, not the 30-day one too).

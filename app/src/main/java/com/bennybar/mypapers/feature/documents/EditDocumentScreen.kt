@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.AlertDialog
@@ -42,7 +43,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -52,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.DOCUMENT_TYPES
 import com.bennybar.mypapers.data.Document
+import com.bennybar.mypapers.data.KeyDetail
 import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -82,20 +86,23 @@ fun EditDocumentScreen(id: String, onDone: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
-    var title by remember { mutableStateOf(doc.title) }
-    var vendor by remember { mutableStateOf(doc.vendor) }
-    var docType by remember { mutableStateOf(doc.docType) }
-    var date by remember { mutableStateOf(doc.date) }
-    var total by remember { mutableStateOf(Format.amountInput(doc.totalCents)) }
-    var currency by remember {
+    var title by rememberSaveable { mutableStateOf(doc.title) }
+    var vendor by rememberSaveable { mutableStateOf(doc.vendor) }
+    var docType by rememberSaveable { mutableStateOf(doc.docType) }
+    var date by rememberSaveable { mutableStateOf(doc.date) }
+    var total by rememberSaveable { mutableStateOf(Format.amountInput(doc.totalCents)) }
+    var currency by rememberSaveable {
         mutableStateOf(doc.currency ?: Format.defaultCurrency())
     }
-    var vat by remember { mutableStateOf(Format.amountInput(doc.vatCents)) }
-    var tags by remember { mutableStateOf(doc.tags) }
-    var tagInput by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf(doc.notes) }
-    var pickDate by remember { mutableStateOf(false) }
-    var confirmDiscard by remember { mutableStateOf(false) }
+    var vat by rememberSaveable { mutableStateOf(Format.amountInput(doc.vatCents)) }
+    var tags by rememberSaveable { mutableStateOf(doc.tags) }
+    var tagInput by rememberSaveable { mutableStateOf("") }
+    var notes by rememberSaveable { mutableStateOf(doc.notes) }
+    // Pairs, so they survive rotation as they are.
+    val startDetails = doc.details.map { it.label to it.value }
+    var details by rememberSaveable { mutableStateOf(startDetails) }
+    var pickDate by rememberSaveable { mutableStateOf(false) }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -110,7 +117,7 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
 
     val changed = title != doc.title || vendor != doc.vendor || docType != doc.docType || date != doc.date ||
         total != Format.amountInput(doc.totalCents) || currency != (doc.currency ?: Format.defaultCurrency()) ||
-        vat != Format.amountInput(doc.vatCents) || tags != doc.tags || notes != doc.notes || tagInput.isNotBlank()
+        vat != Format.amountInput(doc.vatCents) || tags != doc.tags || notes != doc.notes || details != startDetails || tagInput.isNotBlank()
 
     fun save() {
         if (saving) return // a second tap would leave the screen twice
@@ -119,6 +126,19 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
         scope.launch {
             // The latest copy, and only what was changed here: the AI may have filled the rest meanwhile.
             val c = app.repository.observe(doc.id).first() ?: return@launch onDone()
+            val newDetails = details.map { (l, v) -> KeyDetail(l.trim(), v.trim()) }.filter { it.label.isNotEmpty() && it.value.isNotEmpty() }
+            // Corrected here: a later AI reading leaves these as they are.
+            val edited = listOfNotNull(
+                "title".takeIf { title != doc.title },
+                "vendor".takeIf { vendor != doc.vendor },
+                "docType".takeIf { docType != doc.docType },
+                "date".takeIf { date != doc.date },
+                "total".takeIf { total != Format.amountInput(doc.totalCents) },
+                "currency".takeIf { currency != (doc.currency ?: Format.defaultCurrency()) },
+                "vat".takeIf { vat != Format.amountInput(doc.vatCents) },
+                "tags".takeIf { tags != doc.tags },
+                "details".takeIf { details != startDetails },
+            )
             app.repository.update(
                 c.copy(
                     title = if (title != doc.title) title.trim() else c.title,
@@ -130,6 +150,8 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
                     vatCents = if (vat != Format.amountInput(doc.vatCents)) Format.parseAmount(vat) else c.vatCents,
                     tags = if (tags != doc.tags) tags else c.tags,
                     notes = if (notes != doc.notes) notes.trim() else c.notes,
+                    details = if (details != startDetails) newDetails else c.details,
+                    edited = (c.edited + edited).distinct(),
                 ),
             )
             onDone()
@@ -259,6 +281,38 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         suggestions.forEach { t -> SuggestionChip(onClick = { addTag(t) }, label = { Text(t) }, shape = CircleShape) }
                     }
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Key details", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                details.forEachIndexed { i, (label, value) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            OutlinedTextField(
+                                label, { new -> details = details.toMutableList().also { it[i] = new to value } },
+                                label = { Text("Label") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value, { new -> details = details.toMutableList().also { it[i] = label to new } },
+                                label = { Text("Value") },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        IconButton(onClick = { details = details.filterIndexed { j, _ -> j != i } }) {
+                            Icon(Icons.Filled.Close, contentDescription = "Remove ${label.ifBlank { "detail" }}")
+                        }
+                    }
+                }
+                Text(
+                    "For a reminder, label a date \"Valid until\", \"Renewal date\" or \"Due date\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = { details = details + ("" to "") }) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Text("Add detail", Modifier.padding(start = 8.dp))
                 }
             }
             OutlinedTextField(

@@ -114,7 +114,7 @@ fun TrashScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmEmpty = false },
             title = { Text("Empty the trash?") },
-            text = { Text("${trash.orEmpty().size} papers are deleted for good, from all your devices.") },
+            text = { Text(if (trash.orEmpty().size == 1) "1 paper is deleted for good, from all your devices." else "${trash.orEmpty().size} papers are deleted for good, from all your devices.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmEmpty = false

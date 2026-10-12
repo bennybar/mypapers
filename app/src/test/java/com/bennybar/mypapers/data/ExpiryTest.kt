@@ -35,4 +35,15 @@ class ExpiryTest {
         assertFalse(Expiry.isSoon(doc("Expires" to "2027-11-01"), today, true))
         assertFalse(Expiry.isSoon(doc("Expires" to "2026-10-01"), today, true)) // already past
     }
+
+    @Test fun nearestUpcomingWins() {
+        val today = LocalDate.of(2026, 10, 12)
+        val bill = doc("Due date" to "2026-10-19", "Valid until" to "2027-10-01")
+        assertEquals(LocalDate.of(2026, 10, 19), Expiry.date(bill, true, today))
+        assertTrue(Expiry.isSoon(bill, today, true))
+        // Once it's paid and past, the next one counts.
+        assertEquals(LocalDate.of(2027, 10, 1), Expiry.date(bill, true, LocalDate.of(2026, 10, 25)))
+        // All past: the latest.
+        assertEquals(LocalDate.of(2027, 10, 1), Expiry.date(bill, true, LocalDate.of(2028, 1, 1)))
+    }
 }

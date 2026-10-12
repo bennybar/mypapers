@@ -46,6 +46,8 @@ data class Document(
     val duplicateOf: String? = null,
     /** In the trash since (epoch ms): hidden, restorable, deleted for good after [TRASH_DAYS]; null = not. */
     val trashedAt: Long? = null,
+    /** Fields corrected by hand ("title", "total", "details"…): the AI leaves them as they are. */
+    val edited: List<String> = emptyList(),
 
     // Sync bookkeeping (local only).
     /** The CouchDB revision this row is based on; null = never pushed. */

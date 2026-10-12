@@ -82,7 +82,7 @@ class Converters {
     @TypeConverter fun detailsFromJson(json: String): List<KeyDetail> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 8)
+@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 9)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
@@ -91,7 +91,7 @@ abstract class PapersDatabase : RoomDatabase() {
     companion object {
         fun open(context: Context): PapersDatabase =
             Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .build()
 
         /** v2: AI reading state and duplicate marking. */
@@ -139,6 +139,13 @@ abstract class PapersDatabase : RoomDatabase() {
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE documents ADD COLUMN trashedAt INTEGER")
+            }
+        }
+
+        /** v9: fields corrected by hand. */
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE documents ADD COLUMN edited TEXT NOT NULL DEFAULT '[]'")
             }
         }
 

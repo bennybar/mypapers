@@ -38,6 +38,7 @@ import androidx.core.content.FileProvider
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.DOCUMENT_TYPES
 import com.bennybar.mypapers.data.Images
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -111,6 +112,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material3.toShape
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -193,9 +200,29 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     // Stays on the list (the new paper is on top; the AI reads it in the background if that's on),
     // with a way to open it. Already there: say so, with a way to it.
     fun importAll(uris: List<Uri>, name: String? = null) = scope.launch {
-        val results = uris.map { vm.import(it, name) }
+        // One file that can't be read (not downloaded from the cloud, no permission) doesn't stop the rest.
+        val results = uris.map { uri ->
+            try {
+                vm.import(uri, name)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
         val added = results.filterIsInstance<ImportResult.Added>()
         val duplicates = results.filterIsInstance<ImportResult.Duplicate>()
+        val failed = results.count { it == null }
+        if (failed > 0) {
+            snackbar.showSnackbar(
+                when {
+                    uris.size == 1 -> "Couldn't read this file"
+                    added.isEmpty() && duplicates.isEmpty() -> "Couldn't read these files"
+                    else -> "Added ${added.size}, $failed couldn't be read" + if (duplicates.isNotEmpty()) ", ${duplicates.size} already here" else ""
+                },
+            )
+            return@launch
+        }
         if (added.isNotEmpty() && duplicates.isEmpty()) {
             val one = added.singleOrNull()
             val r = snackbar.showSnackbar(
@@ -441,9 +468,9 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                 }
                 if (list != null && list.isEmpty()) {
                     item(key = "empty") {
-                        Text(
-                            if (!narrowed) "No papers yet. Tap + to scan or add a receipt or document."
-                            else "Nothing matches. Try fewer filters.",
+                        if (!narrowed) EmptyLibrary(onScan = ::startScan, onPick = { pick.launch(arrayOf("application/pdf", "image/*")) })
+                        else Text(
+                            "Nothing matches. Try fewer filters.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 16.dp),
@@ -716,6 +743,39 @@ private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, 
                 }
                 AiStatus(doc, Modifier.padding(top = 12.dp))
             }
+        }
+    }
+}
+
+/** No papers yet: the first one is one tap away. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun EmptyLibrary(onScan: () -> Unit, onPick: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(96.dp).background(MaterialTheme.colorScheme.primaryContainer, MaterialShapes.Cookie9Sided.toShape()),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(44.dp))
+        }
+        Text("Your papers live here", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 24.dp))
+        Text(
+            "Scan a receipt, a bill or any document, or add PDFs and photos you already have.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Button(onClick = onScan, modifier = Modifier.padding(top = 24.dp)) {
+            Icon(Icons.Outlined.DocumentScanner, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Text("Scan a paper", Modifier.padding(start = ButtonDefaults.IconSpacing))
+        }
+        OutlinedButton(onClick = onPick, modifier = Modifier.padding(top = 8.dp)) {
+            Icon(Icons.Outlined.UploadFile, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+            Text("Choose files", Modifier.padding(start = ButtonDefaults.IconSpacing))
         }
     }
 }

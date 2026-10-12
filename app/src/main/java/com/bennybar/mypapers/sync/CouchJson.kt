@@ -55,6 +55,7 @@ fun Document.toCouchJson(keepFile: Boolean): JsonObject = buildJsonObject {
     put("aiError", aiError)
     put("duplicateOf", duplicateOf)
     put("trashedAt", trashedAt)
+    putJsonArray("edited") { edited.forEach { add(JsonPrimitive(it)) } }
     if (keepFile) putJsonObject("_attachments") { putJsonObject(FILE_ATTACHMENT) { put("stub", true) } }
 }
 
@@ -90,6 +91,7 @@ fun JsonObject.toDocument(fileLocal: Boolean): Document = Document(
     vatCents = long("vatCents"),
     tags = (this["tags"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
     keywords = (this["keywords"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
+    edited = (this["edited"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
     notes = str("notes").orEmpty(),
     extractedText = str("extractedText").orEmpty(),
     details = (this["details"] as? JsonArray)?.mapNotNull { e ->

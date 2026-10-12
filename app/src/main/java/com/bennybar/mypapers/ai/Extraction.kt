@@ -94,23 +94,25 @@ fun fixHebrewFinals(s: String): String = hebrewWord.replace(s) { m ->
 
 /**
  * [doc] with what the model read. Tags are added to the ones already there, and
- * a tag that matches an existing one (any case) uses its spelling.
+ * a tag that matches an existing one (any case) uses its spelling. Fields in
+ * [Document.edited] were corrected by hand and stay as they are.
  */
 fun Document.withExtraction(e: Extraction, existingTags: List<String>, today: LocalDate = LocalDate.now()): Document {
     fun cents(v: Double?) = v?.let { BigDecimal.valueOf(it).setScale(2, RoundingMode.HALF_UP).movePointRight(2).toLong() }
     val newTags = e.tags.map { t -> t.trim() }.filter { it.isNotEmpty() }
         .map { t -> existingTags.firstOrNull { it.equals(t, ignoreCase = true) } ?: t }
+    fun keep(field: String) = field in edited
     return copy(
-        title = fixHebrewFinals(e.title.trim()).ifBlank { title },
-        vendor = fixHebrewFinals(e.vendor.trim()).ifBlank { vendor },
-        docType = e.docType.takeIf { it in DOCUMENT_TYPES } ?: docType,
-        date = e.date?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess }?.let { fixFutureDate(it, today) } ?: date,
-        totalCents = cents(e.total) ?: totalCents,
-        currency = e.currency?.trim()?.uppercase()?.takeIf { runCatching { Currency.getInstance(it) }.isSuccess } ?: currency,
-        vatCents = cents(e.vat) ?: vatCents,
-        tags = (tags + newTags).distinctBy { it.lowercase() },
+        title = if (keep("title")) title else fixHebrewFinals(e.title.trim()).ifBlank { title },
+        vendor = if (keep("vendor")) vendor else fixHebrewFinals(e.vendor.trim()).ifBlank { vendor },
+        docType = if (keep("docType")) docType else e.docType.takeIf { it in DOCUMENT_TYPES } ?: docType,
+        date = if (keep("date")) date else e.date?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess }?.let { fixFutureDate(it, today) } ?: date,
+        totalCents = if (keep("total")) totalCents else cents(e.total) ?: totalCents,
+        currency = if (keep("currency")) currency else e.currency?.trim()?.uppercase()?.takeIf { runCatching { Currency.getInstance(it) }.isSuccess } ?: currency,
+        vatCents = if (keep("vat")) vatCents else cents(e.vat) ?: vatCents,
+        tags = if (keep("tags")) tags else (tags + newTags).distinctBy { it.lowercase() },
         extractedText = e.text.trim().ifBlank { extractedText },
-        details = e.details.filter { it.label.isNotBlank() && it.value.isNotBlank() }.ifEmpty { details },
+        details = if (keep("details")) details else e.details.filter { it.label.isNotBlank() && it.value.isNotBlank() }.ifEmpty { details },
         keywords = e.keywords.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.ifEmpty { keywords },
         aiState = AI_DONE,
         aiError = null,

@@ -57,6 +57,26 @@ class ExtractionTest {
         assertEquals("USD", d.currency)
     }
 
+    @Test fun handEditedFieldsStay() {
+        val e = Extraction(
+            vendor = "Shufersal", docType = "Receipt", date = "2026-10-08", total = 99.0, currency = "ILS", vat = null,
+            tags = listOf("Groceries"), text = "…", title = "Shufersal groceries", details = listOf(KeyDetail("Valid until", "2027-01-01")),
+        )
+        val before = doc(vendor = "Wolt", total = 1250, tags = listOf("Food")).copy(
+            title = "Dinner", details = listOf(KeyDetail("Due date", "2026-11-01")),
+            edited = listOf("vendor", "total", "title", "tags", "details"),
+        )
+        val d = before.withExtraction(e, emptyList())
+        assertEquals("Wolt", d.vendor)
+        assertEquals(1250L, d.totalCents)
+        assertEquals("Dinner", d.title)
+        assertEquals(listOf("Food"), d.tags)
+        assertEquals(listOf(KeyDetail("Due date", "2026-11-01")), d.details)
+        // Not edited: the AI fills them.
+        assertEquals("2026-10-08", d.date)
+        assertEquals("Receipt", d.docType)
+    }
+
     @Test fun dateOrderFollowsTheLocale() {
         assertTrue(ExtractionPrompt.dayFirst(Locale.forLanguageTag("he-IL")))
         assertTrue(ExtractionPrompt.dayFirst(Locale.UK))
