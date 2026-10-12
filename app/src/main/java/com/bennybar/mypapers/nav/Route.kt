@@ -8,4 +8,5 @@ sealed interface Route {
     @Serializable data class Document(val id: String) : Route
     @Serializable data class EditDocument(val id: String) : Route
     @Serializable data object Settings : Route
+    @Serializable data object Gmail : Route
 }

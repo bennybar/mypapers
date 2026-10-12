@@ -8,6 +8,9 @@ import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.ExtractWorker
 import com.bennybar.mypapers.ai.OpenAiClient
 import com.bennybar.mypapers.data.DocumentDao
+import com.bennybar.mypapers.gmail.GmailImporter
+import com.bennybar.mypapers.gmail.GmailNotifications
+import com.bennybar.mypapers.gmail.GmailSettings
 import com.bennybar.mypapers.data.DocumentFiles
 import com.bennybar.mypapers.data.DocumentRepository
 import com.bennybar.mypapers.data.PapersDatabase
@@ -35,6 +38,7 @@ class PapersApp : Application() {
     lateinit var sync: SyncEngine
     lateinit var account: Account
     lateinit var ai: AiSettings
+    lateinit var gmail: GmailImporter
     val openAi = OpenAiClient()
     private lateinit var dao: DocumentDao
     private lateinit var files: DocumentFiles
@@ -43,7 +47,8 @@ class PapersApp : Application() {
     override fun onCreate() {
         super.onCreate()
         app = this
-        dao = PapersDatabase.open(this).documents()
+        val db = PapersDatabase.open(this)
+        dao = db.documents()
         files = DocumentFiles(filesDir)
         server = ServerSettings(this)
         account = Account()
@@ -57,6 +62,9 @@ class PapersApp : Application() {
             server.session.value?.takeUnless { it.isExpired() }
                 ?.let { CouchClient(ServerSettings.SERVER_URL, it.db, "Bearer ${it.token}") }
         }
+        gmail = GmailImporter(this, db.gmailCandidates(), GmailSettings(this), repository)
+        GmailNotifications.createChannels(this)
+        gmail.scheduleSweep()
         SyncWorker.schedule(this)
         // Catch up whenever the app comes to the front.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {

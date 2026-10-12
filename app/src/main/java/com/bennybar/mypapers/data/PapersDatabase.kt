@@ -11,6 +11,8 @@ import androidx.room.TypeConverters
 import androidx.room.Upsert
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.bennybar.mypapers.gmail.GmailCandidate
+import com.bennybar.mypapers.gmail.GmailCandidateDao
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 
@@ -70,15 +72,16 @@ class Converters {
     @TypeConverter fun tagsFromJson(json: String): List<String> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class], version = 2)
+@Database(entities = [Document::class, GmailCandidate::class], version = 3)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
+    abstract fun gmailCandidates(): GmailCandidateDao
 
     companion object {
         fun open(context: Context): PapersDatabase =
             Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
 
         /** v2: AI reading state and duplicate marking. */
@@ -87,6 +90,19 @@ abstract class PapersDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE documents ADD COLUMN aiState TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE documents ADD COLUMN aiError TEXT")
                 db.execSQL("ALTER TABLE documents ADD COLUMN duplicateOf TEXT")
+            }
+        }
+
+        /** v3: what the Gmail scan found. */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `gmail_candidates` (`key` TEXT NOT NULL, `uid` INTEGER NOT NULL, " +
+                        "`uidValidity` INTEGER NOT NULL, `messageId` TEXT, `subject` TEXT NOT NULL, `sender` TEXT NOT NULL, " +
+                        "`sentAt` INTEGER NOT NULL, `kind` TEXT NOT NULL, `partPath` TEXT NOT NULL, `fileName` TEXT NOT NULL, " +
+                        "`mimeType` TEXT NOT NULL, `size` INTEGER NOT NULL, `state` TEXT NOT NULL, `error` TEXT, " +
+                        "`documentId` TEXT, `foundAt` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+                )
             }
         }
     }

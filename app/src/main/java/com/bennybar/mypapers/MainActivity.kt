@@ -44,7 +44,9 @@ import androidx.navigation.toRoute
 import com.bennybar.mypapers.feature.documents.DocumentDetailScreen
 import com.bennybar.mypapers.feature.documents.DocumentsScreen
 import com.bennybar.mypapers.feature.documents.EditDocumentScreen
+import com.bennybar.mypapers.feature.gmail.GmailScreen
 import com.bennybar.mypapers.feature.settings.SettingsScreen
+import com.bennybar.mypapers.gmail.GmailNotifications
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
 import com.bennybar.mypapers.nav.Route
@@ -52,8 +54,8 @@ import com.bennybar.mypapers.ui.theme.AppTheme.Emphasized
 import com.bennybar.mypapers.ui.theme.PapersTheme
 
 class MainActivity : ComponentActivity() {
-    /** A document to show once the UI is up (a single shared file, just added). */
-    private val openDocument = MutableStateFlow<String?>(null)
+    /** A page to show once the UI is up: a single shared file just added, or Gmail from its notification. */
+    private val pendingRoute = MutableStateFlow<Route?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,13 +63,18 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
-        setContent { PapersTheme { AppRoot(openDocument) } }
-        if (savedInstanceState == null) importShared(intent)
+        setContent { PapersTheme { AppRoot(pendingRoute) } }
+        if (savedInstanceState == null) handleIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        importShared(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        if (intent.getStringExtra(GmailNotifications.EXTRA_OPEN) == GmailNotifications.OPEN_GMAIL) pendingRoute.value = Route.Gmail
+        else importShared(intent)
     }
 
     /** PDFs and photos shared from another app: add them, and open the one if it's just one. */
@@ -84,7 +91,7 @@ class MainActivity : ComponentActivity() {
             val added = results.filterIsInstance<ImportResult.Added>()
             val duplicates = results.count { it is ImportResult.Duplicate }
             val failed = results.count { it == null }
-            if (added.size == 1 && duplicates == 0 && failed == 0) openDocument.value = added.single().id
+            if (added.size == 1 && duplicates == 0 && failed == 0) pendingRoute.value = Route.Document(added.single().id)
             val message = listOfNotNull(
                 added.size.takeIf { it > 0 }?.let { if (it == 1) "Added to My Papers" else "Added $it papers" },
                 duplicates.takeIf { it > 0 }?.let { if (it == 1 && uris.size == 1) "Already in My Papers" else "$it already there" },
@@ -112,13 +119,13 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun AppRoot(openDocument: MutableStateFlow<String?>) {
+private fun AppRoot(pendingRoute: MutableStateFlow<Route?>) {
     val controller = rememberNavController()
-    val pendingOpen by openDocument.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingOpen) {
-        pendingOpen?.let {
-            controller.navigate(Route.Document(it))
-            openDocument.value = null
+    val pending by pendingRoute.collectAsStateWithLifecycle()
+    LaunchedEffect(pending) {
+        pending?.let {
+            controller.navigate(it)
+            pendingRoute.value = null
         }
     }
     SharedTransitionLayout(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
@@ -142,6 +149,7 @@ private fun AppRoot(openDocument: MutableStateFlow<String?>) {
                     DocumentsScreen(
                         onOpen = { controller.navigate(Route.Document(it)) },
                         onSettings = { controller.navigate(Route.Settings) },
+                        onGmail = { controller.navigate(Route.Gmail) },
                     )
                 }
                 // Not opaque: the page itself is the container growing out of the card.
@@ -155,7 +163,8 @@ private fun AppRoot(openDocument: MutableStateFlow<String?>) {
                     )
                 }
                 screen<Route.EditDocument> { EditDocumentScreen(it.toRoute<Route.EditDocument>().id, onDone = controller::popBackStack) }
-                screen<Route.Settings> { SettingsScreen(onBack = controller::popBackStack) }
+                screen<Route.Settings> { SettingsScreen(onBack = controller::popBackStack, onOpenGmail = { controller.navigate(Route.Gmail) }) }
+                screen<Route.Gmail> { GmailScreen(onBack = controller::popBackStack) }
             }
         }
     }

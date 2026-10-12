@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Gmail scan/import: an ongoing notification while it runs, and "N new papers" after the daily sweep. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:name=".PapersApp"
@@ -31,6 +35,12 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
+        <!-- WorkManager's foreground jobs (the Gmail scan and import) are data syncs. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <!-- "Open with…": hands a document's file to another app. -->
         <provider
             android:name="androidx.core.content.FileProvider"

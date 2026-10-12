@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,10 +41,11 @@ private const val PREVIEW_WIDTH = 1400
 private const val MAX_PAGES = 20
 
 /** The document's pages: a photo as itself, a PDF page by page. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DocumentPreview(file: File, mimeType: String?, available: Boolean, modifier: Modifier = Modifier) {
     val pages by produceState<List<Bitmap>?>(null, file, available) {
-        value = if (available) withContext(Dispatchers.IO) { runCatching { render(file, mimeType) }.getOrDefault(emptyList()) } else null
+        value = if (available) withContext(Dispatchers.IO) { runCatching { render(file, mimeType) }.onFailure { Log.w("DocumentPreview", "Can't render ${file.name} ($mimeType, ${file.length()} bytes)", it) }.getOrDefault(emptyList()) } else null
     }
     val shape = MaterialTheme.shapes.large
     val list = pages
@@ -51,13 +55,18 @@ fun DocumentPreview(file: File, mimeType: String?, available: Boolean, modifier:
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    if (available) Icons.Outlined.Description else Icons.Outlined.CloudDownload,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.outline,
-                )
-                // Synced from another device: the file follows on the next sync.
-                if (!available) Text("Downloading…", color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(top = 8.dp))
+                when {
+                    // Synced from another device: the file follows on the next sync.
+                    !available -> {
+                        Icon(Icons.Outlined.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                        Text("Downloading…", color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(top = 8.dp))
+                    }
+                    list == null -> LoadingIndicator()
+                    else -> {
+                        Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.outline)
+                        Text("Can't show a preview", color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(top = 8.dp))
+                    }
+                }
             }
         }
         return

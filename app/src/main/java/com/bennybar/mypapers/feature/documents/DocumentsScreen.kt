@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
@@ -67,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
@@ -96,13 +98,14 @@ private val scanTimeFormat = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.M
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, vm: DocumentsViewModel = viewModel()) {
+fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: () -> Unit, vm: DocumentsViewModel = viewModel()) {
     val results by vm.results.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
     val tags by vm.tags.collectAsStateWithLifecycle()
     val selectedTags by vm.selectedTags.collectAsStateWithLifecycle()
     val syncState by vm.syncState.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
+    val gmailFound by vm.gmailFound.collectAsStateWithLifecycle(0)
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var refreshing by remember { mutableStateOf(false) }
@@ -241,6 +244,14 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, vm: Docume
                 } else (syncState as? SyncState.Failed)?.let {
                     item(key = "syncError") { Notice("Sync failed: ${it.message}", "Settings", onSettings) }
                 }
+                if (gmailFound > 0) {
+                    item(key = "gmail") {
+                        Notice(
+                            if (gmailFound == 1) "1 paper found in Gmail" else "$gmailFound papers found in Gmail",
+                            "Review", onGmail, Icons.Outlined.Email,
+                        )
+                    }
+                }
                 val list = results
                 if (list != null && list.isEmpty()) {
                     item(key = "empty") {
@@ -282,13 +293,13 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-private fun Notice(text: String, action: String, onAction: () -> Unit) {
+private fun Notice(text: String, action: String, onAction: () -> Unit, icon: ImageVector = Icons.Outlined.CloudOff) {
     Card(
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
     ) {
         Row(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Outlined.CloudOff, contentDescription = null)
+            Icon(icon, contentDescription = null)
             Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(horizontal = 12.dp))
             TextButton(onClick = onAction) { Text(action) }
         }
