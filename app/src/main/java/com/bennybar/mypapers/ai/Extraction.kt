@@ -40,7 +40,7 @@ object ExtractionPrompt {
             You read receipts and documents for a personal paper archive. Fill every field from the attached document.
             - vendor: the business or issuer, named the way a person would say it (e.g. "Shufersal", not "SHUFERSAL DEAL BRANCH 123"), in the document's own language and script. Empty if there is none.
             - docType: Receipt (proof of a payment), Invoice (a bill or tax invoice, paid or to pay), Warranty (a warranty or guarantee), Contract (an agreement or policy), or Other.
-            - date: the document's date (purchase or issue) as YYYY-MM-DD, or null. Numeric dates that could be read either way are ${dateOrder}.
+            - date: the document's date (purchase or issue) as YYYY-MM-DD, or null. Read numeric dates the way the document's country writes them: day before month for Israeli, European and most non-US documents (12/10/2026 is 12 October 2026), month before day for US documents. Only if the document gives no clue, numeric dates are ${dateOrder}. A document's date is almost never in the future.
             - total: the final amount paid or due, tax included, as a number; null if none.
             - currency: ISO 4217 code. If only a symbol or nothing is printed, infer it from the country and language; otherwise $currency.
             - vat: the VAT or sales-tax amount if printed, else null.
@@ -58,17 +58,28 @@ object ExtractionPrompt {
 }
 
 /**
+ * A date read with day and month the wrong way round lands in the future
+ * (12/10 read as December 10 in October): swapped, it's a real past date.
+ */
+fun fixFutureDate(iso: String, today: LocalDate): String {
+    val d = runCatching { LocalDate.parse(iso) }.getOrNull() ?: return iso
+    if (!d.isAfter(today) || d.dayOfMonth > 12) return iso
+    val swapped = runCatching { LocalDate.of(d.year, d.dayOfMonth, d.monthValue) }.getOrNull() ?: return iso
+    return if (swapped.isAfter(today)) iso else swapped.toString()
+}
+
+/**
  * [doc] with what the model read. Tags are added to the ones already there, and
  * a tag that matches an existing one (any case) uses its spelling.
  */
-fun Document.withExtraction(e: Extraction, existingTags: List<String>): Document {
+fun Document.withExtraction(e: Extraction, existingTags: List<String>, today: LocalDate = LocalDate.now()): Document {
     fun cents(v: Double?) = v?.let { BigDecimal.valueOf(it).setScale(2, RoundingMode.HALF_UP).movePointRight(2).toLong() }
     val newTags = e.tags.map { t -> t.trim() }.filter { it.isNotEmpty() }
         .map { t -> existingTags.firstOrNull { it.equals(t, ignoreCase = true) } ?: t }
     return copy(
         vendor = e.vendor.trim().ifBlank { vendor },
         docType = e.docType.takeIf { it in DOCUMENT_TYPES } ?: docType,
-        date = e.date?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess } ?: date,
+        date = e.date?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess }?.let { fixFutureDate(it, today) } ?: date,
         totalCents = cents(e.total) ?: totalCents,
         currency = e.currency?.trim()?.uppercase()?.takeIf { runCatching { Currency.getInstance(it) }.isSuccess } ?: currency,
         vatCents = cents(e.vat) ?: vatCents,

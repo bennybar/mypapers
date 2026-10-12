@@ -62,6 +62,14 @@ class ExtractionTest {
         assertTrue(ExtractionPrompt.build(emptyList(), Locale.forLanguageTag("he-IL")).contains("3 April"))
     }
 
+    @Test fun futureDateWithDayAndMonthSwapped() {
+        val today = java.time.LocalDate.of(2026, 10, 12)
+        assertEquals("2026-10-12", fixFutureDate("2026-12-10", today)) // 12/10 read month-first
+        assertEquals("2026-09-30", fixFutureDate("2026-09-30", today)) // past: kept
+        assertEquals("2026-12-25", fixFutureDate("2026-12-25", today)) // day > 12: can't be swapped
+        assertEquals("2026-11-12", fixFutureDate("2026-11-12", today)) // swapped (Dec 11) is future too: kept
+    }
+
     @Test fun duplicates() {
         val shuf = doc("a", "Shufersal", 5930, "2026-10-08", createdAt = 1)
         val others = listOf(
@@ -74,6 +82,22 @@ class ExtractionTest {
         assertEquals("a", Duplicates.find(doc("new", "Shufersl", 5930, "2026-10-08"), others)?.id) // typo
         assertNull(Duplicates.find(doc("new", "Paz", 5930, "2026-10-08"), others))
         assertNull(Duplicates.find(doc("new", "Shufersal", null, "2026-10-08"), others)) // no amount: can't tell
+    }
+
+    /** A real call: an Israeli invoice on a US-locale phone still reads day-first. Needs OPENAI_API_KEY and MYPAPERS_TEST_IL_PDF. */
+    @Test fun liveIsraeliInvoiceOnUsPhone() {
+        val key = System.getenv("OPENAI_API_KEY")
+        val pdf = System.getenv("MYPAPERS_TEST_IL_PDF")?.let(::File)
+        assumeTrue("no OpenAI key", key != null && pdf != null)
+        val part = buildJsonObject {
+            put("type", "input_file")
+            put("filename", "invoice.pdf")
+            put("file_data", "data:application/pdf;base64," + Base64.getEncoder().encodeToString(pdf!!.readBytes()))
+        }
+        val e = runBlocking { OpenAiClient().extract(AiConfig(key!!, AiSettings.DEFAULT_MODEL), ExtractionPrompt.build(listOf("School"), Locale.US), listOf(part)) }
+        println(e)
+        assertEquals("2026-10-12", e.date)
+        assertEquals(3534.0, e.total!!, 0.001)
     }
 
     /** A real call. Runs only with OPENAI_API_KEY and MYPAPERS_TEST_PDF set. */

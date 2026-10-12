@@ -14,6 +14,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import android.util.Log
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.DocumentRepository
 import com.bennybar.mypapers.data.ImportResult
@@ -74,6 +75,8 @@ class GmailImporter(
             return
         }
         val request = PeriodicWorkRequestBuilder<GmailScanWorker>(1, TimeUnit.DAYS)
+            // The first sweep a day after the scan that just ran, not right away.
+            .setInitialDelay(1, TimeUnit.DAYS)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .addTag(TAG)
             .build()
@@ -132,6 +135,7 @@ class GmailImporter(
         }
         onProgress(all.size, all.size)
         settings.lastScanAt = startedAt
+        Log.i(LOG_TAG, "Gmail scan ($window): ${withAttachments.size} with attachments, ${receipts.size} receipt emails, $added new")
         return added
     }
 
@@ -202,6 +206,8 @@ class GmailImporter(
     }
 }
 
+private const val LOG_TAG = "Gmail"
+
 class GmailScanWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun getForegroundInfo() = GmailNotifications.progress(applicationContext, "Looking for papers in Gmail", 0, 0)
 
@@ -215,10 +221,16 @@ class GmailScanWorker(context: Context, params: WorkerParameters) : CoroutineWor
             app.gmail.scheduleSweep()
             Result.success()
         } catch (e: GmailException) {
+            Log.w(LOG_TAG, "Gmail scan failed", e)
             if (e.needsReconnect) GmailNotifications.reconnect(applicationContext)
             Result.failure(workDataOf("error" to e.message))
         } catch (e: java.io.IOException) {
+            Log.w(LOG_TAG, "Gmail scan failed (attempt ${runAttemptCount + 1})", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure(workDataOf("error" to e.message))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.w(LOG_TAG, "Gmail scan failed", e)
+            Result.failure(workDataOf("error" to "Scan failed: ${e.message ?: e.javaClass.simpleName}"))
         }
     }
 }
@@ -234,10 +246,16 @@ class GmailImportWorker(context: Context, params: WorkerParameters) : CoroutineW
             }
             Result.success()
         } catch (e: GmailException) {
+            Log.w(LOG_TAG, "Gmail import failed", e)
             if (e.needsReconnect) GmailNotifications.reconnect(applicationContext)
             Result.failure(workDataOf("error" to e.message))
         } catch (e: java.io.IOException) {
+            Log.w(LOG_TAG, "Gmail import failed (attempt ${runAttemptCount + 1})", e)
             if (runAttemptCount < 3) Result.retry() else Result.failure(workDataOf("error" to e.message))
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.w(LOG_TAG, "Gmail import failed", e)
+            Result.failure(workDataOf("error" to "Import failed: ${e.message ?: e.javaClass.simpleName}"))
         }
     }
 }

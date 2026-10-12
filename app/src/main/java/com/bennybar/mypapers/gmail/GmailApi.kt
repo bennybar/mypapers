@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -25,6 +26,9 @@ import java.util.concurrent.TimeUnit
 
 /** [needsReconnect]: Google no longer accepts the app's access (the user must connect Gmail again). */
 class GmailException(message: String, val needsReconnect: Boolean = false) : IOException(message)
+
+/** Any other error answer from Gmail. */
+class GmailHttpException(val code: Int, message: String) : IOException(message)
 
 /**
  * The Gmail API, read-only (gmail.readonly). [token] gives a fresh access token;
@@ -56,10 +60,24 @@ class GmailApi(private val token: suspend (refresh: Boolean) -> String, private 
     /** The full message (headers and part tree; small bodies inline, attachments by id). */
     suspend fun message(id: String): JsonObject = get("$baseUrl/messages/$id".toHttpUrl().newBuilder().addQueryParameter("format", "full").build())
 
-    /** Several messages, a few requests at a time (Gmail allows about 50 a second). */
+    /**
+     * Several messages, a few requests at a time (Gmail allows about 50 a second;
+     * [get] waits and retries when it says to slow down). An email deleted since the
+     * search is skipped; any other failure fails the whole batch rather than losing emails.
+     */
     suspend fun messages(ids: List<String>): List<JsonObject> = coroutineScope {
-        val parallel = Semaphore(8)
-        ids.map { id -> async { parallel.withPermit { runCatching { message(id) }.getOrNull() } } }.awaitAll().filterNotNull()
+        val parallel = Semaphore(5)
+        ids.map { id ->
+            async {
+                parallel.withPermit {
+                    try {
+                        message(id)
+                    } catch (e: GmailHttpException) {
+                        if (e.code == 404) null else throw e
+                    }
+                }
+            }
+        }.awaitAll().filterNotNull()
     }
 
     /** Saves a part's content (an attachment, or a body too big to come inline) into [to]. */
@@ -90,19 +108,25 @@ class GmailApi(private val token: suspend (refresh: Boolean) -> String, private 
         return Base64.getUrlDecoder().decode(data)
     }
 
-    private suspend fun get(url: HttpUrl, retried: Boolean = false): JsonObject = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(url).header("Authorization", "Bearer ${token(retried)}").build()
-        http.newCall(request).execute().use { r ->
-            val text = r.body.string()
-            when {
-                r.code == 401 && !retried -> null // expired: once more with a fresh token
-                r.code == 401 -> throw GmailException("Gmail access was revoked. Connect Gmail again.", needsReconnect = true)
-                r.code == 403 && text.contains("accessNotConfigured") -> throw GmailException("The Gmail API isn't enabled in the Google Cloud project")
-                r.code == 403 -> throw GmailException("Gmail refused: ${errorMessage(text)}", needsReconnect = text.contains("insufficient", ignoreCase = true))
-                !r.isSuccessful -> throw IOException("Gmail (${r.code}): ${errorMessage(text)}")
-                else -> Json.parseToJsonElement(text).jsonObject
+    private suspend fun get(url: HttpUrl, refreshed: Boolean = false, attempt: Int = 0): JsonObject {
+        val (code, text) = withContext(Dispatchers.IO) {
+            val request = Request.Builder().url(url).header("Authorization", "Bearer ${token(refreshed)}").build()
+            http.newCall(request).execute().use { r -> r.code to r.body.string() }
+        }
+        val rateLimited = code == 429 || (code == 403 && (text.contains("rateLimitExceeded") || text.contains("userRateLimitExceeded")))
+        return when {
+            code in 200..299 -> Json.parseToJsonElement(text).jsonObject
+            // Too fast, or Gmail having a moment: wait (1, 2, 4, 8 s) and try again.
+            (rateLimited || code >= 500) && attempt < 4 -> {
+                delay(1000L shl attempt)
+                get(url, refreshed, attempt + 1)
             }
-        } ?: get(url, retried = true)
+            code == 401 && !refreshed -> get(url, refreshed = true, attempt = attempt) // expired: once more with a fresh token
+            code == 401 -> throw GmailException("Gmail access was revoked. Connect Gmail again.", needsReconnect = true)
+            code == 403 && text.contains("accessNotConfigured") -> throw GmailException("The Gmail API isn't enabled in the Google Cloud project")
+            code == 403 && text.contains("insufficient", ignoreCase = true) -> throw GmailException("Connect Gmail again in Settings", needsReconnect = true)
+            else -> throw GmailHttpException(code, "Gmail ($code): ${errorMessage(text)}")
+        }
     }
 
     companion object {
@@ -113,8 +137,14 @@ class GmailApi(private val token: suspend (refresh: Boolean) -> String, private 
         fun attachmentQuery(window: String) =
             "newer_than:$window has:attachment (filename:pdf OR filename:jpg OR filename:jpeg OR filename:png OR filename:heic)"
 
+        /**
+         * Receipts written in the email: by subject, or Gmail's Purchases category when the
+         * email talks money — minus shipping and tracking updates, which Gmail files there too.
+         */
         fun receiptQuery(window: String) =
-            "newer_than:$window (category:purchases OR subject:(receipt OR invoice OR \"order confirmation\" OR \"payment confirmation\" OR \"your order\" OR קבלה OR חשבונית OR \"אישור הזמנה\" OR \"אישור תשלום\"))"
+            "newer_than:$window (subject:(receipt OR invoice OR \"tax invoice\" OR \"order confirmation\" OR \"payment confirmation\" OR \"payment received\" OR \"your order\" OR קבלה OR חשבונית OR \"אישור הזמנה\" OR \"אישור תשלום\") " +
+                "OR (category:purchases (receipt OR invoice OR total OR קבלה OR חשבונית))) " +
+                "-subject:(shipped OR delivered OR \"out for delivery\" OR \"at customs\" OR tracking OR package OR shipment OR משלוח OR נשלח OR \"נמסר\")"
 
         /** An attachment worth offering: its part id, and what it is. */
         data class PaperPart(val partId: String, val fileName: String, val mimeType: String, val size: Long)
