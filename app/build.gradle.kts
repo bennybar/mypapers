@@ -24,7 +24,7 @@ android {
         minSdk = 35
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1.0"
         // Google OAuth *web* client ID: the audience of the sign-in token the server checks.
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("googleWebClientId").getOrElse("")}\"")
     }
