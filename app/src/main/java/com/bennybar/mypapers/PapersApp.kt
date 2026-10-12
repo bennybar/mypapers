@@ -41,11 +41,11 @@ class PapersApp : Application() {
         dao = PapersDatabase.open(this).documents()
         files = DocumentFiles(filesDir)
         server = ServerSettings(this)
-        account = Account(server)
+        account = Account()
         repository = DocumentRepository(dao, files, contentResolver, onChanged = { requestSync() })
         sync = SyncEngine(dao, files, server) {
             server.session.value?.takeUnless { it.isExpired() }
-                ?.let { CouchClient(server.url.value, it.db, "Bearer ${it.token}") }
+                ?.let { CouchClient(ServerSettings.SERVER_URL, it.db, "Bearer ${it.token}") }
         }
         SyncWorker.schedule(this)
         // Catch up whenever the app comes to the front.

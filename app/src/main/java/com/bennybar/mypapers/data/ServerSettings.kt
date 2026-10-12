@@ -19,14 +19,11 @@ data class Session(val email: String, val db: String, val token: String, val exp
 }
 
 /**
- * The server address, the signed-in session and the sync position. The token
- * is encrypted with a key that never leaves the Android Keystore.
+ * The signed-in session and the sync position. The token is encrypted with a
+ * key that never leaves the Android Keystore.
  */
 class ServerSettings(context: Context) : SeqStore {
     private val prefs = context.getSharedPreferences("server", Context.MODE_PRIVATE)
-
-    private val _url = MutableStateFlow(prefs.getString("url", DEFAULT_URL)!!)
-    val url: StateFlow<String> = _url
 
     private val _session = MutableStateFlow(readSession())
     val session: StateFlow<Session?> = _session
@@ -39,11 +36,6 @@ class ServerSettings(context: Context) : SeqStore {
     var syncedDb: String?
         get() = prefs.getString("syncedDb", null)
         set(value) = prefs.edit().putString("syncedDb", value).apply()
-
-    fun saveUrl(url: String) {
-        prefs.edit().putString("url", url.trim().trimEnd('/')).apply()
-        _url.value = prefs.getString("url", DEFAULT_URL)!!
-    }
 
     fun saveSession(session: Session?) {
         prefs.edit().apply {
@@ -93,7 +85,8 @@ class ServerSettings(context: Context) : SeqStore {
     }.getOrNull()
 
     companion object {
-        const val DEFAULT_URL = "https://couchdb.ibarak.me"
+        /** The MyPapers server (CouchDB, with the sign-in service at /mypapers-api/). */
+        const val SERVER_URL = "https://couchdb.ibarak.me"
         private const val KEY_ALIAS = "mypapers_server"
     }
 }

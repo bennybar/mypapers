@@ -3,13 +3,10 @@ package com.bennybar.mypapers.feature.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,7 +29,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -63,7 +58,6 @@ fun SettingsScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(32.dp),
         ) {
             AccountSection()
-            ServerSection()
         }
     }
 }
@@ -131,42 +125,5 @@ private fun AccountSection() {
             },
             dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
         )
-    }
-}
-
-@Composable
-private fun ServerSection() {
-    val saved by app.server.url.collectAsStateWithLifecycle()
-    var url by remember { mutableStateOf(saved) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle("Server")
-        Text(
-            "Where your papers are stored. Changing it signs you out.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedTextField(
-            url, { url = it },
-            label = { Text("Server address") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        val scope = rememberCoroutineScope()
-        if (url.trim().trimEnd('/') != saved) {
-            Row {
-                Spacer(Modifier.weight(1f))
-                Button(
-                    enabled = url.startsWith("https://"),
-                    onClick = {
-                        scope.launch {
-                            app.signOut()
-                            app.server.saveUrl(url)
-                        }
-                    },
-                ) { Text("Save") }
-            }
-        }
     }
 }

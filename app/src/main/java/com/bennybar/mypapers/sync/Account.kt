@@ -31,7 +31,7 @@ class SignInException(message: String) : IOException(message)
  * Sign in with Google, traded at the server's auth service (mypapers-auth) for
  * a token to the account's own CouchDB database.
  */
-class Account(private val server: ServerSettings) {
+class Account {
     private val http = OkHttpClient()
 
     /** Shows Google's account picker. Needs an Activity context. */
@@ -67,7 +67,7 @@ class Account(private val server: ServerSettings) {
 
     private suspend fun exchange(idToken: String): Session = withContext(Dispatchers.IO) {
         val body = buildJsonObject { put("idToken", idToken) }.toString().toRequestBody("application/json".toMediaType())
-        val request = Request.Builder().url("${server.url.value}/mypapers-api/session").post(body).build()
+        val request = Request.Builder().url("${ServerSettings.SERVER_URL}/mypapers-api/session").post(body).build()
         http.newCall(request).execute().use { r ->
             val text = r.body.string()
             when {
