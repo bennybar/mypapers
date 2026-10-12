@@ -1,6 +1,34 @@
 package com.bennybar.mypapers.feature.documents
 
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import com.bennybar.mypapers.app
+import com.bennybar.mypapers.data.DOCUMENT_TYPES
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -62,6 +90,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -95,7 +124,7 @@ import java.time.LocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: () -> Unit, vm: DocumentsViewModel = viewModel()) {
+fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettings: () -> Unit, onGmail: () -> Unit, vm: DocumentsViewModel = viewModel()) {
     val results by vm.results.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
     val tags by vm.tags.collectAsStateWithLifecycle()
@@ -104,11 +133,41 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
     val selectedTypes by vm.selectedTypes.collectAsStateWithLifecycle()
     val unread by vm.unread.collectAsStateWithLifecycle(0)
     val ai by vm.ai.collectAsStateWithLifecycle()
+    val reading by vm.readingProgress.collectAsStateWithLifecycle(null)
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    val filters by vm.filters.collectAsStateWithLifecycle()
+    val vendors by vm.vendors.collectAsStateWithLifecycle()
+    var filterSheet by remember { mutableStateOf(false) }
+    val narrowed = query.isNotBlank() || selectedTags.isNotEmpty() || selectedTypes.isNotEmpty() || filters.activeCount > 0
+    val selection by vm.selection.collectAsStateWithLifecycle()
+    val selecting = selection.isNotEmpty()
+    val context = LocalContext.current
+    var tagDialog by remember { mutableStateOf(false) }
+    var typeDialog by remember { mutableStateOf(false) }
+    var selectionMenu by remember { mutableStateOf(false) }
+
+    // Gone from the list at once; really deleted only if not undone in time.
+    fun deleteWithUndo(all: Set<String>) = scope.launch {
+        val ids = vm.hide(all)
+        if (ids.isEmpty()) return@launch // already being deleted
+        vm.clearSelection()
+        val r = snackbar.showSnackbar(
+            if (ids.size == 1) "Deleted" else "Deleted ${ids.size} papers",
+            actionLabel = "Undo",
+            duration = SnackbarDuration.Long,
+        )
+        if (r != SnackbarResult.ActionPerformed) vm.delete(ids)
+        vm.unhide(ids)
+    }
+
+    fun share(docs: List<Document>) = scope.launch {
+        if (!Sharing.share(context, docs)) snackbar.showSnackbar("The file isn't on this phone yet")
+    }
+    BackHandler(selecting) { vm.clearSelection() }
     val syncState by vm.syncState.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
     val gmailFound by vm.gmailFound.collectAsStateWithLifecycle(0)
-    val scope = rememberCoroutineScope()
-    val snackbar = remember { SnackbarHostState() }
     var refreshing by remember { mutableStateOf(false) }
 
     // One new paper: open it. Already there: say so, with a way to it.
@@ -159,7 +218,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
         modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
-            FloatingActionButtonMenu(
+            if (!selecting) FloatingActionButtonMenu(
                 expanded = addMenu,
                 button = {
                     ToggleFloatingActionButton(checked = addMenu, onCheckedChange = { addMenu = it }) {
@@ -185,15 +244,70 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
             }
         },
         topBar = {
-            Column {
+            if (selecting) {
+                val docs = results.orEmpty().filter { it.id in selection }
+                TopAppBar(
+                    title = { Text("${selection.size} selected") },
+                    navigationIcon = {
+                        IconButton(onClick = { vm.clearSelection() }) { Icon(Icons.Filled.Close, contentDescription = "Done") }
+                    },
+                    actions = {
+                        IconButton(onClick = { share(docs) }) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
+                        IconButton(onClick = { deleteWithUndo(selection) }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+                        IconButton(onClick = { selectionMenu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+                        DropdownMenu(expanded = selectionMenu, onDismissRequest = { selectionMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Select all") },
+                                onClick = { selectionMenu = false; vm.selectAll(results.orEmpty().map { it.id }) },
+                            )
+                            DropdownMenuItem(text = { Text("Add tag…") }, onClick = { selectionMenu = false; tagDialog = true })
+                            DropdownMenuItem(text = { Text("Set type…") }, onClick = { selectionMenu = false; typeDialog = true })
+                            DropdownMenuItem(
+                                text = { Text("Read with AI") },
+                                enabled = ai.isSet,
+                                onClick = {
+                                    selectionMenu = false
+                                    scope.launch { vm.read(selection); vm.clearSelection() }
+                                },
+                            )
+                            if (docs.size == 1) {
+                                DropdownMenuItem(
+                                    text = { Text("Edit") },
+                                    onClick = { selectionMenu = false; vm.clearSelection(); onEdit(docs.single().id) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Open with…") },
+                                    enabled = docs.single().fileLocal,
+                                    onClick = { selectionMenu = false; openWith(context, docs.single()) },
+                                )
+                            }
+                        }
+                    },
+                )
+            } else Column {
                 LargeTopAppBar(
                     title = { Text("My Papers") },
                     actions = {
+                        // Read everything the AI hasn't read yet (a spinner while it's at it).
+                        IconButton(onClick = {
+                            when {
+                                reading != null -> {}
+                                !ai.isSet -> onSettings()
+                                unread == 0 -> scope.launch { snackbar.showSnackbar("Every paper is read") }
+                                else -> vm.readUnread()
+                            }
+                        }) {
+                            if (reading != null) LoadingIndicator(Modifier.size(28.dp))
+                            else BadgedBox(badge = { if (unread > 0) Badge { Text("$unread") } }) {
+                                Icon(Icons.Outlined.AutoAwesome, contentDescription = "Read unread papers with AI")
+                            }
+                        }
                         IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
                     },
                     scrollBehavior = scroll,
                 )
-                SearchField(query, onChange = { vm.query.value = it })
+                SearchField(query, onChange = { vm.query.value = it }, filterCount = filters.activeCount, onFilters = { filterSheet = true })
+                ActiveFilters(filters, onChange = { vm.filters.value = it }, Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
                 if (tags.isNotEmpty() || types.isNotEmpty()) {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -255,10 +369,15 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
                 } else (syncState as? SyncState.Failed)?.let {
                     item(key = "syncError") { Notice("Sync failed: ${it.message}", "Settings", onSettings) }
                 }
-                if (unread > 0) {
+                reading?.let { (done, total) ->
+                    item(key = "reading") {
+                        Notice("Reading papers with AI · ${done + 1} of $total", null, {}, Icons.Outlined.AutoAwesome)
+                    }
+                }
+                if (unread > 0 && reading == null) {
                     item(key = "unread") {
                         val n = if (unread == 1) "1 paper isn't" else "$unread papers aren't"
-                        if (ai.isSet) Notice("$n read by the AI yet.", "Read now", { scope.launch { vm.readUnread() } }, Icons.Outlined.AutoAwesome)
+                        if (ai.isSet) Notice("$n read by the AI yet.", "Read now", { vm.readUnread() }, Icons.Outlined.AutoAwesome)
                         else Notice("$n read yet. Add your OpenAI key to fill in titles, amounts and tags.", "Add key", onSettings, Icons.Outlined.AutoAwesome)
                     }
                 }
@@ -271,32 +390,175 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
                     }
                 }
                 val list = results
+                // What's shown adds up to: count and totals, when searching or filtering.
+                if (narrowed && !list.isNullOrEmpty()) {
+                    item(key = "summary") { ResultSummary(list, Modifier.padding(horizontal = 8.dp)) }
+                }
                 if (list != null && list.isEmpty()) {
                     item(key = "empty") {
                         Text(
-                            if (query.isBlank() && selectedTags.isEmpty() && selectedTypes.isEmpty()) "No papers yet. Tap + to scan or add a receipt or document."
-                            else "Nothing matches.",
+                            if (!narrowed) "No papers yet. Tap + to scan or add a receipt or document."
+                            else "Nothing matches. Try fewer filters.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 16.dp),
                         )
                     }
                 }
-                items(list.orEmpty(), key = { it.id }) { doc -> DocumentCard(doc, onClick = { onOpen(doc.id) }) }
+                items(list.orEmpty(), key = { it.id }) { doc ->
+                    // Swipe right to share, left to delete (not while selecting).
+                    SwipeActions(enabled = !selecting, onShare = { share(listOf(doc)) }, onDelete = { deleteWithUndo(setOf(doc.id)) }) {
+                        DocumentCard(
+                            doc,
+                            selected = doc.id in selection,
+                            onClick = { if (selecting) vm.toggleSelected(doc.id) else onOpen(doc.id) },
+                            onLongClick = { vm.toggleSelected(doc.id) },
+                        )
+                    }
+                }
             }
+        }
+    }
+
+    if (filterSheet) {
+        FilterSheet(
+            filters,
+            vendors,
+            onChange = { vm.filters.value = it },
+            onClearAll = { vm.clearFilters() },
+            onDismiss = { filterSheet = false },
+        )
+    }
+    if (tagDialog) {
+        AddTagDialog(tags, onDismiss = { tagDialog = false }) { tag ->
+            tagDialog = false
+            scope.launch { vm.addTag(selection, tag); vm.clearSelection() }
+        }
+    }
+    if (typeDialog) {
+        SetTypeDialog(onDismiss = { typeDialog = false }) { type ->
+            typeDialog = false
+            scope.launch { vm.setType(selection, type); vm.clearSelection() }
         }
     }
 }
 
+/** Swipe right (toward the end) to share, left to delete — reversed in right-to-left layouts, like the swipe itself. */
 @Composable
-private fun SearchField(query: String, onChange: (String) -> Unit) {
+private fun SwipeActions(enabled: Boolean, onShare: () -> Unit, onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val state = rememberSwipeToDismissBoxState()
+    // The box reports a dismissal more than once: act on the first only.
+    var acted by remember { mutableStateOf(false) }
+    // The list restores a card's saved swipe position when it comes back (after Undo): settle it.
+    LaunchedEffect(Unit) {
+        if (state.currentValue != SwipeToDismissBoxValue.Settled) state.snapTo(SwipeToDismissBoxValue.Settled)
+    }
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = enabled,
+        enableDismissFromEndToStart = enabled,
+        gesturesEnabled = enabled,
+        onDismiss = { direction ->
+            if (!acted && direction != SwipeToDismissBoxValue.Settled) {
+                acted = true
+                when (direction) {
+                    SwipeToDismissBoxValue.StartToEnd -> {
+                        onShare()
+                        // Sharing keeps the paper: back into place, ready for the next swipe.
+                        scope.launch { state.reset(); acted = false }
+                    }
+                    else -> onDelete()
+                }
+            }
+        },
+        backgroundContent = {
+            val share = state.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+            val delete = state.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            val cs = MaterialTheme.colorScheme
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .background(if (delete) cs.errorContainer else cs.primaryContainer, MaterialTheme.shapes.extraLarge)
+                    .padding(horizontal = 28.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (delete) Arrangement.End else Arrangement.Start,
+            ) {
+                if (share) Icon(Icons.Outlined.Share, contentDescription = "Share", tint = cs.onPrimaryContainer)
+                if (delete) Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = cs.onErrorContainer)
+            }
+        },
+    ) { content() }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddTagDialog(existing: List<String>, onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add tag") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(text, { text = it }, label = { Text("Tag") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                val suggestions = existing.filter { text.isBlank() || it.contains(text.trim(), ignoreCase = true) }.take(12)
+                if (suggestions.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        suggestions.forEach { t -> SuggestionChip(onClick = { onAdd(t) }, label = { Text(t) }, shape = CircleShape) }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(enabled = text.isNotBlank(), onClick = { onAdd(text) }) { Text("Add") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun SetTypeDialog(onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set type") },
+        text = {
+            Column {
+                DOCUMENT_TYPES.forEach { type ->
+                    Text(
+                        type,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.fillMaxWidth().clickable { onPick(type) }.padding(vertical = 12.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** Hands the paper's file to another app to view. */
+fun openWith(context: Context, doc: Document) {
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", app.repository.files.file(doc.id))
+    context.startActivity(
+        Intent.createChooser(Intent(Intent.ACTION_VIEW).setDataAndType(uri, doc.mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), null),
+    )
+}
+
+@Composable
+private fun SearchField(query: String, onChange: (String) -> Unit, filterCount: Int, onFilters: () -> Unit) {
     TextField(
         value = query,
         onValueChange = onChange,
         placeholder = { Text("Search vendor, tag, amount…") },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = {
-            if (query.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear") }
+            Row {
+                if (query.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear") }
+                IconButton(onClick = onFilters) {
+                    BadgedBox(badge = { if (filterCount > 0) Badge { Text("$filterCount") } }) {
+                        Icon(Icons.Outlined.Tune, contentDescription = "Filter and sort")
+                    }
+                }
+            }
         },
         singleLine = true,
         shape = CircleShape,
@@ -311,7 +573,7 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
 }
 
 @Composable
-private fun Notice(text: String, action: String, onAction: () -> Unit, icon: ImageVector = Icons.Outlined.CloudOff) {
+private fun Notice(text: String, action: String?, onAction: () -> Unit, icon: ImageVector = Icons.Outlined.CloudOff) {
     Card(
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -319,7 +581,7 @@ private fun Notice(text: String, action: String, onAction: () -> Unit, icon: Ima
         Row(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null)
             Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(horizontal = 12.dp))
-            TextButton(onClick = onAction) { Text(action) }
+            if (action != null) TextButton(onClick = onAction) { Text(action) } else Spacer(Modifier.padding(vertical = 24.dp))
         }
     }
 }
@@ -332,17 +594,20 @@ fun Document.subtitle(): String =
     listOfNotNull(vendor.takeIf { it.isNotBlank() && title.isNotBlank() }, docType.ifBlank { null }, Format.date(date)).joinToString(" · ")
 
 /** The card is the container that grows into the detail page (container transform). */
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
-private fun DocumentCard(doc: Document, onClick: () -> Unit) {
+private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val shape = MaterialTheme.shapes.extraLarge
+    val cs = MaterialTheme.colorScheme
     with(LocalSharedTransitionScope.current) {
         Card(
-            onClick = onClick,
             shape = shape,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            colors = CardDefaults.cardColors(containerColor = if (selected) cs.secondaryContainer else cs.surfaceContainerHigh),
+            border = if (selected) BorderStroke(2.dp, cs.primary) else null,
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(shape)
+                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                 .sharedBounds(
                     rememberSharedContentState(documentContainerKey(doc.id)),
                     LocalNavAnimatedScope.current,

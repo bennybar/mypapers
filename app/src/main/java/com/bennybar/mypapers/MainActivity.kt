@@ -153,6 +153,7 @@ private fun AppRoot(pendingRoute: MutableStateFlow<Route?>) {
                 screen<Route.Documents> {
                     DocumentsScreen(
                         onOpen = { controller.navigate(Route.Document(it)) },
+                        onEdit = { controller.navigate(Route.EditDocument(it)) },
                         onSettings = { controller.navigate(Route.Settings) },
                         onGmail = { controller.navigate(Route.Gmail) },
                     )

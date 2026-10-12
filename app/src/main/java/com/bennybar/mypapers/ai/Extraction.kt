@@ -39,7 +39,7 @@ object ExtractionPrompt {
         val tagLanguage = if (existingTags.isEmpty()) "English" else "the same language as the existing tags"
         return """
             You read receipts and documents for a personal paper archive. Fill every field from the attached document.
-            - title: a short, clear name for it, the way someone would label it in a folder: what it is, from whom, and for when if known (e.g. "019 Mobile bill, September 2026", "Shufersal groceries", "Washing machine warranty"). In the document's own language. Not the file name.
+            - title: a short, clear name for it, the way someone would label it in a folder: what it is and from whom, plus the month for periodic bills (e.g. "019 Mobile bill, September 2026", "Shufersal groceries", "Washing machine warranty"). Never a numeric date (the date has its own field). In the document's own language. Not the file name.
             - vendor: the business or issuer, named the way a person would say it (e.g. "Shufersal", not "SHUFERSAL DEAL BRANCH 123"), in the document's own language and script. Empty if there is none.
             - docType: Receipt (proof of a payment), Invoice (a bill or tax invoice, paid or to pay), Warranty (a warranty or guarantee), Contract (an agreement or policy), or Other.
             - date: the document's date (purchase or issue) as YYYY-MM-DD, or null. Read numeric dates the way the document's country writes them: day before month for Israeli, European and most non-US documents (12/10/2026 is 12 October 2026), month before day for US documents. Only if the document gives no clue, numeric dates are ${dateOrder}. A document's date is almost never in the future.
@@ -70,6 +70,22 @@ fun fixFutureDate(iso: String, today: LocalDate): String {
     return if (swapped.isAfter(today)) iso else swapped.toString()
 }
 
+private val finalForms = mapOf('מ' to 'ם', 'נ' to 'ן', 'צ' to 'ץ', 'פ' to 'ף', 'כ' to 'ך')
+private val hebrewWord = Regex("[\u05D0-\u05EA]+")
+
+/**
+ * Hebrew words end in the final letter forms (ם ן ץ ף ך), which models sometimes
+ * miss ("לוקרימ" → "לוקרים"). A word followed by a geresh or gershayim (abbreviations,
+ * "צ'יפס") is left alone.
+ */
+fun fixHebrewFinals(s: String): String = hebrewWord.replace(s) { m ->
+    val next = s.getOrNull(m.range.last + 1)
+    val last = m.value.last()
+    val final = finalForms[last]
+    if (final == null || m.value.length < 2 || next == '\'' || next == '"' || next == '׳' || next == '״') m.value
+    else m.value.dropLast(1) + final
+}
+
 /**
  * [doc] with what the model read. Tags are added to the ones already there, and
  * a tag that matches an existing one (any case) uses its spelling.
@@ -79,8 +95,8 @@ fun Document.withExtraction(e: Extraction, existingTags: List<String>, today: Lo
     val newTags = e.tags.map { t -> t.trim() }.filter { it.isNotEmpty() }
         .map { t -> existingTags.firstOrNull { it.equals(t, ignoreCase = true) } ?: t }
     return copy(
-        title = e.title.trim().ifBlank { title },
-        vendor = e.vendor.trim().ifBlank { vendor },
+        title = fixHebrewFinals(e.title.trim()).ifBlank { title },
+        vendor = fixHebrewFinals(e.vendor.trim()).ifBlank { vendor },
         docType = e.docType.takeIf { it in DOCUMENT_TYPES } ?: docType,
         date = e.date?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess }?.let { fixFutureDate(it, today) } ?: date,
         totalCents = cents(e.total) ?: totalCents,

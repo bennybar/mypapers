@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path name="docs" path="docs/" />
+    <!-- Named copies for sharing ("019 Mobile bill.pdf", not the internal id). -->
+    <cache-path name="share" path="share/" />
 </paths>

@@ -7,6 +7,7 @@ import com.bennybar.mypapers.ai.AiInput
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.OpenAiClient
+import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.ai.withExtraction
 import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +64,8 @@ class DocumentRepository(
     private val onChanged: () -> Unit,
     /** Schedules the AI reading of a document (in the background). */
     private val onNeedsReading: (String) -> Unit,
+    /** Starts the job that reads unread papers (or, with true, all of them). */
+    private val onReadAll: (all: Boolean) -> Unit,
 ) {
     fun observeAll(): Flow<List<Document>> = dao.observeAll()
 
@@ -130,12 +133,37 @@ class DocumentRepository(
     /** Papers never read by the AI and not filled in by hand: what "Read now" reads. */
     fun observeUnread(): Flow<List<Document>> = dao.observeAll().map { docs -> docs.filter(::isUnread) }
 
-    private fun isUnread(d: Document) = d.aiState.isEmpty() && d.fileLocal && d.title.isBlank() && d.vendor.isBlank() && d.totalCents == null
+    /** Never read (or the reading failed) and nothing filled in by hand. */
+    private fun isUnread(d: Document) =
+        (d.aiState.isEmpty() || d.aiState == AI_FAILED) && d.fileLocal && d.title.isBlank() && d.vendor.isBlank() && d.totalCents == null
 
-    /** Reads every unread paper (see [observeUnread]) in the background. Needs a key. */
-    suspend fun readUnread() {
-        if (!ai.config.value.isSet) return
-        dao.all().filter(::isUnread).forEach { requestReading(it.id) }
+    /** Reads every unread paper (see [observeUnread]) as one background job ([ReadAllWorker]). Needs a key. */
+    fun readUnread() {
+        if (ai.config.value.isSet) onReadAll(false)
+    }
+
+    /** Re-reads every paper (e.g. after an upgrade adds titles). Needs a key. */
+    fun rereadAll() {
+        if (ai.config.value.isSet) onReadAll(true)
+    }
+
+    /** Every paper whose file is on this phone. */
+    suspend fun readableIds(): List<String> = dao.all().filter { it.fileLocal }.sortedByDescending { it.createdAt }.map { it.id }
+
+    fun observeReadableCount(): Flow<Int> = dao.observeAll().map { docs -> docs.count { it.fileLocal } }
+
+    suspend fun unreadIds(): List<String> = dao.all().filter(::isUnread).sortedByDescending { it.createdAt }.map { it.id }
+
+    /** Shown as "Reading with AI…" while the read-all job is on it. */
+    suspend fun markReading(id: String) {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return
+        update(doc.copy(aiState = AI_PENDING, aiError = null))
+    }
+
+    /** Back to unread (the job stopped before reading it). */
+    suspend fun markUnread(id: String) {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return
+        if (doc.aiState == AI_PENDING) update(doc.copy(aiState = ""))
     }
 
     /** Reads (or re-reads) a document with the AI. */
@@ -170,6 +198,20 @@ class DocumentRepository(
     suspend fun markExtractionFailed(id: String, message: String) {
         val doc = dao.get(id)?.takeUnless { it.deleted } ?: return
         update(doc.copy(aiState = AI_FAILED, aiError = message))
+    }
+
+    /** Adds [tag] to these papers (kept once, whatever its case). */
+    suspend fun addTag(ids: Collection<String>, tag: String) {
+        val t = tag.trim().ifEmpty { return }
+        ids.forEach { id ->
+            val d = dao.get(id)?.takeUnless { it.deleted } ?: return@forEach
+            if (d.tags.none { it.equals(t, ignoreCase = true) }) update(d.copy(tags = d.tags + t))
+        }
+    }
+
+    suspend fun setType(ids: Collection<String>, type: String) = ids.forEach { id ->
+        val d = dao.get(id)?.takeUnless { it.deleted } ?: return@forEach
+        if (d.docType != type) update(d.copy(docType = type))
     }
 
     /** Not a duplicate after all. */

@@ -1,7 +1,10 @@
 package com.bennybar.mypapers.feature.gmail
 
 import android.text.format.Formatter
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,10 +33,14 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -122,8 +130,19 @@ fun GmailScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(emails, key = { it.first().key }) { items ->
-                    EmailCard(items, chosen) { key ->
-                        selected = if (key in chosen) chosen - key else chosen + key
+                    val keys = items.filter { it.state != GmailCandidate.STATE_QUEUED }.map { it.key }
+                    // Swipe right to add the email's papers, left: not papers.
+                    EmailSwipe(
+                        enabled = keys.isNotEmpty(),
+                        onAdd = { scope.launch { app.gmail.queue(keys) } },
+                        onDismiss = { scope.launch { app.gmail.dismiss(keys) } },
+                    ) {
+                        EmailCard(
+                            items, chosen,
+                            onToggle = { key -> selected = if (key in chosen) chosen - key else chosen + key },
+                            // Long press: the whole email at once.
+                            onLongClick = { selected = if (chosen.containsAll(keys)) chosen - keys.toSet() else chosen + keys },
+                        )
                     }
                 }
             }
@@ -132,13 +151,52 @@ fun GmailScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun EmailCard(items: List<GmailCandidate>, chosen: Set<String>, onToggle: (String) -> Unit) {
+private fun EmailSwipe(enabled: Boolean, onAdd: () -> Unit, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    val state = rememberSwipeToDismissBoxState()
+    // The box reports a dismissal more than once: act on the first only.
+    var acted by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (state.currentValue != SwipeToDismissBoxValue.Settled) state.snapTo(SwipeToDismissBoxValue.Settled)
+    }
+    SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = enabled,
+        enableDismissFromEndToStart = enabled,
+        gesturesEnabled = enabled,
+        onDismiss = { direction ->
+            if (!acted && direction != SwipeToDismissBoxValue.Settled) {
+                acted = true
+                if (direction == SwipeToDismissBoxValue.StartToEnd) onAdd() else onDismiss()
+            }
+        },
+        backgroundContent = {
+            val add = state.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+            val dismiss = state.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            val cs = MaterialTheme.colorScheme
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .background(if (dismiss) cs.surfaceContainerHighest else cs.primaryContainer, MaterialTheme.shapes.extraLarge)
+                    .padding(horizontal = 28.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (dismiss) Arrangement.End else Arrangement.Start,
+            ) {
+                if (add) Text("Add", color = cs.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
+                if (dismiss) Text("Not papers", color = cs.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+            }
+        },
+    ) { content() }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun EmailCard(items: List<GmailCandidate>, chosen: Set<String>, onToggle: (String) -> Unit, onLongClick: () -> Unit) {
     val first = items.first()
     val context = LocalContext.current
     Card(
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.extraLarge).combinedClickable(onClick = {}, onLongClick = onLongClick),
     ) {
         Column(Modifier.padding(vertical = 12.dp)) {
             Column(Modifier.padding(horizontal = 20.dp)) {

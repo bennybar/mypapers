@@ -169,6 +169,8 @@ private fun AiSection() {
     val scope = rememberCoroutineScope()
     val config = saved.copy(apiKey = apiKey.trim(), model = model.trim().ifBlank { AiSettings.DEFAULT_MODEL })
     val unread by remember { app.repository.observeUnread() }.collectAsStateWithLifecycle(emptyList())
+    val readable by remember { app.repository.observeReadableCount() }.collectAsStateWithLifecycle(0)
+    var confirmReread by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("AI reading")
@@ -217,12 +219,25 @@ private fun AiSection() {
                 "In the background as each one comes in. Off: only when you ask.",
                 saved.autoRead,
             ) { app.ai.save(saved.copy(autoRead = it)) }
-            if (unread.isNotEmpty()) {
-                OutlinedButton(onClick = { scope.launch { app.repository.readUnread() } }) {
-                    Text(if (unread.size == 1) "Read 1 unread paper now" else "Read ${unread.size} unread papers now")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (unread.isNotEmpty()) {
+                    OutlinedButton(onClick = { app.repository.readUnread() }) {
+                        Text(if (unread.size == 1) "Read 1 unread" else "Read ${unread.size} unread")
+                    }
                 }
+                if (readable > 0) OutlinedButton(onClick = { confirmReread = true }) { Text("Re-read all ($readable)") }
             }
         }
+    }
+
+    if (confirmReread) {
+        AlertDialog(
+            onDismissRequest = { confirmReread = false },
+            title = { Text("Re-read all $readable papers?") },
+            text = { Text("The AI reads each paper again and refreshes its title, vendor, amounts, date, type and tags (your own edits to those are replaced). One AI request per paper, in the background.") },
+            confirmButton = { TextButton(onClick = { confirmReread = false; app.repository.rereadAll() }) { Text("Re-read") } },
+            dismissButton = { TextButton(onClick = { confirmReread = false }) { Text("Cancel") } },
+        )
     }
 }
 

@@ -7,6 +7,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.ExtractWorker
 import com.bennybar.mypapers.ai.OpenAiClient
+import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.data.DocumentDao
 import com.bennybar.mypapers.gmail.GmailImporter
 import com.bennybar.mypapers.gmail.GmailNotifications
@@ -60,6 +61,7 @@ class PapersApp : Application() {
             dao, files, contentResolver, ai, openAi,
             onChanged = { requestSync() },
             onNeedsReading = { ExtractWorker.enqueue(this, it) },
+            onReadAll = { all -> ReadAllWorker.start(this, all) },
         )
         sync = SyncEngine(dao, files, server) {
             server.session.value?.takeUnless { it.isExpired() }
@@ -69,7 +71,7 @@ class PapersApp : Application() {
         GmailNotifications.createChannels(this)
         gmail.scheduleSweep()
         // With automatic reading on: papers that came in while there was no key, or synced from elsewhere.
-        if (ai.config.value.autoRead) scope.launch { repository.readUnread() }
+        if (ai.config.value.autoRead) repository.readUnread()
         SyncWorker.schedule(this)
         // Catch up whenever the app comes to the front.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {

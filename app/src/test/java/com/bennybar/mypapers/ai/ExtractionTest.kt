@@ -71,6 +71,15 @@ class ExtractionTest {
         assertEquals("2026-11-12", fixFutureDate("2026-11-12", today)) // swapped (Dec 11) is future too: kept
     }
 
+    @Test fun hebrewFinalLetters() {
+        assertEquals("לוקרים", fixHebrewFinals("לוקרימ"))
+        assertEquals("כלל פנסיה וגמל", fixHebrewFinals("כלל פנסיה וגמל"))
+        assertEquals("חשבון 019, ספטמבר", fixHebrewFinals("חשבונ 019, ספטמבר"))
+        assertEquals("ארץ ועוף", fixHebrewFinals("ארצ ועופ"))
+        assertEquals("צ'יפס", fixHebrewFinals("צ'יפס")) // geresh: not a word end
+        assertEquals("Shufersal מ", fixHebrewFinals("Shufersal מ")) // one letter: left alone
+    }
+
     @Test fun duplicates() {
         val shuf = doc("a", "Shufersal", 5930, "2026-10-08", createdAt = 1)
         val others = listOf(

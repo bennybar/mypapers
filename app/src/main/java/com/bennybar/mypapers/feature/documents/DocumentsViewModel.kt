@@ -3,11 +3,14 @@ package com.bennybar.mypapers.feature.documents
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.DOCUMENT_TYPES
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.ImportResult
+import com.bennybar.mypapers.search.Filters
 import com.bennybar.mypapers.search.FuzzySearch
+import java.time.LocalDate
 import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,12 +27,26 @@ class DocumentsViewModel : ViewModel() {
     val selectedTags = MutableStateFlow(emptySet<String>())
     val selectedTypes = MutableStateFlow(emptySet<String>())
 
+    /** Papers picked with a long press (selection mode while not empty). */
+    val selection = MutableStateFlow(emptySet<String>())
+
+    /** Deleted, waiting out the Undo: hidden from the list until it's done or undone. */
+    private val hidden = MutableStateFlow(emptySet<String>())
+
+    /** The filter sheet's choices. */
+    val filters = MutableStateFlow(Filters())
+
     private val all = app.repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Null while the database is first read. */
-    val results: StateFlow<List<Document>?> = combine(all, query, selectedTags, selectedTypes) { docs, q, tags, types ->
-        docs?.let { list -> FuzzySearch.search(list.filter { types.isEmpty() || it.docType in types }, q, tags, Format.locale) }
+    private val filtered = combine(all, selectedTypes, hidden, filters) { docs, types, gone, f ->
+        val today = LocalDate.now()
+        docs?.filter { it.id !in gone && (types.isEmpty() || it.docType in types) && f.matches(it, today) }
+    }
+
+    val results: StateFlow<List<Document>?> = combine(filtered, query, selectedTags, filters) { docs, q, tags, f ->
+        docs?.let { f.sorted(FuzzySearch.search(it, q, tags, Format.locale)) }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Every tag in use, most used first, for the filter chips. */
@@ -45,6 +62,12 @@ class DocumentsViewModel : ViewModel() {
         DOCUMENT_TYPES.filter { it in used }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Vendors in use, most papers first, for the filter sheet. */
+    val vendors: StateFlow<List<String>> = all.map { docs ->
+        docs.orEmpty().map { it.vendor }.filter { it.isNotBlank() }.groupingBy { it }.eachCount()
+            .entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key }).map { it.key }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     /** Papers the AI hasn't read yet (and nobody filled in). */
     val unread = app.repository.observeUnread().map { it.size }
     val ai = app.ai.config
@@ -56,7 +79,33 @@ class DocumentsViewModel : ViewModel() {
     fun toggleTag(tag: String) = selectedTags.update { if (tag in it) it - tag else it + tag }
     fun toggleType(type: String) = selectedTypes.update { if (type in it) it - type else it + type }
 
-    suspend fun readUnread() = app.repository.readUnread()
+    fun readUnread() = app.repository.readUnread()
+
+    fun clearFilters() {
+        filters.value = Filters()
+        selectedTags.value = emptySet()
+        selectedTypes.value = emptySet()
+    }
+
+    fun toggleSelected(id: String) = selection.update { if (id in it) it - id else it + id }
+    fun clearSelection() { selection.value = emptySet() }
+    fun selectAll(ids: Collection<String>) { selection.value = ids.toSet() }
+
+    /** Hides these papers; returns the ones that weren't hidden already (a delete in progress is ignored). */
+    fun hide(ids: Collection<String>): Set<String> {
+        val new = ids.toSet() - hidden.value
+        hidden.update { it + new }
+        return new
+    }
+    fun unhide(ids: Collection<String>) = hidden.update { it - ids.toSet() }
+    suspend fun delete(ids: Collection<String>) = ids.forEach { app.repository.delete(it) }
+
+    suspend fun addTag(ids: Collection<String>, tag: String) = app.repository.addTag(ids, tag)
+    suspend fun setType(ids: Collection<String>, type: String) = app.repository.setType(ids, type)
+    suspend fun read(ids: Collection<String>) = ids.forEach { app.repository.requestReading(it) }
+
+    /** The read-all job's (done, total) while it runs. */
+    val readingProgress = ReadAllWorker.observeProgress(app)
 
     suspend fun import(uri: Uri, name: String? = null): ImportResult = app.repository.import(uri, name)
 
