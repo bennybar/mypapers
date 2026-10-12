@@ -33,10 +33,11 @@ class ExtractionTest {
     @Test fun mergeRules() {
         val e = Extraction(
             vendor = "Shufersal", docType = "Receipt", date = "2026-10-08", total = 59.299999, currency = "ils",
-            vat = 8.62, tags = listOf("groceries", "Household"), text = "SHUFERSAL…",
+            vat = 8.62, tags = listOf("groceries", "Household"), text = "SHUFERSAL…", title = "Shufersal groceries",
         )
         val d = doc(tags = listOf("Paper")).withExtraction(e, existingTags = listOf("Groceries"))
         assertEquals("Shufersal", d.vendor)
+        assertEquals("Shufersal groceries", d.title)
         assertEquals(5930L, d.totalCents) // rounded to cents
         assertEquals(862L, d.vatCents)
         assertEquals("ILS", d.currency)
@@ -117,5 +118,6 @@ class ExtractionTest {
         assertEquals(59.3, e.total!!, 0.001)
         assertEquals("2026-04-03", e.date) // printed 03/04/2026: day first in Israel
         assertTrue(e.tags.contains("Groceries"))
+        assertTrue(e.title.isNotBlank())
     }
 }

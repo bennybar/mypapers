@@ -22,6 +22,7 @@ data class Extraction(
     val vat: Double?,
     val tags: List<String>,
     val text: String,
+    val title: String = "",
 )
 
 object ExtractionPrompt {
@@ -38,6 +39,7 @@ object ExtractionPrompt {
         val tagLanguage = if (existingTags.isEmpty()) "English" else "the same language as the existing tags"
         return """
             You read receipts and documents for a personal paper archive. Fill every field from the attached document.
+            - title: a short, clear name for it, the way someone would label it in a folder: what it is, from whom, and for when if known (e.g. "019 Mobile bill, September 2026", "Shufersal groceries", "Washing machine warranty"). In the document's own language. Not the file name.
             - vendor: the business or issuer, named the way a person would say it (e.g. "Shufersal", not "SHUFERSAL DEAL BRANCH 123"), in the document's own language and script. Empty if there is none.
             - docType: Receipt (proof of a payment), Invoice (a bill or tax invoice, paid or to pay), Warranty (a warranty or guarantee), Contract (an agreement or policy), or Other.
             - date: the document's date (purchase or issue) as YYYY-MM-DD, or null. Read numeric dates the way the document's country writes them: day before month for Israeli, European and most non-US documents (12/10/2026 is 12 October 2026), month before day for US documents. Only if the document gives no clue, numeric dates are ${dateOrder}. A document's date is almost never in the future.
@@ -51,8 +53,8 @@ object ExtractionPrompt {
 
     /** The JSON schema the answer must follow (strict structured output). */
     const val SCHEMA = """{"type":"object","additionalProperties":false,
-"required":["vendor","docType","date","total","currency","vat","tags","text"],
-"properties":{"vendor":{"type":"string"},"docType":{"type":"string","enum":["Receipt","Invoice","Warranty","Contract","Other"]},
+"required":["title","vendor","docType","date","total","currency","vat","tags","text"],
+"properties":{"title":{"type":"string"},"vendor":{"type":"string"},"docType":{"type":"string","enum":["Receipt","Invoice","Warranty","Contract","Other"]},
 "date":{"type":["string","null"]},"total":{"type":["number","null"]},"currency":{"type":["string","null"]},
 "vat":{"type":["number","null"]},"tags":{"type":"array","items":{"type":"string"}},"text":{"type":"string"}}}"""
 }
@@ -77,6 +79,7 @@ fun Document.withExtraction(e: Extraction, existingTags: List<String>, today: Lo
     val newTags = e.tags.map { t -> t.trim() }.filter { it.isNotEmpty() }
         .map { t -> existingTags.firstOrNull { it.equals(t, ignoreCase = true) } ?: t }
     return copy(
+        title = e.title.trim().ifBlank { title },
         vendor = e.vendor.trim().ifBlank { vendor },
         docType = e.docType.takeIf { it in DOCUMENT_TYPES } ?: docType,
         date = e.date?.takeIf { runCatching { LocalDate.parse(it) }.isSuccess }?.let { fixFutureDate(it, today) } ?: date,

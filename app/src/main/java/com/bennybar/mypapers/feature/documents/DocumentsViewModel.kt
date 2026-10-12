@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bennybar.mypapers.app
+import com.bennybar.mypapers.data.DOCUMENT_TYPES
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.ImportResult
 import com.bennybar.mypapers.search.FuzzySearch
@@ -21,13 +22,14 @@ import kotlinx.coroutines.flow.update
 class DocumentsViewModel : ViewModel() {
     val query = MutableStateFlow("")
     val selectedTags = MutableStateFlow(emptySet<String>())
+    val selectedTypes = MutableStateFlow(emptySet<String>())
 
     private val all = app.repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Null while the database is first read. */
-    val results: StateFlow<List<Document>?> = combine(all, query, selectedTags) { docs, q, tags ->
-        docs?.let { FuzzySearch.search(it, q, tags, Format.locale) }
+    val results: StateFlow<List<Document>?> = combine(all, query, selectedTags, selectedTypes) { docs, q, tags, types ->
+        docs?.let { list -> FuzzySearch.search(list.filter { types.isEmpty() || it.docType in types }, q, tags, Format.locale) }
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     /** Every tag in use, most used first, for the filter chips. */
@@ -37,11 +39,24 @@ class DocumentsViewModel : ViewModel() {
             .map { it.key }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** The document types in use, in the usual order, for the filter chips. */
+    val types: StateFlow<List<String>> = all.map { docs ->
+        val used = docs.orEmpty().map { it.docType }.toSet()
+        DOCUMENT_TYPES.filter { it in used }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Papers the AI hasn't read yet (and nobody filled in). */
+    val unread = app.repository.observeUnread().map { it.size }
+    val ai = app.ai.config
+
     val syncState = app.sync.state
     val session = app.server.session
     val gmailFound = app.gmail.observeNewCount()
 
     fun toggleTag(tag: String) = selectedTags.update { if (tag in it) it - tag else it + tag }
+    fun toggleType(type: String) = selectedTypes.update { if (type in it) it - type else it + type }
+
+    suspend fun readUnread() = app.repository.readUnread()
 
     suspend fun import(uri: Uri, name: String? = null): ImportResult = app.repository.import(uri, name)
 

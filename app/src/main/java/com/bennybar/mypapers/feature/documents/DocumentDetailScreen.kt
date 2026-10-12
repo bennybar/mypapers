@@ -173,7 +173,7 @@ private fun DocumentDetails(
         Text(
             doc.title(),
             style = MaterialTheme.typography.headlineMedium,
-            color = if (doc.vendor.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            color = if (doc.title.isBlank() && doc.vendor.isBlank()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
         )
         val subtitle = doc.subtitle()
         if (subtitle.isNotEmpty()) {

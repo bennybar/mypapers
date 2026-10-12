@@ -29,7 +29,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.UploadFile
@@ -98,6 +100,10 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
     val query by vm.query.collectAsStateWithLifecycle()
     val tags by vm.tags.collectAsStateWithLifecycle()
     val selectedTags by vm.selectedTags.collectAsStateWithLifecycle()
+    val types by vm.types.collectAsStateWithLifecycle()
+    val selectedTypes by vm.selectedTypes.collectAsStateWithLifecycle()
+    val unread by vm.unread.collectAsStateWithLifecycle(0)
+    val ai by vm.ai.collectAsStateWithLifecycle()
     val syncState by vm.syncState.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
     val gmailFound by vm.gmailFound.collectAsStateWithLifecycle(0)
@@ -188,12 +194,22 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
                     scrollBehavior = scroll,
                 )
                 SearchField(query, onChange = { vm.query.value = it })
-                if (tags.isNotEmpty()) {
+                if (tags.isNotEmpty() || types.isNotEmpty()) {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(top = 8.dp),
                     ) {
+                        // Types first (filled when on), then tags.
+                        items(types, key = { "type-$it" }) { type ->
+                            FilterChip(
+                                selected = type in selectedTypes,
+                                onClick = { vm.toggleType(type) },
+                                label = { Text(type) },
+                                leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                shape = CircleShape,
+                            )
+                        }
                         items(tags, key = { it }) { tag ->
                             FilterChip(
                                 selected = tag in selectedTags,
@@ -239,6 +255,13 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
                 } else (syncState as? SyncState.Failed)?.let {
                     item(key = "syncError") { Notice("Sync failed: ${it.message}", "Settings", onSettings) }
                 }
+                if (unread > 0) {
+                    item(key = "unread") {
+                        val n = if (unread == 1) "1 paper isn't" else "$unread papers aren't"
+                        if (ai.isSet) Notice("$n read by the AI yet.", "Read now", { scope.launch { vm.readUnread() } }, Icons.Outlined.AutoAwesome)
+                        else Notice("$n read yet. Add your OpenAI key to fill in titles, amounts and tags.", "Add key", onSettings, Icons.Outlined.AutoAwesome)
+                    }
+                }
                 if (gmailFound > 0) {
                     item(key = "gmail") {
                         Notice(
@@ -251,7 +274,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onSettings: () -> Unit, onGmail: (
                 if (list != null && list.isEmpty()) {
                     item(key = "empty") {
                         Text(
-                            if (query.isBlank() && selectedTags.isEmpty()) "No papers yet. Tap + to scan or add a receipt or document."
+                            if (query.isBlank() && selectedTags.isEmpty() && selectedTypes.isEmpty()) "No papers yet. Tap + to scan or add a receipt or document."
                             else "Nothing matches.",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -301,11 +324,12 @@ private fun Notice(text: String, action: String, onAction: () -> Unit, icon: Ima
     }
 }
 
-/** What a document is called in lists: its vendor, else its file name. */
-fun Document.title(): String = vendor.ifBlank { fileName ?: "Untitled" }
+/** What a document is called in lists: its title, else its vendor, else its file name. */
+fun Document.title(): String = title.ifBlank { vendor.ifBlank { fileName ?: "Untitled" } }
 
-/** "Receipt · 8 Oct 2026", skipping what isn't set. */
-fun Document.subtitle(): String = listOfNotNull(docType.ifBlank { null }, Format.date(date)).joinToString(" · ")
+/** "Shufersal · Receipt · 8 Oct 2026", skipping what isn't set (the vendor when it's already the title). */
+fun Document.subtitle(): String =
+    listOfNotNull(vendor.takeIf { it.isNotBlank() && title.isNotBlank() }, docType.ifBlank { null }, Format.date(date)).joinToString(" · ")
 
 /** The card is the container that grows into the detail page (container transform). */
 @OptIn(ExperimentalSharedTransitionApi::class)

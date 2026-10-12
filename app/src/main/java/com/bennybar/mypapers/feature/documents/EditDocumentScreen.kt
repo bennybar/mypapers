@@ -84,6 +84,7 @@ fun EditDocumentScreen(id: String, onDone: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditForm(doc: Document, allTags: List<String>, modifier: Modifier, onDone: () -> Unit) {
+    var title by remember { mutableStateOf(doc.title) }
     var vendor by remember { mutableStateOf(doc.vendor) }
     var docType by remember { mutableStateOf(doc.docType) }
     var date by remember { mutableStateOf(doc.date) }
@@ -115,6 +116,13 @@ private fun EditForm(doc: Document, allTags: List<String>, modifier: Modifier, o
             .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        OutlinedTextField(
+            title, { title = it },
+            label = { Text("Title") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            modifier = Modifier.fillMaxWidth(),
+        )
         OutlinedTextField(
             vendor, { vendor = it },
             label = { Text("Vendor") },
@@ -212,6 +220,7 @@ private fun EditForm(doc: Document, allTags: List<String>, modifier: Modifier, o
                     val current = app.repository.observe(doc.id).first() ?: return@launch onDone()
                     app.repository.update(
                         current.copy(
+                            title = title.trim(),
                             vendor = vendor.trim(),
                             docType = docType,
                             date = date,

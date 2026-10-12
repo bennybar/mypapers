@@ -43,8 +43,12 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
      * Reads a document. [parts]: the file as Responses API content parts
      * (an input_file for a PDF, input_image for photos), see [AiInput].
      */
-    suspend fun extract(config: AiConfig, prompt: String, parts: List<JsonObject>): Extraction = withContext(Dispatchers.IO) {
-        val body = requestBody(config.model, prompt, parts).toString().toRequestBody("application/json".toMediaType())
+    suspend fun extract(config: AiConfig, prompt: String, parts: List<JsonObject>): Extraction =
+        parseExtraction(complete(config, prompt, parts, "document", ExtractionPrompt.SCHEMA))
+
+    /** Any structured answer: [schema] is the JSON schema it must follow; returns the answer's JSON text. */
+    suspend fun complete(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String): String = withContext(Dispatchers.IO) {
+        val body = requestBody(config.model, prompt, parts, schemaName, schema).toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder().url("$baseUrl/responses")
             .header("Authorization", "Bearer ${config.apiKey}")
             .post(body)
@@ -52,7 +56,7 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
         http.newCall(request).execute().use { r ->
             val text = r.body.string()
             if (!r.isSuccessful) throw error(r.code, text)
-            parseResponse(text)
+            outputText(text)
         }
     }
 
@@ -69,7 +73,7 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
     }
 
     companion object {
-        fun requestBody(model: String, prompt: String, parts: List<JsonObject>): JsonObject = buildJsonObject {
+        fun requestBody(model: String, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String): JsonObject = buildJsonObject {
             put("model", model)
             putJsonObject("reasoning") { put("effort", "low") }
             putJsonArray("input") {
@@ -86,17 +90,20 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
             putJsonObject("text") {
                 putJsonObject("format") {
                     put("type", "json_schema")
-                    put("name", "document")
+                    put("name", schemaName)
                     put("strict", true)
-                    put("schema", Json.parseToJsonElement(ExtractionPrompt.SCHEMA))
+                    put("schema", Json.parseToJsonElement(schema))
                 }
             }
         }
 
+        /** A document reading from a full Responses API answer. */
+        fun parseResponse(body: String): Extraction = parseExtraction(outputText(body))
+
         /** The answer is the output_text of the "message" output item (after a "reasoning" one). */
-        fun parseResponse(body: String): Extraction {
+        fun outputText(body: String): String {
             val root = Json.parseToJsonElement(body).jsonObject
-            val text = root["output"]?.jsonArray.orEmpty()
+            return root["output"]?.jsonArray.orEmpty()
                 .map { it.jsonObject }
                 .filter { it["type"]?.jsonPrimitive?.contentOrNull == "message" }
                 .flatMap { (it["content"] as? JsonArray).orEmpty() }
@@ -104,10 +111,14 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
                 .firstOrNull { it["type"]?.jsonPrimitive?.contentOrNull == "output_text" }
                 ?.get("text")?.jsonPrimitive?.content
                 ?: throw AiException("OpenAI returned no answer (${root["status"]?.jsonPrimitive?.contentOrNull})", retryable = true)
+        }
+
+        fun parseExtraction(text: String): Extraction {
             val o = Json.parseToJsonElement(text).jsonObject
             fun str(k: String) = (o[k] as? JsonPrimitive)?.contentOrNull
             fun num(k: String) = (o[k] as? JsonPrimitive)?.doubleOrNull
             return Extraction(
+                title = str("title").orEmpty(),
                 vendor = str("vendor").orEmpty(),
                 docType = str("docType").orEmpty(),
                 date = str("date"),

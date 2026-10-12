@@ -55,6 +55,7 @@ object FuzzySearch {
 
     /** Each field's words with how much a match there counts. */
     private fun fields(doc: Document): List<Pair<List<String>, Double>> = listOf(
+        words(doc.title) to 3.0,
         words(doc.vendor) to 3.0,
         doc.tags.flatMap(::words) to 3.0,
         words(doc.docType) to 2.0,

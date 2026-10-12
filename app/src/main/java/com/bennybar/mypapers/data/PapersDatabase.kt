@@ -13,6 +13,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.bennybar.mypapers.gmail.GmailCandidate
 import com.bennybar.mypapers.gmail.GmailCandidateDao
+import com.bennybar.mypapers.gmail.GmailSeen
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 
@@ -72,7 +73,7 @@ class Converters {
     @TypeConverter fun tagsFromJson(json: String): List<String> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class, GmailCandidate::class], version = 4)
+@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 5)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
@@ -81,7 +82,7 @@ abstract class PapersDatabase : RoomDatabase() {
     companion object {
         fun open(context: Context): PapersDatabase =
             Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
 
         /** v2: AI reading state and duplicate marking. */
@@ -106,6 +107,21 @@ abstract class PapersDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS `gmail_candidates`")
                 createGmailCandidates(db)
+            }
+        }
+
+        /** v5: the AI's sorting of what Gmail found, and which emails were already looked at. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN snippet TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN category TEXT")
+                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN title TEXT")
+                db.execSQL("ALTER TABLE documents ADD COLUMN title TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN vendor TEXT")
+                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN totalCents INTEGER")
+                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN currency TEXT")
+                db.execSQL("ALTER TABLE gmail_candidates ADD COLUMN likelyPaper INTEGER")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `gmail_seen` (`gmailId` TEXT NOT NULL, `seenAt` INTEGER NOT NULL, PRIMARY KEY(`gmailId`))")
             }
         }
 

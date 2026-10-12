@@ -33,6 +33,7 @@ fun Document.toCouchJson(keepFile: Boolean): JsonObject = buildJsonObject {
         return@buildJsonObject
     }
     put("type", TYPE)
+    put("title", title)
     put("vendor", vendor)
     put("docType", docType)
     put("date", date)
@@ -76,6 +77,7 @@ private fun JsonObject.long(key: String): Long? = this[key]?.jsonPrimitive?.long
 /** A synced (clean) row from a server doc; local file state is decided by the caller. */
 fun JsonObject.toDocument(fileLocal: Boolean): Document = Document(
     id = str("_id")!!,
+    title = str("title").orEmpty(),
     vendor = str("vendor").orEmpty(),
     docType = str("docType").orEmpty(),
     date = str("date"),

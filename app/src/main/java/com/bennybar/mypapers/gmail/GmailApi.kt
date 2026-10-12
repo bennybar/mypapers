@@ -5,7 +5,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -108,17 +110,29 @@ class GmailApi(private val token: suspend (refresh: Boolean) -> String, private 
         return Base64.getUrlDecoder().decode(data)
     }
 
+    private val pace = Mutex()
+    private var lastRequestAt = 0L
+
+    /** At most one request every [MIN_INTERVAL_MS] across all parallel calls (Gmail allows ~50/s per user). */
+    private suspend fun waitTurn() = pace.withLock {
+        val wait = lastRequestAt + MIN_INTERVAL_MS - System.currentTimeMillis()
+        if (wait > 0) delay(wait)
+        lastRequestAt = System.currentTimeMillis()
+    }
+
     private suspend fun get(url: HttpUrl, refreshed: Boolean = false, attempt: Int = 0): JsonObject {
+        waitTurn()
         val (code, text) = withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).header("Authorization", "Bearer ${token(refreshed)}").build()
             http.newCall(request).execute().use { r -> r.code to r.body.string() }
         }
-        val rateLimited = code == 429 || (code == 403 && (text.contains("rateLimitExceeded") || text.contains("userRateLimitExceeded")))
+        // Too fast: Gmail's per-second and per-minute quotas ("rateLimitExceeded", "Quota exceeded ... per minute").
+        val rateLimited = code == 429 || (code == 403 && (text.contains("rateLimitExceeded") || text.contains("Quota exceeded") || text.contains("quotaExceeded")))
         return when {
             code in 200..299 -> Json.parseToJsonElement(text).jsonObject
-            // Too fast, or Gmail having a moment: wait (1, 2, 4, 8 s) and try again.
-            (rateLimited || code >= 500) && attempt < 4 -> {
-                delay(1000L shl attempt)
+            // Wait (2, 4, 8, 16, 32, then 60 s — a per-minute quota refills within a minute) and try again.
+            (rateLimited || code >= 500) && attempt < 7 -> {
+                delay(minOf(2000L shl attempt, 60_000L))
                 get(url, refreshed, attempt + 1)
             }
             code == 401 && !refreshed -> get(url, refreshed = true, attempt = attempt) // expired: once more with a fresh token
@@ -130,6 +144,9 @@ class GmailApi(private val token: suspend (refresh: Boolean) -> String, private 
     }
 
     companion object {
+        /** ~30 requests a second: under Gmail's per-user limits with room for the per-minute quota. */
+        private const val MIN_INTERVAL_MS = 33L
+
         /** Images smaller than this are logos, signatures and tracking pixels, not photographed receipts. */
         private const val MIN_IMAGE_BYTES = 30_000
 

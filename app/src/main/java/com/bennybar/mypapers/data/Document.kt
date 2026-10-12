@@ -11,6 +11,8 @@ import androidx.room.PrimaryKey
 data class Document(
     /** Also the CouchDB `_id`. */
     @PrimaryKey val id: String,
+    /** A short, clear name ("019 Mobile bill, September 2026"), from the AI or typed; "" = none. */
+    val title: String = "",
     val vendor: String = "",
     /** Receipt, Invoice, Warranty, Contract, Other; blank until set. */
     val docType: String = "",

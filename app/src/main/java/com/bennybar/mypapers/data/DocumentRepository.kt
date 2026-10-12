@@ -11,6 +11,7 @@ import com.bennybar.mypapers.ai.withExtraction
 import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
@@ -102,11 +103,11 @@ class DocumentRepository(
                 createdAt = now,
                 updatedAt = now,
                 fileLocal = true,
-                aiState = if (ai.config.value.isSet) AI_PENDING else "",
+                aiState = if (autoRead()) AI_PENDING else "",
             ),
         )
         onChanged()
-        if (ai.config.value.isSet) onNeedsReading(id)
+        if (autoRead()) onNeedsReading(id)
         ImportResult.Added(id)
     }
 
@@ -122,6 +123,19 @@ class DocumentRepository(
         else dao.upsert(doc.copy(deleted = true, dirty = true, updatedAt = System.currentTimeMillis()))
         files.delete(id)
         onChanged()
+    }
+
+    private fun autoRead() = ai.config.value.isSet && ai.config.value.autoRead
+
+    /** Papers never read by the AI and not filled in by hand: what "Read now" reads. */
+    fun observeUnread(): Flow<List<Document>> = dao.observeAll().map { docs -> docs.filter(::isUnread) }
+
+    private fun isUnread(d: Document) = d.aiState.isEmpty() && d.fileLocal && d.title.isBlank() && d.vendor.isBlank() && d.totalCents == null
+
+    /** Reads every unread paper (see [observeUnread]) in the background. Needs a key. */
+    suspend fun readUnread() {
+        if (!ai.config.value.isSet) return
+        dao.all().filter(::isUnread).forEach { requestReading(it.id) }
     }
 
     /** Reads (or re-reads) a document with the AI. */

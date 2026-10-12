@@ -5,7 +5,14 @@ import com.bennybar.mypapers.data.KeystoreCipher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-data class AiConfig(val apiKey: String, val model: String) {
+data class AiConfig(
+    val apiKey: String,
+    val model: String,
+    /** Read each new paper in the background as it comes in (off: only when asked). */
+    val autoRead: Boolean = false,
+    /** Sort what a Gmail scan finds right after the scan (off: only when asked). */
+    val autoSortGmail: Boolean = false,
+) {
     val isSet get() = apiKey.isNotBlank()
 }
 
@@ -24,6 +31,8 @@ class AiSettings(context: Context) {
         prefs.edit()
             .putString("apiKey", cipher.encrypt(config.apiKey.trim()))
             .putString("model", config.model.trim().ifBlank { DEFAULT_MODEL })
+            .putBoolean("autoRead", config.autoRead)
+            .putBoolean("autoSortGmail", config.autoSortGmail)
             .apply()
         _config.value = read()
     }
@@ -31,6 +40,8 @@ class AiSettings(context: Context) {
     private fun read() = AiConfig(
         apiKey = prefs.getString("apiKey", null)?.let(cipher::decrypt).orEmpty(),
         model = prefs.getString("model", DEFAULT_MODEL)!!,
+        autoRead = prefs.getBoolean("autoRead", false),
+        autoSortGmail = prefs.getBoolean("autoSortGmail", false),
     )
 
     companion object {

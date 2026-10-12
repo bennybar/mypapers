@@ -55,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.bennybar.mypapers.ai.AiConfig
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.FormatSettings
@@ -168,12 +167,13 @@ private fun AiSection() {
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val config = AiConfig(apiKey.trim(), model.trim().ifBlank { AiSettings.DEFAULT_MODEL })
+    val config = saved.copy(apiKey = apiKey.trim(), model = model.trim().ifBlank { AiSettings.DEFAULT_MODEL })
+    val unread by remember { app.repository.observeUnread() }.collectAsStateWithLifecycle(emptyList())
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("AI reading")
         Text(
-            "Your own OpenAI key reads each new paper and fills in the vendor, amounts, date and tags. It stays on this phone.",
+            "Your own OpenAI key reads your papers: a clear title, the vendor, amounts, date, type and tags, for searching and filtering. The key stays on this phone.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -211,6 +211,34 @@ private fun AiSection() {
                 },
             ) { Text("Save") }
         }
+        if (saved.isSet) {
+            SettingSwitch(
+                "Read new papers automatically",
+                "In the background as each one comes in. Off: only when you ask.",
+                saved.autoRead,
+            ) { app.ai.save(saved.copy(autoRead = it)) }
+            SettingSwitch(
+                "Sort Gmail finds automatically",
+                "Right after each Gmail scan: what each item is, who from, the amount. Off: from the review screen when you ask.",
+                saved.autoSortGmail,
+            ) { app.ai.save(saved.copy(autoSortGmail = it)) }
+            if (unread.isNotEmpty()) {
+                OutlinedButton(onClick = { scope.launch { app.repository.readUnread() } }) {
+                    Text(if (unread.size == 1) "Read 1 unread paper now" else "Read ${unread.size} unread papers now")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitch(title: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked = checked, onCheckedChange = onChange)
     }
 }
 

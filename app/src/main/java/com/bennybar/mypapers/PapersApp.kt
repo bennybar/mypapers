@@ -68,6 +68,8 @@ class PapersApp : Application() {
         gmail = GmailImporter(this, db.gmailCandidates(), GmailSettings(this), repository)
         GmailNotifications.createChannels(this)
         gmail.scheduleSweep()
+        // With automatic reading on: papers that came in while there was no key, or synced from elsewhere.
+        if (ai.config.value.autoRead) scope.launch { repository.readUnread() }
         SyncWorker.schedule(this)
         // Catch up whenever the app comes to the front.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
