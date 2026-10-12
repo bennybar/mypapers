@@ -204,6 +204,22 @@ class DocumentRepository(
     }
 
     /**
+     * Back to how it was when added — everything read or typed cleared, corrections forgotten —
+     * and read by the AI again. Notes and the file stay.
+     */
+    suspend fun reset(id: String) {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return
+        update(
+            doc.copy(
+                title = "", vendor = "", docType = "", date = null, totalCents = null, currency = null, vatCents = null,
+                tags = emptyList(), extractedText = "", details = emptyList(), keywords = emptyList(),
+                duplicateOf = null, edited = emptyList(), aiState = AI_PENDING, aiError = null,
+            ),
+        )
+        onNeedsReading(id)
+    }
+
+    /**
      * The AI reading itself (run by [com.bennybar.mypapers.ai.ExtractWorker]):
      * fills the fields, adds tags (reusing existing ones), and flags a likely duplicate.
      */

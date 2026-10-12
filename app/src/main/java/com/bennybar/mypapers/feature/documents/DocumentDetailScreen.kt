@@ -109,6 +109,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     val scope = rememberCoroutineScope()
     val aiSet = app.ai.config.collectAsStateWithLifecycle().value.isSet
     var askDialog by rememberSaveable { mutableStateOf(false) }
+    var confirmReset by rememberSaveable { mutableStateOf(false) }
     var asking by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
@@ -180,6 +181,11 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                                 },
                             )
                             DropdownMenuItem(
+                                text = { Text("Reset and read again") },
+                                enabled = aiSet && doc?.fileLocal == true && doc?.aiState != AI_PENDING,
+                                onClick = { menu = false; confirmReset = true },
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Ask AI…") },
                                 enabled = aiSet && doc?.fileLocal == true && asking == null,
                                 onClick = { menu = false; askDialog = true },
@@ -207,6 +213,17 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                 )
             }
         }
+    }
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text("Reset this paper?") },
+            text = { Text("Everything read or typed in (title, amounts, tags, details, your corrections) is cleared and the AI reads it again from scratch. Your notes stay.") },
+            confirmButton = {
+                TextButton(onClick = { confirmReset = false; scope.launch { app.repository.reset(id) } }) { Text("Reset") }
+            },
+            dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
+        )
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
 }
