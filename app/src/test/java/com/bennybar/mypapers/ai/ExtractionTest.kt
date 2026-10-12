@@ -122,6 +122,7 @@ class ExtractionTest {
         }
         val e = runBlocking { OpenAiClient().extract(AiConfig(key!!, AiSettings.DEFAULT_MODEL), ExtractionPrompt.build(emptyList(), Locale.forLanguageTag("he-IL")), listOf(part)) }
         e.details.forEach { println("  ${it.label}: ${it.value}") }
+        println("  keywords=${e.keywords}")
         println("  title=${e.title} total=${e.total} date=${e.date}")
         val all = e.details.joinToString(" | ") { it.label + " " + it.value }
         assertTrue(all, all.contains("-1.25") && all.contains("-0.75") && all.contains("62"))

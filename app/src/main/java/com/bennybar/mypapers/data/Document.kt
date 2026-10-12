@@ -29,6 +29,8 @@ data class Document(
     val extractedText: String = "",
     /** The facts worth keeping for this kind of paper (a prescription's values, a policy number…), from the AI. */
     val details: List<KeyDetail> = emptyList(),
+    /** A few search words from the AI, in English and in the paper's language ("eye prescription", "מרשם משקפיים"). */
+    val keywords: List<String> = emptyList(),
     /** SHA-256 of the file, for duplicate detection. */
     val fileHash: String? = null,
     val fileName: String? = null,

@@ -21,7 +21,7 @@ object FuzzySearch {
     fun search(docs: List<Document>, query: String, tags: Set<String> = emptySet(), locale: Locale): List<Document> {
         val tagged = if (tags.isEmpty()) docs else docs.filter { it.tags.containsAll(tags) }
         val tokens = query.split(Regex("\\s+")).filter { it.isNotBlank() }
-        if (tokens.isEmpty()) return tagged.sortedWith(newestFirst)
+        if (tokens.isEmpty()) return tagged.sortedWith(recentlyAdded)
 
         val scored = tagged.mapNotNull { doc ->
             val fields = fields(doc)
@@ -44,13 +44,12 @@ object FuzzySearch {
                 .sortedBy { abs(it.totalCents!! / 100.0 - amount) }
                 .take(5)
         }
-        return scored.sortedWith(compareByDescending<Pair<Document, Double>> { it.second }.thenBy(newestFirst) { it.first })
+        return scored.sortedWith(compareByDescending<Pair<Document, Double>> { it.second }.thenBy(recentlyAdded) { it.first })
             .map { it.first }
     }
 
-    /** By the paper's date, or the day it was added when it has none (so a new scan is at the top). */
-    private val newestFirst: Comparator<Document> =
-        compareByDescending<Document> { Filters.paperDay(it) }.thenByDescending { it.createdAt }
+    /** What was just added first, whatever date is printed on it (see [Filters.sort] for paper dates). */
+    private val recentlyAdded: Comparator<Document> = compareByDescending { it.createdAt }
 
     private fun Double?.orZero() = this ?: 0.0
 
@@ -62,6 +61,7 @@ object FuzzySearch {
         words(doc.docType) to 2.0,
         words(doc.fileName.orEmpty()) to 1.0,
         doc.details.flatMap { words(it.label) + words(it.value) } to 2.0,
+        doc.keywords.flatMap(::words) to 2.5,
         words(doc.notes) to 1.0,
         words(doc.extractedText) to 1.0,
     )

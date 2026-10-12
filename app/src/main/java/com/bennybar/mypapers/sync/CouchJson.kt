@@ -42,6 +42,7 @@ fun Document.toCouchJson(keepFile: Boolean): JsonObject = buildJsonObject {
     put("currency", currency)
     put("vatCents", vatCents)
     putJsonArray("tags") { tags.forEach { add(JsonPrimitive(it)) } }
+    putJsonArray("keywords") { keywords.forEach { add(JsonPrimitive(it)) } }
     put("notes", notes)
     put("extractedText", extractedText)
     putJsonArray("details") { details.forEach { d -> add(buildJsonObject { put("label", d.label); put("value", d.value) }) } }
@@ -87,6 +88,7 @@ fun JsonObject.toDocument(fileLocal: Boolean): Document = Document(
     currency = str("currency"),
     vatCents = long("vatCents"),
     tags = (this["tags"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
+    keywords = (this["keywords"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
     notes = str("notes").orEmpty(),
     extractedText = str("extractedText").orEmpty(),
     details = (this["details"] as? JsonArray)?.mapNotNull { e ->

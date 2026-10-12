@@ -26,7 +26,7 @@ data class Filters(
     val duplicates: Boolean = false,
     /** Not read by the AI and not filled in. */
     val unread: Boolean = false,
-    /** null: best match first when searching, newest first otherwise. */
+    /** null: best match first when searching, recently added first otherwise. */
     val sort: SortBy? = null,
 ) {
     val activeCount: Int

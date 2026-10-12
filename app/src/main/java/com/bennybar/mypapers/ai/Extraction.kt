@@ -25,6 +25,7 @@ data class Extraction(
     val text: String,
     val title: String = "",
     val details: List<KeyDetail> = emptyList(),
+    val keywords: List<String> = emptyList(),
 )
 
 object ExtractionPrompt {
@@ -50,16 +51,17 @@ object ExtractionPrompt {
             - vat: the VAT or sales-tax amount if printed, else null.
             - tags: 1 to 3 short category tags. Existing tags: $tags. Reuse an existing tag, spelled exactly, whenever one fits; add a new one only if none fits, in $tagLanguage, Title Case.
             - details: the specific facts worth keeping for this kind of document, as short label/value pairs, in the document's language. Examples: a glasses or contact-lens prescription — one entry per eye with SPH, CYL, AXIS and ADD (e.g. "Right eye (OD)" → "SPH -1.25 · CYL -0.50 · AXIS 90 · ADD +1.00"), plus PD and the prescription date; insurance — policy number, coverage period, insured; warranty — period, serial or model number; subscription — plan, renewal date, account number; bills — account or customer number, billing period; medical — the test results that matter. Empty for an ordinary shop receipt. When the details are what matters (a prescription), the total can be null.
+            - keywords: 4 to 8 short search terms someone might type to find this document, in English AND in the document's language when that isn't English (e.g. "eye prescription", "glasses", "optometrist", "מרשם משקפיים", "בדיקת ראייה").
             - text: the document's readable text, up to about 1500 characters, for search.
         """.trimIndent()
     }
 
     /** The JSON schema the answer must follow (strict structured output). */
     const val SCHEMA = """{"type":"object","additionalProperties":false,
-"required":["title","vendor","docType","date","total","currency","vat","tags","details","text"],
+"required":["title","vendor","docType","date","total","currency","vat","tags","details","keywords","text"],
 "properties":{"title":{"type":"string"},"vendor":{"type":"string"},"docType":{"type":"string","enum":["Receipt","Invoice","Warranty","Contract","Other"]},
 "date":{"type":["string","null"]},"total":{"type":["number","null"]},"currency":{"type":["string","null"]},
-"vat":{"type":["number","null"]},"tags":{"type":"array","items":{"type":"string"}},
+"vat":{"type":["number","null"]},"tags":{"type":"array","items":{"type":"string"}},"keywords":{"type":"array","items":{"type":"string"}},
 "details":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["label","value"],"properties":{"label":{"type":"string"},"value":{"type":"string"}}}},"text":{"type":"string"}}}"""
 }
 
@@ -109,6 +111,7 @@ fun Document.withExtraction(e: Extraction, existingTags: List<String>, today: Lo
         tags = (tags + newTags).distinctBy { it.lowercase() },
         extractedText = e.text.trim().ifBlank { extractedText },
         details = e.details.filter { it.label.isNotBlank() && it.value.isNotBlank() }.ifEmpty { details },
+        keywords = e.keywords.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.ifEmpty { keywords },
         aiState = AI_DONE,
         aiError = null,
     )

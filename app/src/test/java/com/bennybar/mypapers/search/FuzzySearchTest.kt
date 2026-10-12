@@ -22,7 +22,17 @@ class FuzzySearchTest {
     private fun ids(q: String, tags: Set<String> = emptySet()) =
         FuzzySearch.search(docs, q, tags, Locale.US).map { it.id }
 
-    @Test fun blankQueryIsNewestFirst() = assertEquals(listOf("shuf", "wolt", "iec", "paz", "heb"), ids(""))
+    @Test fun blankQueryIsRecentlyAddedFirst() {
+        // Added later, but dated January: still first by default.
+        val rx = Document(id = "rx", date = "2026-01-12", createdAt = 99, updatedAt = 0)
+        assertEquals("rx", FuzzySearch.search(docs + rx, "", emptySet(), Locale.US).first().id)
+    }
+
+    @Test fun englishKeywordFindsHebrewPaper() {
+        val rx = Document(id = "rx", title = "מרשם משקפיים", keywords = listOf("eye prescription", "glasses", "מרשם משקפיים"), createdAt = 0, updatedAt = 0)
+        assertEquals(listOf("rx"), FuzzySearch.search(docs + rx, "eye prescription", emptySet(), Locale.US).map { it.id })
+        assertEquals(listOf("rx"), FuzzySearch.search(docs + rx, "משקפיים", emptySet(), Locale.US).map { it.id })
+    }
 
     @Test fun undatedNewScanIsOnTop() {
         // No date yet (not read by the AI): sorted by when it was added — today, above older papers.

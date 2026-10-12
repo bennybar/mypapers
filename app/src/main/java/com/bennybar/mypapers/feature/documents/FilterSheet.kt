@@ -48,8 +48,8 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 private fun SortBy.label() = when (this) {
-    SortBy.NEWEST -> "Newest"
-    SortBy.OLDEST -> "Oldest"
+    SortBy.NEWEST -> "Date on paper: newest"
+    SortBy.OLDEST -> "Date on paper: oldest"
     SortBy.AMOUNT_HIGH -> "Amount: high to low"
     SortBy.AMOUNT_LOW -> "Amount: low to high"
     SortBy.VENDOR -> "Vendor A–Z"
@@ -101,6 +101,13 @@ fun FilterSheet(filters: Filters, vendors: List<String>, onChange: (Filters) -> 
 
             SheetSection("Sort by")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // The default: what was added last first.
+                FilterChip(
+                    selected = filters.sort == null,
+                    onClick = { onChange(filters.copy(sort = null)) },
+                    label = { Text("Recently added") },
+                    shape = CircleShape,
+                )
                 SortBy.entries.forEach { s ->
                     FilterChip(
                         selected = filters.sort == s,

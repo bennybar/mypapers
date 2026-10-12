@@ -127,6 +127,7 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
                 currency = str("currency"),
                 vat = num("vat"),
                 tags = (o["tags"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty(),
+                keywords = (o["keywords"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty(),
                 text = str("text").orEmpty(),
                 details = (o["details"] as? JsonArray)?.mapNotNull { e ->
                     val d = e as? JsonObject ?: return@mapNotNull null
