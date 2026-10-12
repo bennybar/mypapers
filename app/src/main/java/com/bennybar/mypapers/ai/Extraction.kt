@@ -59,7 +59,7 @@ object ExtractionPrompt {
     /** A one-off question about one paper ("extract the URL"): the answer as key details. */
     fun ask(instruction: String): String = """
         You read a document from a personal paper archive. The user asks: "${instruction.trim()}"
-        Answer only that, from the attached document, as details: short label/value pairs, in the document's language (e.g. "URL" → "https://…", "Order number" → "A-1234"). One entry per value found, values copied exactly as printed. Write a date as YYYY-MM-DD. If the document doesn't have it, return no details.
+        Answer only that, from the attached document, as details: short label/value pairs, in the document's language (e.g. "URL" → "https://…", "Order number" → "A-1234"). One entry per value found, values copied exactly as printed. Write a date as YYYY-MM-DD. For a table (line items, a schedule, results), or when the user asks for one, return one entry whose value is the table: one row per line, cells separated by " | ", the first row the column headers. If the document doesn't have it, return no details.
     """.trimIndent()
 
     const val ASK_SCHEMA = """{"type":"object","additionalProperties":false,"required":["details"],

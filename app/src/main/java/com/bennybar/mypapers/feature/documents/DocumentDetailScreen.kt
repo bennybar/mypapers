@@ -6,6 +6,7 @@ import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDp
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
@@ -79,6 +81,7 @@ import com.bennybar.mypapers.data.AI_FAILED
 import com.bennybar.mypapers.data.AI_PENDING
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.KeyDetail
+import com.bennybar.mypapers.data.tableRows
 import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
 import com.bennybar.mypapers.nav.documentContainerKey
@@ -370,7 +373,7 @@ private fun DetailsCard(details: List<KeyDetail>) {
                 Text("Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
                 // All of them at once, "Label: value" a line.
                 IconButton(onClick = {
-                    val text = details.joinToString("\n") { "${it.label}: ${shown(it.value)}" }
+                    val text = details.joinToString("\n") { if ('\n' in it.value) "${it.label}:\n${it.value}" else "${it.label}: ${shown(it.value)}" }
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Details", text))) }
                 }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy details") }
             }
@@ -380,9 +383,32 @@ private fun DetailsCard(details: List<KeyDetail>) {
                     details.forEach { d ->
                         Column {
                             Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(withLinks(shown(d.value)), style = MaterialTheme.typography.bodyLarge)
+                            val table = tableRows(d.value)
+                            if (table != null) DetailTable(table)
+                            else Text(withLinks(shown(d.value)), style = MaterialTheme.typography.bodyLarge)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/** A table detail: header row bold, lines between rows, scrolls sideways when wide. */
+@Composable
+private fun DetailTable(rows: List<List<String>>) {
+    // Each column as wide as its longest cell, within reason.
+    val widths = rows.first().indices.map { c -> (rows.maxOf { it[c].length } * 8 + 16).coerceIn(56, 240).dp }
+    Column(Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
+        rows.forEachIndexed { r, cells ->
+            if (r > 0) HorizontalDivider(Modifier.width(widths.fold(0.dp) { a, b -> a + b }), color = MaterialTheme.colorScheme.outlineVariant)
+            Row(Modifier.padding(vertical = 6.dp)) {
+                cells.forEachIndexed { c, cell ->
+                    Text(
+                        withLinks(cell),
+                        style = if (r == 0) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.width(widths[c]).padding(end = 12.dp),
+                    )
                 }
             }
         }

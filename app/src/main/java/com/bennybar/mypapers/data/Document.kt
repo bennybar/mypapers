@@ -66,6 +66,20 @@ data class Document(
 @kotlinx.serialization.Serializable
 data class KeyDetail(val label: String, val value: String)
 
+/**
+ * A detail value that is a table — rows on separate lines, cells split by "|", the first row
+ * the headers ("Item | Qty | Price") — as its rows of cells; null for an ordinary value.
+ * Markdown's outer pipes and |---| separator rows are allowed.
+ */
+fun tableRows(value: String): List<List<String>>? {
+    val rows = value.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        .filterNot { line -> line.contains('-') && line.all { it in "|-: " } }
+        .map { line -> line.removePrefix("|").removeSuffix("|").split('|').map { it.trim() } }
+    if (rows.size < 2 || rows.any { it.size < 2 }) return null
+    val columns = rows.maxOf { it.size }
+    return rows.map { it + List(columns - it.size) { "" } }
+}
+
 /** How long a paper stays in the trash. */
 const val TRASH_DAYS = 30
 
