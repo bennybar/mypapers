@@ -50,7 +50,7 @@ class DriveSyncTest {
     private class Phone(drive: FakeDrive) {
         val dao = FakeDao()
         val files = DocumentFiles(Files.createTempDirectory("phone").toFile())
-        val engine = DriveSync(dao, files, object : PageTokenStore { override var pageToken: String? = null }) { drive }
+        val engine = DriveSync(dao, files, object : PageTokenStore { override var pageToken: String? = null; override var lastSyncAt = 0L }) { drive }
 
         fun sync() = runBlocking { engine.sync().getOrThrow() }
         fun get(id: String) = runBlocking { dao.get(id) }

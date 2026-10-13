@@ -12,6 +12,8 @@ import kotlinx.serialization.json.JsonObject
 sealed interface SyncState {
     data object Idle : SyncState
     data object Syncing : SyncState
+    /** Sending papers up: [done] of [total]. */
+    data class Uploading(val done: Int, val total: Int) : SyncState
     data class Failed(val message: String) : SyncState
 }
 

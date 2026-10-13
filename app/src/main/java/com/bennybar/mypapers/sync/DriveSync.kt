@@ -18,6 +18,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 /** Where the paper's change-feed position is kept (see [DriveSettings]). */
 interface PageTokenStore {
     var pageToken: String?
+    /** When a sync last finished with everything sent up; 0 = not yet. */
+    var lastSyncAt: Long
 }
 
 /**
@@ -47,7 +49,10 @@ class DriveSync(
             pull(drive)
             push(drive)
             downloadFiles(drive)
-        }.onSuccess { _state.value = SyncState.Idle }
+        }.onSuccess {
+            position.lastSyncAt = System.currentTimeMillis()
+            _state.value = SyncState.Idle
+        }
             .onFailure { _state.value = SyncState.Failed(it.message ?: it.javaClass.simpleName) }
     }
 
@@ -111,7 +116,12 @@ class DriveSync(
     }
 
     private suspend fun push(drive: DriveStore) {
-        for (doc in dao.dirty()) pushOne(drive, doc)
+        val dirty = dao.dirty()
+        dirty.forEachIndexed { i, doc ->
+            _state.value = SyncState.Uploading(i, dirty.size)
+            pushOne(drive, doc)
+        }
+        _state.value = SyncState.Syncing
     }
 
     private suspend fun pushOne(drive: DriveStore, doc: Document) {

@@ -3,6 +3,7 @@ package com.bennybar.mypapers.feature.settings
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -130,6 +131,7 @@ private fun AccountSection() {
     val email by app.drive.email.collectAsStateWithLifecycle()
     val oldServer by app.server.session.collectAsStateWithLifecycle()
     val syncState by app.sync.state.collectAsStateWithLifecycle()
+    val lastSync by app.drive.lastSync.collectAsStateWithLifecycle()
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var confirmSignOut by remember { mutableStateOf(false) }
@@ -182,6 +184,20 @@ private fun AccountSection() {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (e != null) {
+            val s = syncState
+            Text(
+                when {
+                    s is SyncState.Uploading -> "Backing up · ${s.done + 1} of ${s.total}"
+                    s is SyncState.Syncing -> "Syncing…"
+                    s is SyncState.Failed -> "Sync failed: ${s.message}"
+                    lastSync > 0 -> "Everything's backed up · last sync ${ago(lastSync)}"
+                    else -> "Not synced yet"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (s is SyncState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            )
+        }
         status?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (e == null) {
@@ -411,10 +427,24 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
                 }) { Text("Disconnect") }
             }
         }
+        // Read again when a scan finishes (that's when it's saved).
+        val lastScan = remember(busy) { app.gmail.settings.lastScanAt }
+        if (saved.isConnected && lastScan > 0) {
+            Text(
+                "Last sync ${ago(lastScan)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         if (email == null) Text("Sign in first (above) — Gmail uses the same Google account.", style = MaterialTheme.typography.bodySmall)
         if (newCount > 0) TextButton(onClick = onOpenGmail) { Text("Review $newCount found in Gmail") }
     }
 }
+
+/** "just now", "5 minutes ago", "Oct 12". */
+private fun ago(time: Long): CharSequence =
+    if (System.currentTimeMillis() - time < DateUtils.MINUTE_IN_MILLIS) "just now"
+    else DateUtils.getRelativeTimeSpanString(time, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
 
 /** Which region's date and number formats to show (and to read typed amounts and ambiguous dates with). */
 @Composable

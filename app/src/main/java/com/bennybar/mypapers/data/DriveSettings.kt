@@ -23,6 +23,16 @@ class DriveSettings(context: Context) : PageTokenStore {
         get() = prefs.getString("pageToken", null)
         set(value) = prefs.edit().putString("pageToken", value).apply()
 
+    private val _lastSync = MutableStateFlow(prefs.getLong("lastSyncAt", 0))
+    val lastSync: StateFlow<Long> = _lastSync
+
+    override var lastSyncAt: Long
+        get() = _lastSync.value
+        set(value) {
+            prefs.edit().putLong("lastSyncAt", value).apply()
+            _lastSync.value = value
+        }
+
     /** The account this phone's papers were last synced with. */
     var syncedEmail: String?
         get() = prefs.getString("syncedEmail", null)

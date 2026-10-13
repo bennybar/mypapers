@@ -119,6 +119,7 @@ class PapersApp : Application() {
         sync.whileIdle {
             if (drive.syncedEmail != email) {
                 drive.pageToken = null
+                drive.lastSyncAt = 0
                 dao.resetSync()
                 drive.syncedEmail = email
             }
@@ -144,6 +145,7 @@ class PapersApp : Application() {
                 files.deleteAll()
                 server.saveSession(null)
                 drive.pageToken = null
+                drive.lastSyncAt = 0
                 drive.syncedEmail = null
                 drive.saveEmail(null)
             }

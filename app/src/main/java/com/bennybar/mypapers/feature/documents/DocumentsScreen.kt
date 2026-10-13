@@ -73,6 +73,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.Email
@@ -436,6 +438,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
             ) {
                 // One notice at a time, the most important; none while searching or selecting.
                 val failed = syncState as? SyncState.Failed
+                val uploading = syncState as? SyncState.Uploading
                 val progress = reading
                 if (!narrowed && !selecting) when {
                     email == null -> item(key = "account") {
@@ -447,6 +450,9 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                         )
                     }
                     failed != null -> item(key = "syncError") { Notice("Sync failed: ${failed.message}", "Settings", onSettings) }
+                    uploading != null && uploading.total > 1 -> item(key = "uploading") {
+                        Notice("Backing up to Google Drive · ${uploading.done + 1} of ${uploading.total}", null, {}, Icons.Outlined.CloudUpload)
+                    }
                     progress != null -> item(key = "reading") {
                         Notice("Reading papers with AI · ${progress.first + 1} of ${progress.second}", null, {}, Icons.Outlined.AutoAwesome)
                     }
@@ -483,6 +489,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                     SwipeActions(enabled = !selecting, onShare = { share(listOf(doc)) }, onDelete = { deleteWithUndo(setOf(doc.id)) }) {
                         DocumentCard(
                             doc,
+                            signedIn = email != null,
                             selected = doc.id in selection,
                             onClick = { if (selecting) vm.toggleSelected(doc.id) else onOpen(doc.id) },
                             onLongClick = { vm.toggleSelected(doc.id) },
@@ -684,7 +691,7 @@ fun Document.subtitle(): String =
 /** The card is the container that grows into the detail page (container transform). */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
-private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun DocumentCard(doc: Document, signedIn: Boolean, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val shape = MaterialTheme.shapes.extraLarge
     val cs = MaterialTheme.colorScheme
     with(LocalSharedTransitionScope.current) {
@@ -726,6 +733,15 @@ private fun DocumentCard(doc: Document, selected: Boolean, onClick: () -> Unit, 
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(start = 12.dp),
+                        )
+                    }
+                    // Backed up to Google Drive yet (like Google Photos).
+                    if (signedIn) {
+                        Icon(
+                            if (doc.dirty) Icons.Outlined.CloudUpload else Icons.Outlined.CloudDone,
+                            contentDescription = if (doc.dirty) "Not backed up yet" else "Backed up",
+                            tint = if (doc.dirty) cs.outline else cs.primary,
+                            modifier = Modifier.padding(start = 12.dp).size(18.dp),
                         )
                     }
                 }

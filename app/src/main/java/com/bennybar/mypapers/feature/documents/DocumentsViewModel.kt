@@ -10,6 +10,7 @@ import com.bennybar.mypapers.data.DOCUMENT_TYPES
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.ImportResult
 import com.bennybar.mypapers.search.Filters
+import com.bennybar.mypapers.sync.SyncState
 import com.bennybar.mypapers.search.FuzzySearch
 import java.time.LocalDate
 import com.bennybar.mypapers.ui.Format
@@ -121,5 +122,9 @@ class DocumentsViewModel : ViewModel() {
 
     suspend fun import(uri: Uri, name: String? = null): ImportResult = app.repository.import(uri, name)
 
-    suspend fun refresh() = app.sync.sync()
+    /** Syncs now; a sync already running (e.g. the first big upload) isn't waited for: its progress shows. */
+    suspend fun refresh() {
+        val s = app.sync.state.value
+        if (s is SyncState.Idle || s is SyncState.Failed) app.sync.sync()
+    }
 }
