@@ -110,6 +110,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -162,6 +163,9 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     val filters by vm.filters.collectAsStateWithLifecycle()
     val vendors by vm.vendors.collectAsStateWithLifecycle()
     var filterSheet by remember { mutableStateOf(false) }
+    val asked by vm.asked.collectAsStateWithLifecycle()
+    // Put away while a paper from the answer is open; a notice brings it back.
+    var askHidden by rememberSaveable { mutableStateOf(false) }
     val narrowed = query.isNotBlank() || selectedTags.isNotEmpty() || selectedTypes.isNotEmpty() || filters.activeCount > 0
     val selection by vm.selection.collectAsStateWithLifecycle()
     val selecting = selection.isNotEmpty()
@@ -468,6 +472,14 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                         else Notice("$n read yet. Add your OpenAI key to fill in titles, amounts and tags.", "Add key", onSettings, Icons.Outlined.AutoAwesome)
                     }
                 }
+                // What's typed in search, as a question for the AI about all the papers.
+                val shelved = asked?.first?.takeIf { askHidden }
+                if (shelved != null && !selecting) item(key = "answer") {
+                    Notice("AI answer: “$shelved”", "Show", { askHidden = false }, Icons.Outlined.AutoAwesome)
+                }
+                if (query.isNotBlank() && query.trim() != shelved && ai.isSet && !selecting) item(key = "askAll") {
+                    Notice("Ask AI: “${query.trim()}”", "Ask", { askHidden = false; vm.askAll(query.trim()) }, Icons.Outlined.AutoAwesome)
+                }
                 val list = results
                 // What's shown adds up to: count and totals, when searching or filtering.
                 if (narrowed && !list.isNullOrEmpty()) {
@@ -500,6 +512,9 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
         }
     }
 
+    asked?.takeUnless { askHidden }?.let { (q, result) ->
+        AskAllSheet(q, result, onOpen = { askHidden = true; onOpen(it) }, onDismiss = { vm.asked.value = null })
+    }
     if (filterSheet) {
         FilterSheet(
             filters,

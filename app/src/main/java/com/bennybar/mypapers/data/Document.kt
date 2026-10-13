@@ -27,6 +27,8 @@ data class Document(
     val notes: String = "",
     /** The document's text as read by the AI, for search. */
     val extractedText: String = "",
+    /** All of its text (a PDF's own, else the AI's reading), for questions across papers; not searched. */
+    val fullText: String = "",
     /** The facts worth keeping for this kind of paper (a prescription's values, a policy number…), from the AI. */
     val details: List<KeyDetail> = emptyList(),
     /** A few search words from the AI, in English and in the paper's language ("eye prescription", "מרשם משקפיים"). */

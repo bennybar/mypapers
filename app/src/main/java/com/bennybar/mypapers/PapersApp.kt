@@ -99,6 +99,7 @@ class PapersApp : Application() {
                 requestSync(debounceMs = 0)
                 scope.launch {
                     repository.purgeTrash()
+                    repository.fillFullText()
                     ExpiryReminders.check(this@PapersApp)
                 }
                 if (ai.config.value.autoRead) scope.launch { if (repository.unreadIds().isNotEmpty()) repository.readUnread() }

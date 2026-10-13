@@ -6,8 +6,11 @@ import android.provider.OpenableColumns
 import com.bennybar.mypapers.ai.AiException
 import com.bennybar.mypapers.ai.AiInput
 import com.bennybar.mypapers.ai.AiSettings
+import com.bennybar.mypapers.ai.AskAll
+import com.bennybar.mypapers.ai.AskAllAnswer
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.OpenAiClient
+import com.bennybar.mypapers.ai.PdfText
 import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.ai.mergeDetails
 import com.bennybar.mypapers.ai.withExtraction
@@ -104,12 +107,14 @@ class DocumentRepository(
         val id = UUID.randomUUID().toString()
         temp.renameTo(files.file(id))
         val now = System.currentTimeMillis()
+        val mimeType = resolver.getType(uri) ?: DocumentFiles.sniffMimeType(files.file(id))
         dao.upsert(
             Document(
                 id = id,
                 fileHash = hash,
                 fileName = name ?: displayName(uri),
-                mimeType = resolver.getType(uri) ?: DocumentFiles.sniffMimeType(files.file(id)),
+                mimeType = mimeType,
+                fullText = if (mimeType == "application/pdf") PdfText.read(files.file(id)) else "",
                 createdAt = now,
                 updatedAt = now,
                 fileLocal = true,
@@ -119,6 +124,21 @@ class DocumentRepository(
         onChanged()
         if (autoRead()) onNeedsReading(id)
         ImportResult.Added(id)
+    }
+
+    /**
+     * Papers from before the full text was kept: a PDF's own text, read on the phone (no AI).
+     * A photo keeps the shorter text the AI read before, until it's read again.
+     */
+    suspend fun fillFullText() = withContext(Dispatchers.IO) {
+        for (doc in dao.all()) {
+            if (doc.fullText.isNotEmpty() || !doc.fileLocal) continue
+            val file = files.file(doc.id)
+            if ((doc.mimeType ?: DocumentFiles.sniffMimeType(file)) != "application/pdf") continue
+            val text = PdfText.read(file)
+            val latest = dao.get(doc.id)?.takeUnless { it.deleted } ?: continue
+            if (text.isNotEmpty()) update(latest.copy(fullText = text))
+        }
     }
 
     suspend fun update(doc: Document) {
@@ -245,8 +265,8 @@ class DocumentRepository(
     }
 
     /**
-     * Asks the AI one thing about a paper ("extract the URL") and adds the answer to its key details.
-     * They count as the user's: a later reading leaves them. Returns what was found (empty: nothing).
+     * Asks the AI one thing about a paper ("extract the URL"). Returns what was found (empty: nothing);
+     * nothing is saved until [saveDetails].
      */
     suspend fun ask(id: String, instruction: String): List<KeyDetail> {
         val doc = dao.get(id)?.takeUnless { it.deleted } ?: return emptyList()
@@ -255,11 +275,30 @@ class DocumentRepository(
         if (!doc.fileLocal) throw AiException("The file isn't on this phone yet", retryable = false)
         val parts = withContext(Dispatchers.IO) { AiInput.parts(files.file(id), doc.mimeType, doc.fileName) }
         val answer = openAi.complete(config, ExtractionPrompt.ask(instruction), parts, "answer", ExtractionPrompt.ASK_SCHEMA)
-        val found = OpenAiClient.parseExtraction(answer).details
-        if (found.isEmpty()) return found
-        val latest = dao.get(id)?.takeUnless { it.deleted } ?: return found
+        return OpenAiClient.parseExtraction(answer).details
+    }
+
+    /** A question about all the papers (see [AskAll]): the answer and the papers it's based on. */
+    suspend fun askAll(question: String): AskAllAnswer {
+        val config = ai.config.value
+        if (!config.isSet) throw AiException("Add your OpenAI key in Settings first", retryable = false)
+        val docs = dao.all().sortedByDescending { it.date ?: "" }
+        if (docs.isEmpty()) return AskAllAnswer("There are no papers yet.", emptyList(), null)
+        fun numbered(ns: List<Int>) = ns.mapNotNull { n -> docs.getOrNull(n - 1)?.let { n to it } }
+        val pick = openAi.complete(config, AskAll.pick(question, docs), emptyList(), "pick", AskAll.PICK_SCHEMA)
+        val picked = numbered(AskAll.numbers(pick))
+        if (picked.isEmpty()) return AskAllAnswer("Nothing in your papers seems to answer that.", emptyList(), null)
+        val total = AskAll.isTotal(pick)
+        val prompt = AskAll.answer(question, total, picked.take(AskAll.MAX_READ), if (total) picked.drop(AskAll.MAX_READ) else emptyList())
+        val answer = openAi.complete(config, prompt, emptyList(), "answer", AskAll.ANSWER_SCHEMA)
+        val used = numbered(AskAll.numbers(answer)).map { it.second }
+        return AskAllAnswer(AskAll.answerText(answer), used, if (total) AskAll.totals(used) else null)
+    }
+
+    /** Adds [found] to the paper's key details. They count as the user's: a later reading leaves them. */
+    suspend fun saveDetails(id: String, found: List<KeyDetail>) {
+        val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
         update(latest.copy(details = mergeDetails(latest.details, found), edited = (latest.edited + "details").distinct()))
-        return found
     }
 
     suspend fun markExtractionFailed(id: String, message: String) {

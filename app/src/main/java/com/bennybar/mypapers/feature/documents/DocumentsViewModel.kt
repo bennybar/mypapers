@@ -3,6 +3,7 @@ package com.bennybar.mypapers.feature.documents
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bennybar.mypapers.ai.AskAllAnswer
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.app
@@ -121,6 +122,17 @@ class DocumentsViewModel : ViewModel() {
     val readingProgress = ReadAllWorker.observeProgress(app)
 
     suspend fun import(uri: Uri, name: String? = null): ImportResult = app.repository.import(uri, name)
+
+    /** A question about all the papers and its answer (null while asking); kept here so it isn't asked again when coming back. */
+    val asked = MutableStateFlow<Pair<String, Result<AskAllAnswer>?>?>(null)
+
+    fun askAll(question: String) {
+        asked.value = question to null
+        viewModelScope.launch {
+            val r = runCatching { app.repository.askAll(question) }
+            if (asked.value?.first == question) asked.value = question to r
+        }
+    }
 
     /** Syncs now; a sync already running (e.g. the first big upload) isn't waited for: its progress shows. */
     suspend fun refresh() {

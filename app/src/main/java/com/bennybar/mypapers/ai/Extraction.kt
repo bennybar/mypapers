@@ -52,7 +52,7 @@ object ExtractionPrompt {
             - tags: 1 to 3 short category tags. Existing tags: $tags. Reuse an existing tag, spelled exactly, whenever one fits; add a new one only if none fits, in $tagLanguage, Title Case.
             - details: the specific facts worth keeping for this kind of document, as short label/value pairs, in the document's language. Examples: a glasses or contact-lens prescription — one entry per eye with SPH, CYL, AXIS and ADD (e.g. "Right eye (OD)" → "SPH -1.25 · CYL -0.50 · AXIS 90 · ADD +1.00"), plus PD and the prescription date; insurance — policy number, coverage period, insured; warranty — period, serial or model number; subscription — plan, renewal date, account number; bills — account or customer number, billing period, due date; medical — the test results that matter. Empty for an ordinary shop receipt. When the details are what matters (a prescription), the total can be null. Write an expiry, renewal, valid-until or due date as YYYY-MM-DD, with a label that says which ("Valid until", "Renewal date", "Due date"), so the app can remind before it.
             - keywords: 4 to 8 short search terms someone might type to find this document, in English AND in the document's language when that isn't English (e.g. "eye prescription", "glasses", "optometrist", "מרשם משקפיים", "בדיקת ראייה").
-            - text: the document's readable text, up to about 1500 characters, for search.
+            - text: the document's readable text, in full, up to about 6000 characters.
         """.trimIndent()
     }
 
@@ -109,6 +109,9 @@ fun fixHebrewFinals(s: String): String = hebrewWord.replace(s) { m ->
     else m.value.dropLast(1) + final
 }
 
+/** How much of a paper's text search looks through (more makes typing in search slow). */
+const val SEARCH_TEXT_CHARS = 1500
+
 /**
  * [doc] with what the model read. Tags are added to the ones already there, and
  * a tag that matches an existing one (any case) uses its spelling. Fields in
@@ -128,7 +131,9 @@ fun Document.withExtraction(e: Extraction, existingTags: List<String>, today: Lo
         currency = if (keep("currency")) currency else e.currency?.trim()?.uppercase()?.takeIf { runCatching { Currency.getInstance(it) }.isSuccess } ?: currency,
         vatCents = if (keep("vat")) vatCents else cents(e.vat) ?: vatCents,
         tags = if (keep("tags")) tags else (tags + newTags).distinctBy { it.lowercase() },
-        extractedText = e.text.trim().ifBlank { extractedText },
+        // Search looks at the beginning; questions across papers at all of it (unless the PDF's own text is kept).
+        extractedText = e.text.trim().take(SEARCH_TEXT_CHARS).ifBlank { extractedText },
+        fullText = fullText.ifBlank { e.text.trim() },
         details = if (keep("details")) details else e.details.filter { it.label.isNotBlank() && it.value.isNotBlank() }.ifEmpty { details },
         keywords = e.keywords.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.ifEmpty { keywords },
         aiState = AI_DONE,

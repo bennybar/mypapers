@@ -89,7 +89,6 @@ import com.bennybar.mypapers.nav.LocalNavAnimatedScope
 import com.bennybar.mypapers.nav.LocalSharedTransitionScope
 import com.bennybar.mypapers.nav.documentContainerKey
 import com.bennybar.mypapers.ui.Format
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
@@ -114,24 +113,21 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     var askDialog by rememberSaveable { mutableStateOf(false) }
     var confirmReset by rememberSaveable { mutableStateOf(false) }
     var asking by remember { mutableStateOf<String?>(null) }
+    // The question and what the AI found, shown before anything is saved.
+    var answer by remember { mutableStateOf<Pair<String, List<KeyDetail>>?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     fun ask(instruction: String) {
         asking = instruction
-        // Runs on if the page is left; the answer lands in the paper's details either way.
-        val answer = app.scope.async { runCatching { app.repository.ask(id, instruction) } }
         scope.launch {
-            val result = answer.await()
+            val result = runCatching { app.repository.ask(id, instruction) }
             asking = null
             val found = result.getOrNull()
-            snackbar.showSnackbar(
-                when {
-                    found == null -> "Couldn't ask: ${result.exceptionOrNull()?.message}"
-                    found.isEmpty() -> "Not found in this paper"
-                    found.size == 1 -> "Added to details: ${found.single().label}"
-                    else -> "Added ${found.size} details"
-                },
-            )
+            when {
+                found == null -> snackbar.showSnackbar("Couldn't ask: ${result.exceptionOrNull()?.message}")
+                found.isEmpty() -> snackbar.showSnackbar("Not found in this paper")
+                else -> answer = instruction to found
+            }
         }
     }
 
@@ -229,6 +225,20 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         )
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
+    answer?.let { (question, found) ->
+        AlertDialog(
+            onDismissRequest = { answer = null },
+            title = { Text(question) },
+            text = { Column(Modifier.verticalScroll(rememberScrollState())) { DetailList(found) } },
+            confirmButton = {
+                TextButton(onClick = {
+                    answer = null
+                    app.scope.launch { app.repository.saveDetails(id, found) }
+                }) { Text("Save to details") }
+            },
+            dismissButton = { TextButton(onClick = { answer = null }) { Text("Close") } },
+        )
+    }
 }
 
 /** "What should the AI find?": a one-off instruction for this paper. */
@@ -241,7 +251,7 @@ private fun AskDialog(onDismiss: () -> Unit, onAsk: (String) -> Unit) {
         text = {
             Column {
                 Text(
-                    "What should it find in this paper? The answer is added to its key details.",
+                    "What should it find in this paper? You can save the answer to its details.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -381,8 +391,6 @@ private fun DuplicateBanner(otherId: String, onOpen: (String) -> Unit, onKeepBot
 private fun DetailsCard(details: List<KeyDetail>) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    // Dates the AI wrote as 2027-08-15, in the region's format.
-    fun shown(value: String) = if (Regex("\\d{4}-\\d{2}-\\d{2}").matches(value)) Format.date(value) ?: value else value
     Card(
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
@@ -393,26 +401,34 @@ private fun DetailsCard(details: List<KeyDetail>) {
                 Text("Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
                 // All of them at once, "Label: value" a line.
                 IconButton(onClick = {
-                    val text = details.joinToString("\n") { if ('\n' in it.value) "${it.label}:\n${it.value}" else "${it.label}: ${shown(it.value)}" }
+                    val text = details.joinToString("\n") { if ('\n' in it.value) "${it.label}:\n${it.value}" else "${it.label}: ${shownDate(it.value)}" }
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Details", text))) }
                 }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy details") }
             }
-            // Any part can be selected and copied; web addresses open.
-            SelectionContainer {
-                Column(Modifier.padding(end = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    details.forEach { d ->
-                        Column {
-                            Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            val table = tableRows(d.value)
-                            if (table != null) DetailTable(table)
-                            else Text(withLinks(shown(d.value)), style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
+            DetailList(details, Modifier.padding(end = 12.dp))
+        }
+    }
+}
+
+/** Label over value, tables as tables. Any part can be selected and copied; web addresses open. */
+@Composable
+private fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier) {
+    SelectionContainer {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            details.forEach { d ->
+                Column {
+                    Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val table = tableRows(d.value)
+                    if (table != null) DetailTable(table)
+                    else Text(withLinks(shownDate(d.value)), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
     }
 }
+
+/** A date the AI wrote as 2027-08-15, in the region's format. */
+private fun shownDate(value: String) = if (Regex("\\d{4}-\\d{2}-\\d{2}").matches(value)) Format.date(value) ?: value else value
 
 /** A table detail: header row bold, lines between rows, scrolls sideways when wide. */
 @Composable

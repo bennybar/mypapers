@@ -86,7 +86,7 @@ class Converters {
     @TypeConverter fun detailsFromJson(json: String): List<KeyDetail> = Json.decodeFromString(json)
 }
 
-@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 9)
+@Database(entities = [Document::class, GmailCandidate::class, GmailSeen::class], version = 10)
 @TypeConverters(Converters::class)
 abstract class PapersDatabase : RoomDatabase() {
     abstract fun documents(): DocumentDao
@@ -95,7 +95,7 @@ abstract class PapersDatabase : RoomDatabase() {
     companion object {
         fun open(context: Context): PapersDatabase =
             Room.databaseBuilder(context, PapersDatabase::class.java, "papers.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 .build()
 
         /** v2: AI reading state and duplicate marking. */
@@ -150,6 +150,13 @@ abstract class PapersDatabase : RoomDatabase() {
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE documents ADD COLUMN edited TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
+        /** v10: the whole text, for questions across papers. */
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE documents ADD COLUMN fullText TEXT NOT NULL DEFAULT ''")
             }
         }
 
