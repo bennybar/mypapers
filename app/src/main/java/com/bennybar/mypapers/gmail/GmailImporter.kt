@@ -149,6 +149,7 @@ class GmailImporter(
         onProgress(all.size, all.size)
         // Only now, after the whole scan: an interrupted one runs again (skipping what it fetched).
         settings.lastScanAt = startedAt
+        settings.lastScanTook = System.currentTimeMillis() - startedAt
         settings.coveredMonths = maxOf(settings.coveredMonths, c.monthsBack)
         Log.i(LOG_TAG, "Gmail scan ($window): ${withAttachments.size} with attachments, ${receipts.size} receipt emails, ${all.size} not seen before, $added new")
         return added

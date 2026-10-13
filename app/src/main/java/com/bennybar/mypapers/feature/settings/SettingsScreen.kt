@@ -392,6 +392,21 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
                     app.gmail.scheduleSweep()
                 })
             }
+            // Read again when a scan finishes (that's when it's saved).
+            val lastScan = remember(busy) { app.gmail.settings.lastScanAt }
+            if (lastScan > 0) {
+                val ms = app.gmail.settings.lastScanTook
+                val took = ms / 1000
+                Text(
+                    "Last sync ${ago(lastScan)}" + when {
+                        ms == 0L -> "" // scanned before this was kept
+                        took < 60 -> " · took ${took}s"
+                        else -> " · took ${took / 60} min ${took % 60}s"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         (status ?: error)?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -426,15 +441,6 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
                     scope.launch { app.gmail.disconnect() }
                 }) { Text("Disconnect") }
             }
-        }
-        // Read again when a scan finishes (that's when it's saved).
-        val lastScan = remember(busy) { app.gmail.settings.lastScanAt }
-        if (saved.isConnected && lastScan > 0) {
-            Text(
-                "Last sync ${ago(lastScan)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         if (email == null) Text("Sign in first (above) — Gmail uses the same Google account.", style = MaterialTheme.typography.bodySmall)
         if (newCount > 0) TextButton(onClick = onOpenGmail) { Text("Review $newCount found in Gmail") }

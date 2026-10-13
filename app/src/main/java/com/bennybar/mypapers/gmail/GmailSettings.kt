@@ -28,6 +28,11 @@ class GmailSettings(context: Context) {
         get() = prefs.getLong("lastScanAt", 0)
         set(value) = prefs.edit().putLong("lastScanAt", value).apply()
 
+    /** How long the last completed scan took (ms). */
+    var lastScanTook: Long
+        get() = prefs.getLong("lastScanTook", 0)
+        set(value) = prefs.edit().putLong("lastScanTook", value).apply()
+
     /** How many months back the completed scans have covered; a longer window scans the rest once. */
     var coveredMonths: Int
         get() = prefs.getInt("coveredMonths", 0)
