@@ -66,7 +66,8 @@ object ExtractionPrompt {
     const val TRANSCRIBE = """
         Write out all the text of the attached document as Markdown, every word, in its own language and script, top to bottom.
         Keep its structure: "#"/"##" headings for titles, "1." for numbered sections, "-" for bullets, **bold** for underlined or emphasized words, Markdown tables (with a |---| row) for tables, a blank line between paragraphs.
-        Handwriting too: read it as well as you can. Mark a word you can't make out as [?]; never leave out a part or summarize. No commentary of your own.
+        The page comes whole and then in overlapping close-ups (rows top to bottom, columns left to right as in the picture): read the words from the close-ups, use the whole page for the order, and write overlapping text once.
+        Handwriting too: work out each word from its letters and the sentence around it, and write your best reading even when unsure. Use [?] only for a word that's truly illegible; never leave out a part or summarize. No commentary of your own.
     """
 
     const val TRANSCRIBE_SCHEMA = """{"type":"object","additionalProperties":false,"required":["text"],"properties":{"text":{"type":"string"}}}"""
