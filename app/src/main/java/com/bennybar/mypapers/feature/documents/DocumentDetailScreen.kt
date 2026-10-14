@@ -1,6 +1,12 @@
 package com.bennybar.mypapers.feature.documents
 
 import android.content.ClipData
+import com.bennybar.mypapers.ai.TranscribeWorker
+import androidx.core.content.ContextCompat
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.content.pm.PackageManager
+import android.Manifest
 import android.content.Intent
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -117,22 +123,20 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     var answer by remember { mutableStateOf<Pair<String, List<KeyDetail>>?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
+    // Extract all text runs in the background (minutes), with notifications.
+    val transcribing by remember(id) { TranscribeWorker.observeRunning(context, id) }.collectAsStateWithLifecycle(false)
+    // Its notifications; asked once (Android 13+), the job doesn't wait for the answer.
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
     fun transcribe() {
-        asking = "Extract all text"
-        scope.launch {
-            val result = runCatching { app.repository.transcribe(id) }
-            asking = null
-            val text = result.getOrNull()
-            when {
-                text == null -> snackbar.showSnackbar("Couldn't extract: ${result.exceptionOrNull()?.message}")
-                text.isEmpty() -> snackbar.showSnackbar("No text found in this paper")
-                else -> snackbar.showSnackbar("Text extracted")
-            }
+        TranscribeWorker.start(context, id)
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
     fun ask(instruction: String) {
-        asking = instruction
+        asking = "Asking the AI: $instruction"
         scope.launch {
             val result = runCatching { app.repository.ask(id, instruction) }
             asking = null
@@ -205,7 +209,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                             )
                             DropdownMenuItem(
                                 text = { Text(if (doc?.transcript.isNullOrBlank()) "Extract all text" else "Extract all text again") },
-                                enabled = aiSet && doc?.fileLocal == true && asking == null,
+                                enabled = aiSet && doc?.fileLocal == true && !transcribing,
                                 onClick = { menu = false; transcribe() },
                             )
                             DropdownMenuItem(
@@ -223,7 +227,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                 DocumentDetails(
                     d, Modifier.padding(padding), onEdit,
                     canRead = aiSet,
-                    asking = asking,
+                    asking = asking ?: if (transcribing) "Extracting all text… you'll get a notification when it's done" else null,
                     onRead = { scope.launch { app.repository.requestReading(id) } },
                     onOpen = onOpen,
                     onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
@@ -328,7 +332,7 @@ private fun DocumentDetails(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
                 LoadingIndicator(Modifier.size(28.dp))
                 Text(
-                    "Asking the AI: $asking",
+                    asking,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 8.dp),

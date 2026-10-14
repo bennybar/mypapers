@@ -61,6 +61,32 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
         }
     }
 
+    /**
+     * Like [complete], for answers that take minutes (writing a whole page out): OpenAI works on it
+     * in the background and it's fetched when done, instead of one connection held open all along.
+     */
+    suspend fun completeLong(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String): String = withContext(Dispatchers.IO) {
+        val body = JsonObject(requestBody(config.model, prompt, parts, schemaName, schema, effort) + ("background" to JsonPrimitive(true)))
+        fun call(request: Request): JsonObject = http.newCall(request).execute().use { r ->
+            val text = r.body.string()
+            if (!r.isSuccessful) throw error(r.code, text)
+            Json.parseToJsonElement(text).jsonObject
+        }
+        val auth = "Bearer ${config.apiKey}"
+        var response = call(
+            Request.Builder().url("$baseUrl/responses").header("Authorization", auth)
+                .post(body.toString().toRequestBody("application/json".toMediaType())).build(),
+        )
+        val id = response["id"]!!.jsonPrimitive.content
+        val started = System.currentTimeMillis()
+        while (response["status"]?.jsonPrimitive?.contentOrNull in setOf("queued", "in_progress")) {
+            if (System.currentTimeMillis() - started > LONG_LIMIT_MS) throw AiException("OpenAI took too long", retryable = false)
+            kotlinx.coroutines.delay(POLL_MS)
+            response = call(Request.Builder().url("$baseUrl/responses/$id").header("Authorization", auth).build())
+        }
+        outputText(response.toString())
+    }
+
     private fun error(code: Int, body: String): AiException {
         val message = runCatching {
             Json.parseToJsonElement(body).jsonObject["error"]!!.jsonObject["message"]!!.jsonPrimitive.content
@@ -74,6 +100,9 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
     }
 
     companion object {
+        private const val POLL_MS = 4_000L
+        private const val LONG_LIMIT_MS = 30 * 60_000L
+
         fun requestBody(model: String, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String = "low"): JsonObject = buildJsonObject {
             put("model", model)
             putJsonObject("reasoning") { put("effort", effort) }

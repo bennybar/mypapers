@@ -80,6 +80,8 @@ class DocumentRepository(
 
     fun observe(id: String): Flow<Document?> = dao.observe(id)
 
+    suspend fun get(id: String): Document? = dao.get(id)
+
     /**
      * Copies a picked, scanned or shared file in; the same file twice is a duplicate.
      * [name]: the file name to keep, if not the one the file comes with.
@@ -307,7 +309,7 @@ class DocumentRepository(
         if (!doc.fileLocal) throw AiException("The file isn't on this phone yet", retryable = false)
         val file = files.file(id)
         val parts = withContext(Dispatchers.IO) { AiInput.closeUpParts(file, doc.mimeType, doc.fileName) }
-        val json = openAi.complete(config, ExtractionPrompt.TRANSCRIBE.trimIndent(), parts, "transcript", ExtractionPrompt.TRANSCRIBE_SCHEMA, effort = "high")
+        val json = openAi.completeLong(config, ExtractionPrompt.TRANSCRIBE.trimIndent(), parts, "transcript", ExtractionPrompt.TRANSCRIBE_SCHEMA, effort = "high")
         val text = (Json.parseToJsonElement(json).jsonObject["text"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
         val latest = dao.get(id)?.takeUnless { it.deleted }
         if (text.isNotEmpty() && latest != null) update(latest.copy(transcript = text.take(PdfText.MAX_CHARS)))
