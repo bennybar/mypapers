@@ -46,6 +46,8 @@ object AiInput {
         opaque.compress(Bitmap.CompressFormat.JPEG, 85, out)
         return buildJsonObject {
             put("type", "input_image")
+            // Looked at closely (left to the model, a photo of small writing may be read too small).
+            put("detail", "high")
             put("image_url", "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP))
         }
     }

@@ -20,6 +20,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -293,6 +297,25 @@ class DocumentRepository(
         val answer = openAi.complete(config, prompt, emptyList(), "answer", AskAll.ANSWER_SCHEMA)
         val used = numbered(AskAll.numbers(answer)).map { it.second }
         return AskAllAnswer(AskAll.answerText(answer), used, if (total) AskAll.totals(used) else null)
+    }
+
+    /**
+     * All of the paper's text, written out by the AI (handwriting too). Kept as its full text,
+     * for questions across papers, unless it's a PDF with its own text.
+     */
+    suspend fun transcribe(id: String): String {
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return ""
+        val config = ai.config.value
+        if (!config.isSet) throw AiException("Add your OpenAI key in Settings first", retryable = false)
+        if (!doc.fileLocal) throw AiException("The file isn't on this phone yet", retryable = false)
+        val file = files.file(id)
+        val parts = withContext(Dispatchers.IO) { AiInput.parts(file, doc.mimeType, doc.fileName) }
+        val json = openAi.complete(config, ExtractionPrompt.TRANSCRIBE.trimIndent(), parts, "transcript", ExtractionPrompt.TRANSCRIBE_SCHEMA, effort = "medium")
+        val text = (Json.parseToJsonElement(json).jsonObject["text"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+        val ownText = (doc.mimeType == "application/pdf") && withContext(Dispatchers.IO) { PdfText.read(file) }.isNotEmpty()
+        val latest = dao.get(id)?.takeUnless { it.deleted }
+        if (text.isNotEmpty() && !ownText && latest != null) update(latest.copy(fullText = text.take(PdfText.MAX_CHARS)))
+        return text
     }
 
     /** Adds [found] to the paper's key details. They count as the user's: a later reading leaves them. */

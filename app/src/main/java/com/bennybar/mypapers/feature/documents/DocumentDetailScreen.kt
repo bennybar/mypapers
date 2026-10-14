@@ -115,7 +115,23 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     var asking by remember { mutableStateOf<String?>(null) }
     // The question and what the AI found, shown before anything is saved.
     var answer by remember { mutableStateOf<Pair<String, List<KeyDetail>>?>(null) }
+    // All the paper's text, written out by the AI.
+    var transcript by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
+
+    fun transcribe() {
+        asking = "Extract all text"
+        scope.launch {
+            val result = runCatching { app.repository.transcribe(id) }
+            asking = null
+            val text = result.getOrNull()
+            when {
+                text == null -> snackbar.showSnackbar("Couldn't extract: ${result.exceptionOrNull()?.message}")
+                text.isEmpty() -> snackbar.showSnackbar("No text found in this paper")
+                else -> transcript = text
+            }
+        }
+    }
 
     fun ask(instruction: String) {
         asking = instruction
@@ -190,6 +206,11 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                                 onClick = { menu = false; askDialog = true },
                             )
                             DropdownMenuItem(
+                                text = { Text("Extract all text") },
+                                enabled = aiSet && doc?.fileLocal == true && asking == null,
+                                onClick = { menu = false; transcribe() },
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Move to trash", color = MaterialTheme.colorScheme.error) },
                                 // Restorable from the trash for 30 days: no need to ask. The page closes as it goes.
                                 onClick = { menu = false; scope.launch { app.repository.trash(id) } },
@@ -225,6 +246,24 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         )
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
+    transcript?.let { text ->
+        val clipboard = LocalClipboard.current
+        AlertDialog(
+            onDismissRequest = { transcript = null },
+            title = { Text("All text") },
+            text = {
+                SelectionContainer(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(withLinks(text), style = MaterialTheme.typography.bodyLarge)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("All text", text))) }
+                }) { Text("Copy") }
+            },
+            dismissButton = { TextButton(onClick = { transcript = null }) { Text("Close") } },
+        )
+    }
     answer?.let { (question, found) ->
         AlertDialog(
             onDismissRequest = { answer = null },

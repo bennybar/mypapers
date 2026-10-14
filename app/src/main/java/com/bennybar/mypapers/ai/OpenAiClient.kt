@@ -30,7 +30,7 @@ class AiException(message: String, val retryable: Boolean) : IOException(message
 class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(180, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)
         .build()
 
@@ -48,8 +48,8 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
         parseExtraction(complete(config, prompt, parts, "document", ExtractionPrompt.SCHEMA))
 
     /** Any structured answer: [schema] is the JSON schema it must follow; returns the answer's JSON text. */
-    suspend fun complete(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String): String = withContext(Dispatchers.IO) {
-        val body = requestBody(config.model, prompt, parts, schemaName, schema).toString().toRequestBody("application/json".toMediaType())
+    suspend fun complete(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String = "low"): String = withContext(Dispatchers.IO) {
+        val body = requestBody(config.model, prompt, parts, schemaName, schema, effort).toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder().url("$baseUrl/responses")
             .header("Authorization", "Bearer ${config.apiKey}")
             .post(body)
@@ -74,9 +74,9 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
     }
 
     companion object {
-        fun requestBody(model: String, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String): JsonObject = buildJsonObject {
+        fun requestBody(model: String, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String = "low"): JsonObject = buildJsonObject {
             put("model", model)
-            putJsonObject("reasoning") { put("effort", "low") }
+            putJsonObject("reasoning") { put("effort", effort) }
             putJsonArray("input") {
                 add(
                     buildJsonObject {

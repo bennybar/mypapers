@@ -62,6 +62,15 @@ object ExtractionPrompt {
         Answer only that, from the attached document, as details: short label/value pairs, in the document's language (e.g. "URL" → "https://…", "Order number" → "A-1234"). One entry per value found, values copied exactly as printed. Write a date as YYYY-MM-DD. For a table (line items, a schedule, results), or when the user asks for one, return one entry whose value is the table: one row per line, cells separated by " | ", the first row the column headers. If the document doesn't have it, return no details.
     """.trimIndent()
 
+    /** All of a paper's text, written out (a handwritten page too). */
+    const val TRANSCRIBE = """
+        Write out all the text of the attached document, every word, in its own language and script, top to bottom.
+        Keep its structure: headings, numbered sections and lists, one line per line, a table's rows with cells separated by " | ".
+        Handwriting too: read it as well as you can. Mark a word you can't make out as [?]; never leave out a part or summarize.
+    """
+
+    const val TRANSCRIBE_SCHEMA = """{"type":"object","additionalProperties":false,"required":["text"],"properties":{"text":{"type":"string"}}}"""
+
     const val ASK_SCHEMA = """{"type":"object","additionalProperties":false,"required":["details"],
 "properties":{"details":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["label","value"],"properties":{"label":{"type":"string"},"value":{"type":"string"}}}}}}"""
 
