@@ -119,6 +119,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     var askDialog by rememberSaveable { mutableStateOf(false) }
     var confirmReset by rememberSaveable { mutableStateOf(false) }
     var asking by remember { mutableStateOf<String?>(null) }
+    var editingText by rememberSaveable { mutableStateOf(false) }
     // The question and what the AI found, shown before anything is saved.
     var answer by remember { mutableStateOf<Pair<String, List<KeyDetail>>?>(null) }
     val snackbar = remember { SnackbarHostState() }
@@ -232,6 +233,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                     onOpen = onOpen,
                     onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
                     onDelete = { scope.launch { app.repository.trash(id) } },
+                    onEditText = { editingText = true },
                 )
             }
         }
@@ -246,6 +248,16 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
             },
             dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
         )
+    }
+    if (editingText) {
+        doc?.let { d ->
+            TextEditorDialog(
+                d.transcript,
+                onSave = { text -> editingText = false; app.scope.launch { app.repository.saveTranscript(id, text) } },
+                onDelete = { editingText = false; app.scope.launch { app.repository.saveTranscript(id, "") } },
+                onDismiss = { editingText = false },
+            )
+        }
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
     answer?.let { (question, found) ->
@@ -305,6 +317,7 @@ private fun DocumentDetails(
     onOpen: (String) -> Unit,
     onKeepBoth: () -> Unit,
     onDelete: () -> Unit,
+    onEditText: () -> Unit,
 ) {
     Column(
         modifier
@@ -376,7 +389,7 @@ private fun DocumentDetails(
         }
         if (doc.transcript.isNotBlank()) {
             Spacer(Modifier.padding(top = 16.dp))
-            TextCard(doc.transcript)
+            TextCard(doc.transcript, onEdit = onEditText)
         }
         if (doc.notes.isNotBlank()) {
             Spacer(Modifier.padding(top = 16.dp))
@@ -439,7 +452,7 @@ private fun DetailsCard(details: List<KeyDetail>) {
 
 /** The paper written out ("Extract all text"): the start of it, or all of it on request. */
 @Composable
-private fun TextCard(markdown: String) {
+private fun TextCard(markdown: String, onEdit: () -> Unit) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     var all by rememberSaveable { mutableStateOf(false) }
@@ -453,6 +466,7 @@ private fun TextCard(markdown: String) {
         Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = if (long) 8.dp else 20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Text", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit text") }
                 // As Markdown: pastes as it is into notes apps, docs and chats.
                 IconButton(onClick = {
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Text", markdown))) }
@@ -496,8 +510,7 @@ internal fun DetailTable(rows: List<List<String>>) {
     // Each column as wide as its longest cell, within reason.
     val widths = rows.first().indices.map { c -> (rows.maxOf { it[c].length } * 8 + 16).coerceIn(56, 240).dp }
     // A Hebrew table reads right to left: first column on the right.
-    val all = rows.flatten().joinToString("")
-    val rtl = all.count { it in '\u0590'..'\u05FF' } > all.count { it in 'A'..'Z' || it in 'a'..'z' }
+    val rtl = isRtl(rows.flatten().joinToString(""))
     CompositionLocalProvider(LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr) {
         Column(Modifier.fillMaxWidth().padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
             rows.forEachIndexed { r, cells ->

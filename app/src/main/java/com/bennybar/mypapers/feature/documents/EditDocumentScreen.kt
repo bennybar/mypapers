@@ -17,7 +17,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -99,7 +98,6 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
     var tags by rememberSaveable { mutableStateOf(doc.tags) }
     var tagInput by rememberSaveable { mutableStateOf("") }
     var notes by rememberSaveable { mutableStateOf(doc.notes) }
-    var transcript by rememberSaveable { mutableStateOf(doc.transcript) }
     // Pairs, so they survive rotation as they are.
     val startDetails = doc.details.map { it.label to it.value }
     var details by rememberSaveable { mutableStateOf(startDetails) }
@@ -119,7 +117,7 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
 
     val changed = title != doc.title || vendor != doc.vendor || docType != doc.docType || date != doc.date ||
         total != Format.amountInput(doc.totalCents) || currency != (doc.currency ?: Format.defaultCurrency()) ||
-        vat != Format.amountInput(doc.vatCents) || tags != doc.tags || notes != doc.notes || transcript != doc.transcript || details != startDetails || tagInput.isNotBlank()
+        vat != Format.amountInput(doc.vatCents) || tags != doc.tags || notes != doc.notes || details != startDetails || tagInput.isNotBlank()
 
     fun save() {
         if (saving) return // a second tap would leave the screen twice
@@ -152,7 +150,6 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
                     vatCents = if (vat != Format.amountInput(doc.vatCents)) Format.parseAmount(vat) else c.vatCents,
                     tags = if (tags != doc.tags) tags else c.tags,
                     notes = if (notes != doc.notes) notes.trim() else c.notes,
-                    transcript = if (transcript != doc.transcript) transcript.trim() else c.transcript,
                     details = if (details != startDetails) newDetails else c.details,
                     edited = (c.edited + edited).distinct(),
                 ),
@@ -324,22 +321,6 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
-            // From "Extract all text": fix what the AI misread, or remove it.
-            if (doc.transcript.isNotBlank()) {
-                OutlinedTextField(
-                    transcript, { transcript = it },
-                    label = { Text("Text (Markdown)") },
-                    minLines = 3,
-                    maxLines = 15,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                if (transcript.isNotEmpty()) {
-                    TextButton(onClick = { transcript = "" }) {
-                        Icon(Icons.Outlined.Delete, contentDescription = null)
-                        Text("Delete text", Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
         }
     }
 

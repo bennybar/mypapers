@@ -316,6 +316,12 @@ class DocumentRepository(
         return text
     }
 
+    /** The paper's text as edited ("" deletes it). */
+    suspend fun saveTranscript(id: String, text: String) {
+        val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
+        update(latest.copy(transcript = text.trim()))
+    }
+
     /** Adds [found] to the paper's key details. They count as the user's: a later reading leaves them. */
     suspend fun saveDetails(id: String, found: List<KeyDetail>) {
         val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
