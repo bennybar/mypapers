@@ -236,7 +236,7 @@ class DocumentRepository(
         update(
             doc.copy(
                 title = "", vendor = "", docType = "", date = null, totalCents = null, currency = null, vatCents = null,
-                tags = emptyList(), extractedText = "", details = emptyList(), keywords = emptyList(),
+                tags = emptyList(), extractedText = "", transcript = "", details = emptyList(), keywords = emptyList(),
                 duplicateOf = null, edited = emptyList(), aiState = AI_PENDING, aiError = null,
             ),
         )
@@ -299,10 +299,7 @@ class DocumentRepository(
         return AskAllAnswer(AskAll.answerText(answer), used, if (total) AskAll.totals(used) else null)
     }
 
-    /**
-     * All of the paper's text, written out by the AI (handwriting too). Kept as its full text,
-     * for questions across papers, unless it's a PDF with its own text.
-     */
+    /** All of the paper's text, written out by the AI as Markdown (handwriting too), saved on the paper. */
     suspend fun transcribe(id: String): String {
         val doc = dao.get(id)?.takeUnless { it.deleted } ?: return ""
         val config = ai.config.value
@@ -312,9 +309,8 @@ class DocumentRepository(
         val parts = withContext(Dispatchers.IO) { AiInput.parts(file, doc.mimeType, doc.fileName) }
         val json = openAi.complete(config, ExtractionPrompt.TRANSCRIBE.trimIndent(), parts, "transcript", ExtractionPrompt.TRANSCRIBE_SCHEMA, effort = "medium")
         val text = (Json.parseToJsonElement(json).jsonObject["text"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
-        val ownText = (doc.mimeType == "application/pdf") && withContext(Dispatchers.IO) { PdfText.read(file) }.isNotEmpty()
         val latest = dao.get(id)?.takeUnless { it.deleted }
-        if (text.isNotEmpty() && !ownText && latest != null) update(latest.copy(fullText = text.take(PdfText.MAX_CHARS)))
+        if (text.isNotEmpty() && latest != null) update(latest.copy(transcript = text.take(PdfText.MAX_CHARS)))
         return text
     }
 

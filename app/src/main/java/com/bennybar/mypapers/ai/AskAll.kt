@@ -54,7 +54,7 @@ object AskAll {
             appendLine()
             appendLine(line(n, d))
             if (d.notes.isNotBlank()) appendLine("Notes: ${d.notes}")
-            val text = d.fullText.ifBlank { d.extractedText }
+            val text = d.transcript.ifBlank { d.fullText.ifBlank { d.extractedText } }
             if (text.isNotBlank()) appendLine("Text:\n${text.take(MAX_TEXT_CHARS)}")
         }
         if (listed.isNotEmpty()) {

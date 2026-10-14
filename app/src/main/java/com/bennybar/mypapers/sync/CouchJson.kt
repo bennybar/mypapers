@@ -46,6 +46,7 @@ fun Document.toCouchJson(keepFile: Boolean): JsonObject = buildJsonObject {
     put("notes", notes)
     put("extractedText", extractedText)
     put("fullText", fullText)
+    put("transcript", transcript)
     putJsonArray("details") { details.forEach { d -> add(buildJsonObject { put("label", d.label); put("value", d.value) }) } }
     put("fileHash", fileHash)
     put("fileName", fileName)
@@ -96,6 +97,7 @@ fun JsonObject.toDocument(fileLocal: Boolean): Document = Document(
     notes = str("notes").orEmpty(),
     extractedText = str("extractedText").orEmpty(),
     fullText = str("fullText").orEmpty(),
+    transcript = str("transcript").orEmpty(),
     details = (this["details"] as? JsonArray)?.mapNotNull { e ->
         (e as? JsonObject)?.let { o ->
             val label = (o["label"] as? JsonPrimitive)?.contentOrNull

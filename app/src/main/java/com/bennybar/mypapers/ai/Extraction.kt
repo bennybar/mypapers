@@ -64,9 +64,9 @@ object ExtractionPrompt {
 
     /** All of a paper's text, written out (a handwritten page too). */
     const val TRANSCRIBE = """
-        Write out all the text of the attached document, every word, in its own language and script, top to bottom.
-        Keep its structure: headings, numbered sections and lists, one line per line, a table's rows with cells separated by " | ".
-        Handwriting too: read it as well as you can. Mark a word you can't make out as [?]; never leave out a part or summarize.
+        Write out all the text of the attached document as Markdown, every word, in its own language and script, top to bottom.
+        Keep its structure: "#"/"##" headings for titles, "1." for numbered sections, "-" for bullets, **bold** for underlined or emphasized words, Markdown tables (with a |---| row) for tables, a blank line between paragraphs.
+        Handwriting too: read it as well as you can. Mark a word you can't make out as [?]; never leave out a part or summarize. No commentary of your own.
     """
 
     const val TRANSCRIBE_SCHEMA = """{"type":"object","additionalProperties":false,"required":["text"],"properties":{"text":{"type":"string"}}}"""

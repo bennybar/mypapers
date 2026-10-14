@@ -44,14 +44,16 @@ object Sharing {
     }
 
     /**
-     * One ZIP with papers.csv (see [Export.csv]) and the files under their titles, sent to
+     * One ZIP with papers.csv (see [Export.csv]) and the files under their titles (with a .md
+     * of the text where it was extracted), sent to
      * wherever the user picks (Drive, email, Files). Papers whose file isn't on the phone
      * yet are in the CSV without a file.
      */
     suspend fun export(context: Context, docs: List<Document>) {
         val zip = withContext(Dispatchers.IO) {
             val sorted = docs.sortedBy { Filters.paperDay(it) }
-            val names = fileNames(sorted.filter { it.fileLocal })
+            val all = fileNames(sorted)
+            val names = all.filter { it.first.fileLocal }
             val zip = File(shareDir(context), "My Papers ${LocalDate.now()}.zip")
             ZipOutputStream(zip.outputStream().buffered()).use { out ->
                 out.putNextEntry(ZipEntry("papers.csv"))
@@ -60,6 +62,11 @@ object Sharing {
                 names.forEach { (d, name) ->
                     out.putNextEntry(ZipEntry("files/$name"))
                     app.repository.files.file(d.id).inputStream().use { it.copyTo(out) }
+                    out.closeEntry()
+                }
+                all.filter { it.first.transcript.isNotBlank() }.forEach { (d, name) ->
+                    out.putNextEntry(ZipEntry("files/${name.substringBeforeLast('.')}.md"))
+                    out.write(d.transcript.toByteArray())
                     out.closeEntry()
                 }
             }

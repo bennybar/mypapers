@@ -115,8 +115,6 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     var asking by remember { mutableStateOf<String?>(null) }
     // The question and what the AI found, shown before anything is saved.
     var answer by remember { mutableStateOf<Pair<String, List<KeyDetail>>?>(null) }
-    // All the paper's text, written out by the AI.
-    var transcript by remember { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
 
     fun transcribe() {
@@ -128,7 +126,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
             when {
                 text == null -> snackbar.showSnackbar("Couldn't extract: ${result.exceptionOrNull()?.message}")
                 text.isEmpty() -> snackbar.showSnackbar("No text found in this paper")
-                else -> transcript = text
+                else -> snackbar.showSnackbar("Text extracted")
             }
         }
     }
@@ -206,7 +204,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                                 onClick = { menu = false; askDialog = true },
                             )
                             DropdownMenuItem(
-                                text = { Text("Extract all text") },
+                                text = { Text(if (doc?.transcript.isNullOrBlank()) "Extract all text" else "Extract all text again") },
                                 enabled = aiSet && doc?.fileLocal == true && asking == null,
                                 onClick = { menu = false; transcribe() },
                             )
@@ -246,24 +244,6 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         )
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
-    transcript?.let { text ->
-        val clipboard = LocalClipboard.current
-        AlertDialog(
-            onDismissRequest = { transcript = null },
-            title = { Text("All text") },
-            text = {
-                SelectionContainer(Modifier.verticalScroll(rememberScrollState())) {
-                    Text(withLinks(text), style = MaterialTheme.typography.bodyLarge)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("All text", text))) }
-                }) { Text("Copy") }
-            },
-            dismissButton = { TextButton(onClick = { transcript = null }) { Text("Close") } },
-        )
-    }
     answer?.let { (question, found) ->
         AlertDialog(
             onDismissRequest = { answer = null },
@@ -390,6 +370,10 @@ private fun DocumentDetails(
             Spacer(Modifier.padding(top = 16.dp))
             DetailsCard(doc.details)
         }
+        if (doc.transcript.isNotBlank()) {
+            Spacer(Modifier.padding(top = 16.dp))
+            TextCard(doc.transcript)
+        }
         if (doc.notes.isNotBlank()) {
             Spacer(Modifier.padding(top = 16.dp))
             Text(doc.notes, style = MaterialTheme.typography.bodyLarge)
@@ -449,6 +433,39 @@ private fun DetailsCard(details: List<KeyDetail>) {
     }
 }
 
+/** The paper written out ("Extract all text"): the start of it, or all of it on request. */
+@Composable
+private fun TextCard(markdown: String) {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    var all by rememberSaveable { mutableStateOf(false) }
+    val lines = markdown.lines()
+    val long = lines.size > SHORT_TEXT_LINES
+    Card(
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = if (long) 8.dp else 20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Text", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                // As Markdown: pastes as it is into notes apps, docs and chats.
+                IconButton(onClick = {
+                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Text", markdown))) }
+                }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy text") }
+            }
+            SelectionContainer {
+                Markdown(if (long && !all) lines.take(SHORT_TEXT_LINES).joinToString("\n") else markdown, Modifier.padding(end = 12.dp))
+            }
+            if (long) {
+                TextButton(onClick = { all = !all }) { Text(if (all) "Show less" else "Show all") }
+            }
+        }
+    }
+}
+
+private const val SHORT_TEXT_LINES = 12
+
 /** Label over value, tables as tables. Any part can be selected and copied; web addresses open. */
 @Composable
 private fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier) {
@@ -471,7 +488,7 @@ private fun shownDate(value: String) = if (Regex("\\d{4}-\\d{2}-\\d{2}").matches
 
 /** A table detail: header row bold, lines between rows, scrolls sideways when wide. */
 @Composable
-private fun DetailTable(rows: List<List<String>>) {
+internal fun DetailTable(rows: List<List<String>>) {
     // Each column as wide as its longest cell, within reason.
     val widths = rows.first().indices.map { c -> (rows.maxOf { it[c].length } * 8 + 16).coerceIn(56, 240).dp }
     // A Hebrew table reads right to left: first column on the right.
@@ -495,7 +512,7 @@ private fun DetailTable(rows: List<List<String>>) {
     }
 }
 
-private val URL = Regex("""(?i)\b(?:https?://|www\.)[^\s<>"]+[^\s<>".,;:!?)\]]""")
+internal val URL = Regex("""(?i)\b(?:https?://|www\.)[^\s<>"]+[^\s<>".,;:!?)\]]""")
 
 /** [text] with its web addresses as links. */
 @Composable
