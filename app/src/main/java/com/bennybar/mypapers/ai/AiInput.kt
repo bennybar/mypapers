@@ -26,7 +26,7 @@ object AiInput {
     /** A page for writing out: decoded this big, then cut into close-ups about [TILE] across. */
     private const val CLOSE_UP_SIDE = 3600
     private const val TILE = 1300
-    private const val TILE_OVERLAP = 200
+    private const val MIN_TILE_SIDE = 1000
 
     fun parts(file: File, mimeType: String?, fileName: String?): List<JsonObject> {
         val type = mimeType ?: DocumentFiles.sniffMimeType(file)
@@ -68,21 +68,30 @@ object AiInput {
         return parts.ifEmpty { throw AiException("Can't read this kind of file", retryable = false) }
     }
 
-    /** Overlapping pieces about [TILE] across, labeled "row 1 of 3, column 2 of 2" (columns left to right). */
+    /**
+     * Overlapping pieces about [TILE] across, labeled "row 1 of 3, column 2 of 2" (columns left to right).
+     * Always at least 2 across and about square, even for a small photo (one sent through a chat app):
+     * enlarged, its close-ups are read far better than the whole of it.
+     */
     private fun tiles(page: Bitmap): List<Pair<String, Bitmap>> {
-        val cols = Math.ceil(page.width.toDouble() / TILE).toInt().coerceAtLeast(1)
-        val rows = Math.ceil(page.height.toDouble() / TILE).toInt().coerceAtLeast(1)
-        if (cols * rows == 1) return emptyList()
-        // Each a bit bigger than its share, so a line cut at one edge is whole in the next.
-        val w = minOf(page.width, page.width / cols + TILE_OVERLAP)
-        val h = minOf(page.height, page.height / rows + TILE_OVERLAP)
+        val cols = maxOf(2, Math.ceil(page.width.toDouble() / TILE).toInt())
+        val rows = maxOf(Math.ceil(page.height.toDouble() / TILE).toInt(), Math.round(cols.toDouble() * page.height / page.width).toInt(), 1)
+        // Each a sixth bigger than its share, so a line cut at one edge is whole in the next.
+        val w = minOf(page.width, page.width * 7 / (cols * 6))
+        val h = minOf(page.height, page.height * 7 / (rows * 6))
         return (0 until rows).flatMap { r ->
             (0 until cols).map { c ->
                 val x = if (cols == 1) 0 else (page.width - w) * c / (cols - 1)
                 val y = if (rows == 1) 0 else (page.height - h) * r / (rows - 1)
-                "row ${r + 1} of $rows, column ${c + 1} of $cols" to Bitmap.createBitmap(page, x, y, w, h)
+                "row ${r + 1} of $rows, column ${c + 1} of $cols" to enlarged(Bitmap.createBitmap(page, x, y, w, h))
             }
         }
+    }
+
+    /** A close-up at least [MIN_TILE_SIDE] on its shorter side (the model reads small pictures at their size). */
+    private fun enlarged(b: Bitmap): Bitmap {
+        val scale = MIN_TILE_SIDE.toFloat() / minOf(b.width, b.height)
+        return if (scale <= 1f) b else Bitmap.createScaledBitmap(b, (b.width * scale).toInt(), (b.height * scale).toInt(), true)
     }
 
     private fun scaled(b: Bitmap, maxSide: Int): Bitmap {
