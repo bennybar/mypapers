@@ -32,8 +32,9 @@ data class Filters(
     /** null: best match first when searching, recently added first otherwise. */
     val sort: SortBy? = null,
 ) {
+    /** Filters narrowing the list (the sort isn't one: it has its own switch, and is remembered). */
     val activeCount: Int
-        get() = listOf(date != null, minCents != null || maxCents != null, vendors.isNotEmpty(), missingInfo, duplicates, unread, expiring, sort != null).count { it }
+        get() = listOf(date != null, minCents != null || maxCents != null, vendors.isNotEmpty(), missingInfo, duplicates, unread, expiring).count { it }
 
     /** The date window's first and last day. */
     fun range(today: LocalDate): Pair<LocalDate, LocalDate>? = when (date) {

@@ -144,7 +144,11 @@ fun Document.withExtraction(e: Extraction, existingTags: List<String>, today: Lo
         // Search looks at the beginning; questions across papers at all of it (unless the PDF's own text is kept).
         extractedText = e.text.trim().take(SEARCH_TEXT_CHARS).ifBlank { extractedText },
         fullText = fullText.ifBlank { e.text.trim() },
-        details = if (keep("details")) details else e.details.filter { it.label.isNotBlank() && it.value.isNotBlank() }.ifEmpty { details },
+        // Ones saved from Ask AI stay (replacing a read one with the same label).
+        details = if (keep("details")) details else mergeDetails(
+            e.details.filter { it.label.isNotBlank() && it.value.isNotBlank() }.ifEmpty { details.filterNot { it.asked } },
+            details.filter { it.asked },
+        ),
         keywords = e.keywords.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.ifEmpty { keywords },
         aiState = AI_DONE,
         aiError = null,

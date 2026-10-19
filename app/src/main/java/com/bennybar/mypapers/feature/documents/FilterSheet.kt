@@ -47,7 +47,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-private fun SortBy.label() = when (this) {
+internal fun SortBy.label() = when (this) {
     SortBy.NEWEST -> "Date on paper: newest"
     SortBy.OLDEST -> "Date on paper: oldest"
     SortBy.AMOUNT_HIGH -> "Amount: high to low"
@@ -220,7 +220,6 @@ fun ActiveFilters(filters: Filters, onChange: (Filters) -> Unit, modifier: Modif
             trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "Remove $text") },
             shape = CircleShape,
         )
-        filters.sort?.let { chip("Sort: ${it.label()}") { copy(sort = null) } }
         filters.dateLabel()?.let { chip(it) { copy(date = null, from = null, to = null) } }
         filters.amountLabel()?.let { chip(it) { copy(minCents = null, maxCents = null) } }
         filters.vendors.forEach { v -> chip(v) { copy(vendors = vendors - v) } }

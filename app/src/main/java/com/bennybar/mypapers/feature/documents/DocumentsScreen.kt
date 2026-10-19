@@ -1,6 +1,10 @@
 package com.bennybar.mypapers.feature.documents
 
 import androidx.compose.material.icons.outlined.Schedule
+import com.bennybar.mypapers.search.SortBy
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import java.time.LocalDate
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.data.Expiry
@@ -391,13 +395,16 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                 )
                 SearchField(query, onChange = { vm.query.value = it }, filterCount = filters.activeCount, onFilters = { filterSheet = true })
                 ActiveFilters(filters, onChange = { vm.filters.value = it }, Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
-                if (tags.isNotEmpty() || types.isNotEmpty()) {
+                if (!results.isNullOrEmpty() || narrowed) {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(top = 8.dp),
                     ) {
-                        // Types first (filled when on), then tags.
+                        // The order first (remembered), then types (filled when on), then tags.
+                        item(key = "sort") {
+                            SortChip(filters.sort, searching = query.isNotBlank()) { vm.filters.value = filters.copy(sort = it) }
+                        }
                         items(types, key = { "type-$it" }) { type ->
                             FilterChip(
                                 selected = type in selectedTypes,
@@ -774,6 +781,32 @@ private fun DocumentCard(doc: Document, signedIn: Boolean, selected: Boolean, on
                     TagRow(doc.tags)
                 }
                 AiStatus(doc, Modifier.padding(top = 12.dp))
+            }
+        }
+    }
+}
+
+/** The list's order, one tap away: recently added (best match when searching), date on paper, amount, vendor. */
+@Composable
+private fun SortChip(sort: SortBy?, searching: Boolean, onChange: (SortBy?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val default = if (searching) "Best match" else "Recently added"
+    Box {
+        FilterChip(
+            selected = false,
+            onClick = { open = true },
+            label = { Text(sort?.label() ?: default) },
+            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort", modifier = Modifier.size(18.dp)) },
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.size(18.dp)) },
+            shape = CircleShape,
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            (listOf<SortBy?>(null) + SortBy.entries).forEach { s ->
+                DropdownMenuItem(
+                    text = { Text(s?.label() ?: default) },
+                    leadingIcon = { if (s == sort) Icon(Icons.Filled.Check, contentDescription = "Selected") },
+                    onClick = { open = false; onChange(s) },
+                )
             }
         }
     }

@@ -66,9 +66,12 @@ data class Document(
     val fileLocal: Boolean = false,
 )
 
-/** One labeled fact on a paper: "Right eye" → "SPH −1.25 · CYL −0.50 · AXIS 90". */
+/**
+ * One labeled fact on a paper: "Right eye" → "SPH −1.25 · CYL −0.50 · AXIS 90".
+ * [asked]: found by Ask AI and saved; a re-read keeps it.
+ */
 @kotlinx.serialization.Serializable
-data class KeyDetail(val label: String, val value: String)
+data class KeyDetail(val label: String, val value: String, val asked: Boolean = false)
 
 /**
  * A detail value that is a table — rows on separate lines, cells split by "|", the first row

@@ -11,6 +11,7 @@ import com.bennybar.mypapers.data.DOCUMENT_TYPES
 import com.bennybar.mypapers.data.Document
 import com.bennybar.mypapers.data.ImportResult
 import com.bennybar.mypapers.search.Filters
+import com.bennybar.mypapers.search.SortBy
 import com.bennybar.mypapers.sync.SyncState
 import com.bennybar.mypapers.search.FuzzySearch
 import java.time.LocalDate
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -37,8 +39,16 @@ class DocumentsViewModel : ViewModel() {
     /** Deleted, waiting out the Undo: hidden from the list until it's done or undone. */
     private val hidden = MutableStateFlow(emptySet<String>())
 
-    /** The filter sheet's choices. */
-    val filters = MutableStateFlow(Filters())
+    private val prefs = app.getSharedPreferences("list", android.content.Context.MODE_PRIVATE)
+
+    /** The filter sheet's choices; the sort is kept from the last time. */
+    val filters = MutableStateFlow(Filters(sort = prefs.getString("sort", null)?.let { s -> SortBy.entries.firstOrNull { it.name == s } }))
+
+    init {
+        viewModelScope.launch {
+            filters.map { it.sort }.distinctUntilChanged().collect { prefs.edit().putString("sort", it?.name).apply() }
+        }
+    }
 
     private val all = app.repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -91,7 +101,8 @@ class DocumentsViewModel : ViewModel() {
     fun readUnread() = app.repository.readUnread()
 
     fun clearFilters() {
-        filters.value = Filters()
+        // The order isn't a filter: it stays.
+        filters.value = Filters(sort = filters.value.sort)
         selectedTags.value = emptySet()
         selectedTypes.value = emptySet()
     }

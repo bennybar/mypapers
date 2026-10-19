@@ -83,6 +83,14 @@ class ExtractionTest {
         assertEquals(listOf(KeyDetail("Order number", "A-1"), KeyDetail("url", "https://example.com/order/A-1")), after)
     }
 
+    /** A re-read refreshes the AI's own details and keeps the ones saved from Ask AI (replacing a read one with its label). */
+    @Test fun rereadKeepsAskedDetails() {
+        val before = doc().copy(details = listOf(KeyDetail("Policy", "old"), KeyDetail("URL", "https://a.example", asked = true), KeyDetail("Plan", "asked plan", asked = true)))
+        val e = Extraction("V", "Contract", null, null, null, null, emptyList(), "", details = listOf(KeyDetail("Policy", "new"), KeyDetail("Plan", "read plan")))
+        val after = before.withExtraction(e, emptyList()).details
+        assertEquals(listOf(KeyDetail("Policy", "new"), KeyDetail("URL", "https://a.example", asked = true), KeyDetail("Plan", "asked plan", asked = true)), after)
+    }
+
     @Test fun dateOrderFollowsTheLocale() {
         assertTrue(ExtractionPrompt.dayFirst(Locale.forLanguageTag("he-IL")))
         assertTrue(ExtractionPrompt.dayFirst(Locale.UK))

@@ -36,7 +36,8 @@ class FiltersTest {
         assertEquals(listOf("dup"), ids(Filters(duplicates = true)))
         assertEquals(listOf("nodate"), ids(Filters(unread = true)))
         assertEquals(0, Filters().activeCount)
-        assertEquals(2, Filters(date = DateWindow.THIS_MONTH, sort = SortBy.OLDEST).activeCount)
+        // The sort is not a filter (it has its own switch).
+        assertEquals(1, Filters(date = DateWindow.THIS_MONTH, sort = SortBy.OLDEST).activeCount)
     }
 
     @Test fun sorting() {

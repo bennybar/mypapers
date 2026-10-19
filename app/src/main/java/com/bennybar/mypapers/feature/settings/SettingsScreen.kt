@@ -253,6 +253,8 @@ private fun AiSection() {
     val unread by remember { app.repository.observeUnread() }.collectAsStateWithLifecycle(emptyList())
     val readable by remember { app.repository.observeReadableCount() }.collectAsStateWithLifecycle(0)
     var confirmReread by remember { mutableStateOf(false) }
+    // Off by default: what was asked of the AI is kept.
+    var clearAsked by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("AI reading")
@@ -316,8 +318,26 @@ private fun AiSection() {
         AlertDialog(
             onDismissRequest = { confirmReread = false },
             title = { Text("Re-read all $readable papers?") },
-            text = { Text("The AI reads each paper again and refreshes its title, vendor, amounts, date, type and tags (your own edits to those are replaced). One AI request per paper, in the background.") },
-            confirmButton = { TextButton(onClick = { confirmReread = false; app.repository.rereadAll() }) { Text("Re-read") } },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("The AI reads each paper again and refreshes what it read: title, vendor, amounts, date, type, tags and details. What you corrected by hand stays. One AI request per paper, in the background.")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Also remove Ask AI answers and extracted text",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f).padding(end = 12.dp),
+                        )
+                        Switch(checked = clearAsked, onCheckedChange = { clearAsked = it })
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmReread = false
+                    val clear = clearAsked
+                    app.scope.launch { app.repository.rereadAll(clearAsked = clear) }
+                }) { Text("Re-read") }
+            },
             dismissButton = { TextButton(onClick = { confirmReread = false }) { Text("Cancel") } },
         )
     }

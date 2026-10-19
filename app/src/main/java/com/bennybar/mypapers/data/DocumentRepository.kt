@@ -197,8 +197,19 @@ class DocumentRepository(
     }
 
     /** Re-reads every paper (e.g. after an upgrade adds titles). Needs a key. */
-    fun rereadAll() {
-        if (ai.config.value.isSet) onReadAll(true)
+    /**
+     * Every paper read again. What was asked of the AI (Ask AI answers saved to details, Extract all
+     * text) stays, unless [clearAsked]. Hand edits always stay.
+     */
+    suspend fun rereadAll(clearAsked: Boolean = false) {
+        if (!ai.config.value.isSet) return
+        if (clearAsked) {
+            for (doc in dao.all()) {
+                if (doc.transcript.isEmpty() && doc.details.none { it.asked }) continue
+                update(doc.copy(transcript = "", details = doc.details.filterNot { it.asked }))
+            }
+        }
+        onReadAll(true)
     }
 
     /** Every paper whose file is on this phone, but those read since [notReadSince] (by a re-read that was interrupted). */
@@ -322,10 +333,10 @@ class DocumentRepository(
         update(latest.copy(transcript = text.trim()))
     }
 
-    /** Adds [found] to the paper's key details. They count as the user's: a later reading leaves them. */
+    /** Adds [found] to the paper's key details, marked as asked: a later reading keeps them. */
     suspend fun saveDetails(id: String, found: List<KeyDetail>) {
         val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
-        update(latest.copy(details = mergeDetails(latest.details, found), edited = (latest.edited + "details").distinct()))
+        update(latest.copy(details = mergeDetails(latest.details, found.map { it.copy(asked = true) })))
     }
 
     suspend fun markExtractionFailed(id: String, message: String) {
