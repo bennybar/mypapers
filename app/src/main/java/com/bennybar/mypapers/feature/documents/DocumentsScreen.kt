@@ -2,6 +2,7 @@ package com.bennybar.mypapers.feature.documents
 
 import androidx.compose.material.icons.outlined.Schedule
 import com.bennybar.mypapers.search.SortBy
+import com.bennybar.mypapers.search.Filters
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.automirrored.outlined.Sort
@@ -168,6 +169,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     val vendors by vm.vendors.collectAsStateWithLifecycle()
     var filterSheet by remember { mutableStateOf(false) }
     val asked by vm.asked.collectAsStateWithLifecycle()
+    val view by vm.view.collectAsStateWithLifecycle()
     // Put away while a paper from the answer is open; a notice brings it back.
     var askHidden by rememberSaveable { mutableStateOf(false) }
     val narrowed = query.isNotBlank() || selectedTags.isNotEmpty() || selectedTypes.isNotEmpty() || filters.activeCount > 0
@@ -373,6 +375,10 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                 LargeTopAppBar(
                     title = { Text("My Papers") },
                     actions = {
+                        // Cards → compact list → thumbnails → timeline → cards.
+                        IconButton(onClick = { vm.nextView() }) {
+                            Icon(view.icon, contentDescription = "${view.label} view. Switch to ${view.next().label}")
+                        }
                         // Read everything the AI hasn't read yet (a spinner while it's at it).
                         IconButton(onClick = {
                             when {
@@ -444,7 +450,8 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                     // Room for the button over the last card.
                     bottom = padding.calculateBottomPadding() + 96.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                // Lines close together in the dense views.
+                verticalArrangement = Arrangement.spacedBy(if (view == ListView.COMPACT || view == ListView.TIMELINE) 4.dp else 12.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 // One notice at a time, the most important; none while searching or selecting.
@@ -503,16 +510,46 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                         )
                     }
                 }
-                items(list.orEmpty(), key = { it.id }) { doc ->
-                    // Swipe right to share, left to delete (not while selecting).
-                    SwipeActions(enabled = !selecting, onShare = { share(listOf(doc)) }, onDelete = { deleteWithUndo(setOf(doc.id)) }) {
-                        DocumentCard(
-                            doc,
-                            signedIn = email != null,
-                            selected = doc.id in selection,
-                            onClick = { if (selecting) vm.toggleSelected(doc.id) else onOpen(doc.id) },
-                            onLongClick = { vm.toggleSelected(doc.id) },
-                        )
+                val papers = list.orEmpty()
+                fun open(doc: Document) = if (selecting) vm.toggleSelected(doc.id) else onOpen(doc.id)
+                when (view) {
+                    ListView.CARDS -> items(papers, key = { it.id }) { doc ->
+                        // Swipe right to share, left to delete (not while selecting).
+                        SwipeActions(enabled = !selecting, onShare = { share(listOf(doc)) }, onDelete = { deleteWithUndo(setOf(doc.id)) }) {
+                            DocumentCard(
+                                doc,
+                                signedIn = email != null,
+                                selected = doc.id in selection,
+                                onClick = { open(doc) },
+                                onLongClick = { vm.toggleSelected(doc.id) },
+                            )
+                        }
+                    }
+                    ListView.COMPACT -> items(papers, key = { it.id }) { doc ->
+                        SwipeActions(enabled = !selecting, onShare = { share(listOf(doc)) }, onDelete = { deleteWithUndo(setOf(doc.id)) }) {
+                            CompactRow(doc, email != null, doc.id in selection, onClick = { open(doc) }, onLongClick = { vm.toggleSelected(doc.id) })
+                        }
+                    }
+                    ListView.GRID -> items(papers.chunked(2), key = { row -> "row-" + row.first().id }) { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            row.forEach { doc ->
+                                GridTile(doc, email != null, doc.id in selection, onClick = { open(doc) }, onLongClick = { vm.toggleSelected(doc.id) }, modifier = Modifier.weight(1f))
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    // By the date on the paper, whatever the sort (oldest month first if that's the sort).
+                    ListView.TIMELINE -> monthGroups(papers, oldestFirst = filters.sort == SortBy.OLDEST).forEach { (month, docs) ->
+                        item(key = "month-$month") { MonthHeader(month, docs) }
+                        items(docs, key = { it.id }) { doc ->
+                            SwipeActions(enabled = !selecting, onShare = { share(listOf(doc)) }, onDelete = { deleteWithUndo(setOf(doc.id)) }) {
+                                CompactRow(
+                                    doc, email != null, doc.id in selection,
+                                    onClick = { open(doc) }, onLongClick = { vm.toggleSelected(doc.id) },
+                                    day = Filters.paperDay(doc).dayOfMonth,
+                                )
+                            }
+                        }
                     }
                 }
             }

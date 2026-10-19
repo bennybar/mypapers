@@ -44,6 +44,14 @@ class DocumentsViewModel : ViewModel() {
     /** The filter sheet's choices; the sort is kept from the last time. */
     val filters = MutableStateFlow(Filters(sort = prefs.getString("sort", null)?.let { s -> SortBy.entries.firstOrNull { it.name == s } }))
 
+    /** How the list looks, kept from the last time. */
+    val view = MutableStateFlow(prefs.getString("view", null)?.let { v -> ListView.entries.firstOrNull { it.name == v } } ?: ListView.CARDS)
+
+    fun nextView() {
+        view.value = view.value.next()
+        prefs.edit().putString("view", view.value.name).apply()
+    }
+
     init {
         viewModelScope.launch {
             filters.map { it.sort }.distinctUntilChanged().collect { prefs.edit().putString("sort", it?.name).apply() }
