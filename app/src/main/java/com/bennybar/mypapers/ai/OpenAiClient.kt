@@ -24,7 +24,8 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /** [retryable]: worth trying again later (rate limit, server trouble), unlike a bad key. */
-class AiException(message: String, val retryable: Boolean) : IOException(message)
+/** [code]: the HTTP status it came with, 0 if none. */
+class AiException(message: String, val retryable: Boolean, val code: Int = 0) : IOException(message)
 
 /** The OpenAI Responses API, with the user's own key: OpenAI itself, or an OpenAI-compatible proxy (LiteLLM…). */
 class OpenAiClient {
@@ -57,17 +58,41 @@ class OpenAiClient {
     suspend fun extract(config: AiConfig, prompt: String, parts: List<JsonObject>): Extraction =
         parseExtraction(complete(config, prompt, parts, "document", ExtractionPrompt.SCHEMA))
 
+    /** Models (by server and name) that turned down a reasoning effort: asked without one from then on. */
+    private val noReasoning = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private fun AiConfig.key() = "$endpoint|$model"
+
+    /** [effort], unless this model is known to turn it down. */
+    private fun effortFor(config: AiConfig, effort: String) = effort.takeUnless { config.key() in noReasoning }
+
+    /**
+     * A model that doesn't reason (GPT-4o, many behind a proxy) turns down a reasoning effort
+     * with a 400 that names it: remembered, so the request can go again without one.
+     */
+    private fun turnedDownReasoning(config: AiConfig, e: AiException, sent: String?): Boolean {
+        if (sent == null || e.code != 400 || e.message?.contains("reasoning", ignoreCase = true) != true) return false
+        noReasoning += config.key()
+        return true
+    }
+
     /** Any structured answer: [schema] is the JSON schema it must follow; returns the answer's JSON text. */
     suspend fun complete(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String = "low"): String = withContext(Dispatchers.IO) {
-        val body = requestBody(config.model, prompt, parts, schemaName, schema, effort).toString().toRequestBody("application/json".toMediaType())
+        val reasoning = effortFor(config, effort)
+        val body = requestBody(config.model, prompt, parts, schemaName, schema, reasoning).toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder().url("${config.endpoint}/responses")
             .header("Authorization", "Bearer ${config.apiKey}")
             .post(body)
             .build()
-        http.newCall(request).execute().use { r ->
-            val text = r.body.string()
-            if (!r.isSuccessful) throw error(r.code, text, config)
-            outputText(text)
+        try {
+            http.newCall(request).execute().use { r ->
+                val text = r.body.string()
+                if (!r.isSuccessful) throw error(r.code, text, config)
+                outputText(text)
+            }
+        } catch (e: AiException) {
+            if (!turnedDownReasoning(config, e, reasoning)) throw e
+            complete(config, prompt, parts, schemaName, schema, effort)
         }
     }
 
@@ -76,7 +101,8 @@ class OpenAiClient {
      * in the background and it's fetched when done, instead of one connection held open all along.
      */
     suspend fun completeLong(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String): String = withContext(Dispatchers.IO) {
-        val body = JsonObject(requestBody(config.model, prompt, parts, schemaName, schema, effort) + ("background" to JsonPrimitive(true)))
+        val reasoning = effortFor(config, effort)
+        val body = JsonObject(requestBody(config.model, prompt, parts, schemaName, schema, reasoning) + ("background" to JsonPrimitive(true)))
         fun call(request: Request): JsonObject = http.newCall(request).execute().use { r ->
             val text = r.body.string()
             if (!r.isSuccessful) throw error(r.code, text, config)
@@ -89,6 +115,7 @@ class OpenAiClient {
                     .post(body.toString().toRequestBody("application/json".toMediaType())).build(),
             )
         } catch (e: AiException) {
+            if (turnedDownReasoning(config, e, reasoning)) return@withContext completeLong(config, prompt, parts, schemaName, schema, effort)
             // A proxy without background mode: one ordinary (long) request instead.
             if (config.baseUrl.isBlank() || e.retryable) throw e
             return@withContext complete(config, prompt, parts, schemaName, schema, effort)
@@ -110,10 +137,10 @@ class OpenAiClient {
         }.getOrNull() ?: body.take(200)
         val who = config.provider
         return when (code) {
-            401 -> AiException("$who refused the key", retryable = false)
-            404 -> AiException("Not found at $who: $message", retryable = false)
-            429, in 500..599 -> AiException("$who: $message", retryable = true)
-            else -> AiException("$who ($code): $message", retryable = false)
+            401 -> AiException("$who refused the key: $message", retryable = false, code = code)
+            404 -> AiException("Not found at $who: $message", retryable = false, code = code)
+            429, in 500..599 -> AiException("$who: $message", retryable = true, code = code)
+            else -> AiException("$who ($code): $message", retryable = false, code = code)
         }
     }
 
@@ -121,9 +148,10 @@ class OpenAiClient {
         private const val POLL_MS = 4_000L
         private const val LONG_LIMIT_MS = 30 * 60_000L
 
-        fun requestBody(model: String, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String = "low"): JsonObject = buildJsonObject {
+        /** [effort] null: none asked for (a model that doesn't reason). */
+        fun requestBody(model: String, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String? = "low"): JsonObject = buildJsonObject {
             put("model", model)
-            putJsonObject("reasoning") { put("effort", effort) }
+            if (effort != null) putJsonObject("reasoning") { put("effort", effort) }
             putJsonArray("input") {
                 add(
                     buildJsonObject {

@@ -63,6 +63,19 @@ class ProxyTest {
         assertTrue(!server.takeRequest().body!!.utf8().contains("background"))
     }
 
+    /** A model that doesn't reason turns down the effort: asked again without it, and from then on. */
+    @Test fun modelWithoutReasoning() = runBlocking {
+        val client = OpenAiClient()
+        server.enqueue(MockResponse.Builder().code(400).body("""{"error":{"message":"litellm.BadRequestError: Unsupported parameter: 'reasoning.effort' is not supported with this model."}}""").build())
+        server.enqueue(json(answer))
+        assertEquals("""{"text":"hello"}""", client.complete(config, "p", emptyList(), "t", ExtractionPrompt.TRANSCRIBE_SCHEMA))
+        assertTrue(server.takeRequest().body!!.utf8().contains("\"reasoning\""))
+        assertTrue(!server.takeRequest().body!!.utf8().contains("reasoning"))
+        server.enqueue(json(answer))
+        client.complete(config, "p", emptyList(), "t", ExtractionPrompt.TRANSCRIBE_SCHEMA)
+        assertTrue(!server.takeRequest().body!!.utf8().contains("reasoning"))
+    }
+
     /** A proxy that answers a background request at once. */
     @Test fun longAnswerGivenAtOnce() = runBlocking {
         server.enqueue(json(answer))
