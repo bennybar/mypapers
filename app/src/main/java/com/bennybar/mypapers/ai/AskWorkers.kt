@@ -77,8 +77,10 @@ class AskWorker(context: Context, params: WorkerParameters) : CoroutineWorker(co
         fun observeRunning(context: Context, id: String) = observeWork(context, "ask-$id")
 
         /** A question, or a follow-up to the conversation so far. */
-        fun start(context: Context, id: String, question: String) {
-            app.answers.setPaper(id, app.answers.papers.value[id].orEmpty().filter { it.done } + PaperTurn(question))
+        fun start(context: Context, id: String, question: String, reworks: String? = null) {
+            val before = app.answers.papers.value[id].orEmpty().filter { it.done }
+            // A follow-up to a rework ("only the first rows") still replaces that detail.
+            app.answers.setPaper(id, before + PaperTurn(question, reworks = reworks ?: before.lastOrNull()?.reworks))
             enqueue<AskWorker>(context, "ask-$id", workDataOf(KEY_ID to id), ExistingWorkPolicy.REPLACE)
         }
     }

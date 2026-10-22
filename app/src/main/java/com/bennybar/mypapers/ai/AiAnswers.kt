@@ -37,6 +37,8 @@ data class PaperTurn(
     val details: List<KeyDetail>? = null,
     val changes: PaperChanges? = null,
     val error: String? = null,
+    /** The label of the detail this reworks: saving replaces that detail, whatever the answer's labels. */
+    val reworks: String? = null,
     val saved: Boolean = false,
     val applied: Boolean = false,
 ) {

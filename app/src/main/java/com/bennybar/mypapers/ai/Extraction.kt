@@ -77,7 +77,7 @@ object ExtractionPrompt {
         appendLine("Now the user says: \"${instruction.trim()}\"")
         appendLine()
         appendLine("""
-            - To find, extract, explain or reshape information ("extract the URL", "as a table", "only section 3", "in English"): put it in details, short label/value pairs in the document's language unless asked otherwise (e.g. "URL" → "https://…"), values copied exactly as printed, dates as YYYY-MM-DD. A follow-up that reshapes an earlier answer returns the whole reshaped answer. For a table (line items, a schedule, results), or when asked for one, one entry whose value is the table: one row per line, cells separated by " | ", the first row the column headers.
+            - To find, extract, explain or reshape information ("extract the URL", "as a table", "only section 3", "in English"): put it in details, short label/value pairs in the document's language unless asked otherwise (e.g. "URL" → "https://…"), values copied exactly as printed, dates as YYYY-MM-DD. A follow-up that reshapes an earlier answer returns the whole reshaped answer. Reworking one of the record's details keeps its exact label. For a table (line items, a schedule, results), or when asked for one, one entry whose value is the table: one row per line, cells separated by " | ", the first row the column headers.
             - To change the record (title, vendor, type, date, amount, currency, tags, removing a detail by its label): fill only those fields of changes; leave the rest null or empty. Types: Receipt, Invoice, Warranty, Contract, Other. Dates YYYY-MM-DD.
             - reply: one or two sentences in the user's language: what you found, what will change, or that the document doesn't have it.
             - Never invent what isn't in the document or the user's words.
@@ -117,6 +117,18 @@ object ExtractionPrompt {
 fun mergeDetails(details: List<KeyDetail>, found: List<KeyDetail>): List<KeyDetail> {
     val labels = found.map { it.label.lowercase() }.toSet()
     return details.filter { it.label.lowercase() !in labels } + found
+}
+
+/**
+ * [details] with the one labeled [label] (any case) replaced by [found], in its place; any other
+ * with one of [found]'s labels goes. No such detail: [found] are added as by [mergeDetails].
+ */
+fun replaceDetail(details: List<KeyDetail>, label: String, found: List<KeyDetail>): List<KeyDetail> {
+    val at = details.indexOfFirst { it.label.equals(label, ignoreCase = true) }
+    if (at < 0) return mergeDetails(details, found)
+    val labels = found.map { it.label.lowercase() }.toSet()
+    fun keep(d: KeyDetail) = d.label.lowercase() !in labels
+    return details.take(at).filter(::keep) + found + details.drop(at + 1).filter(::keep)
 }
 
 /**

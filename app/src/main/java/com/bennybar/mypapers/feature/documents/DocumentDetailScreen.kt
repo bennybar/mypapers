@@ -120,6 +120,8 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     val scope = rememberCoroutineScope()
     val aiSet = app.ai.config.collectAsStateWithLifecycle().value.isSet
     var askDialog by rememberSaveable { mutableStateOf(false) }
+    // The label of the detail being reworked with the AI, while its dialog is up.
+    var reworking by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmReset by rememberSaveable { mutableStateOf(false) }
     var editingText by rememberSaveable { mutableStateOf(false) }
     // Ask AI runs in the background too; its question and answer wait in app.answers.
@@ -145,9 +147,10 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         }
     }
 
-    fun ask(instruction: String) {
+    /** [reworks]: the label of the detail this reworks (its answer replaces that detail when saved). */
+    fun ask(instruction: String, reworks: String? = null) {
         askHidden = false
-        AskWorker.start(context, id, instruction)
+        AskWorker.start(context, id, instruction, reworks)
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -237,6 +240,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                     onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
                     onDelete = { scope.launch { app.repository.trash(id) } },
                     onEditText = { editingText = true },
+                    onReworkDetail = if (aiSet && doc?.fileLocal == true && !askRunning) { label -> reworking = label } else null,
                 )
             }
         }
@@ -263,6 +267,15 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         }
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
+    reworking?.let { label ->
+        AskDialog(
+            title = "Rework “$label”",
+            hint = "What should the AI do with it? The result replaces this detail when you save it.",
+            placeholder = "e.g. as a table, in English, shorter",
+            onDismiss = { reworking = null },
+            onAsk = { reworking = null; ask("Rework the \"$label\" detail: $it", reworks = label) },
+        )
+    }
     thread?.takeUnless { askHidden }?.let { turns ->
         doc?.let { d ->
             fun mark(n: Int, change: (PaperTurn) -> PaperTurn) = app.answers.setPaper(id, turns.mapIndexed { i, t -> if (i == n) change(t) else t })
@@ -271,7 +284,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                 onFollowUp = { ask(it) },
                 onSave = { n ->
                     mark(n) { it.copy(saved = true) }
-                    app.scope.launch { app.repository.saveDetails(id, turns[n].details.orEmpty()) }
+                    app.scope.launch { app.repository.saveDetails(id, turns[n].details.orEmpty(), replacing = turns[n].reworks) }
                 },
                 onApply = { n ->
                     mark(n) { it.copy(applied = true) }
@@ -287,21 +300,27 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
 
 /** "What should the AI find?": a one-off instruction for this paper. */
 @Composable
-private fun AskDialog(onDismiss: () -> Unit, onAsk: (String) -> Unit) {
+private fun AskDialog(
+    onDismiss: () -> Unit,
+    onAsk: (String) -> Unit,
+    title: String = "Ask AI",
+    hint: String = "What should it find in this paper, or change on it? You choose what to save or apply.",
+    placeholder: String = "e.g. extract the URL",
+) {
     var text by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Ask AI") },
+        title = { Text(title) },
         text = {
             Column {
                 Text(
-                    "What should it find in this paper? You can save the answer to its details.",
+                    hint,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     text, { text = it },
-                    placeholder = { Text("e.g. extract the URL") },
+                    placeholder = { Text(placeholder) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { if (text.isNotBlank()) onAsk(text.trim()) }),
@@ -327,6 +346,8 @@ private fun DocumentDetails(
     onKeepBoth: () -> Unit,
     onDelete: () -> Unit,
     onEditText: () -> Unit,
+    /** null: the AI isn't available. */
+    onReworkDetail: ((String) -> Unit)?,
 ) {
     Column(
         modifier
@@ -394,7 +415,7 @@ private fun DocumentDetails(
         }
         if (doc.details.isNotEmpty()) {
             Spacer(Modifier.padding(top = 16.dp))
-            DetailsCard(doc.details)
+            DetailsCard(doc.details, onReworkDetail)
         }
         if (doc.transcript.isNotBlank()) {
             Spacer(Modifier.padding(top = 16.dp))
@@ -437,7 +458,7 @@ private fun DuplicateBanner(otherId: String, onOpen: (String) -> Unit, onKeepBot
 
 /** The AI's key details for this paper (a prescription's values, a policy number…). */
 @Composable
-private fun DetailsCard(details: List<KeyDetail>) {
+private fun DetailsCard(details: List<KeyDetail>, onRework: ((String) -> Unit)?) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     Card(
@@ -454,7 +475,7 @@ private fun DetailsCard(details: List<KeyDetail>) {
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Details", text))) }
                 }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy details") }
             }
-            DetailList(details, Modifier.padding(end = 12.dp))
+            DetailList(details, Modifier.padding(end = 12.dp), onRework)
         }
     }
 }
@@ -495,12 +516,20 @@ private const val SHORT_TEXT_LINES = 12
 
 /** Label over value, tables as tables. Any part can be selected and copied; web addresses open. */
 @Composable
-internal fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier) {
+internal fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier, onRework: ((String) -> Unit)? = null) {
     SelectionContainer {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             details.forEach { d ->
                 Column {
-                    Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f, fill = false))
+                        // Rework this one with the AI ("as a table", "in English"): the result replaces it.
+                        if (onRework != null) {
+                            IconButton(onClick = { onRework(d.label) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Outlined.AutoAwesome, contentDescription = "Rework ${d.label} with AI", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
                     val table = tableRows(d.value)
                     if (table != null) DetailTable(table)
                     else Text(withLinks(shownDate(d.value)), style = MaterialTheme.typography.bodyLarge)

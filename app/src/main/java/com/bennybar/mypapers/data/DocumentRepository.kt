@@ -19,6 +19,7 @@ import com.bennybar.mypapers.ai.OpenAiClient
 import com.bennybar.mypapers.ai.PdfText
 import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.ai.mergeDetails
+import com.bennybar.mypapers.ai.replaceDetail
 import com.bennybar.mypapers.ai.withExtraction
 import com.bennybar.mypapers.ui.Format
 import kotlinx.coroutines.Dispatchers
@@ -392,10 +393,14 @@ class DocumentRepository(
         update(latest.copy(transcript = text.trim()))
     }
 
-    /** Adds [found] to the paper's key details, marked as asked: a later reading keeps them. */
-    suspend fun saveDetails(id: String, found: List<KeyDetail>) {
+    /**
+     * Adds [found] to the paper's key details, marked as asked: a later reading keeps them. One with
+     * the same label is replaced; [replacing]: the label of a detail they rework, replaced in its place.
+     */
+    suspend fun saveDetails(id: String, found: List<KeyDetail>, replacing: String? = null) {
         val latest = dao.get(id)?.takeUnless { it.deleted } ?: return
-        update(latest.copy(details = mergeDetails(latest.details, found.map { it.copy(asked = true) })))
+        val asked = found.map { it.copy(asked = true) }
+        update(latest.copy(details = if (replacing == null) mergeDetails(latest.details, asked) else replaceDetail(latest.details, replacing, asked)))
     }
 
     suspend fun markExtractionFailed(id: String, message: String) {

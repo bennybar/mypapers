@@ -95,6 +95,17 @@ class ExtractionTest {
         assertEquals(listOf(KeyDetail("Policy", "new"), KeyDetail("URL", "https://a.example", asked = true), KeyDetail("Plan", "asked plan", asked = true)), after)
     }
 
+    /** A reworked detail takes the old one's place, even under a new label. */
+    @Test fun reworkReplacesInPlace() {
+        val before = listOf(KeyDetail("Policy", "P-1"), KeyDetail("Items", "a, b"), KeyDetail("URL", "u"))
+        assertEquals(
+            listOf(KeyDetail("Policy", "P-1"), KeyDetail("Item list", "Item | Qty\na | 1\nb | 2"), KeyDetail("URL", "u")),
+            replaceDetail(before, "items", listOf(KeyDetail("Item list", "Item | Qty\na | 1\nb | 2"))),
+        )
+        // Gone meanwhile: just added.
+        assertEquals(before + KeyDetail("X", "1"), replaceDetail(before, "Missing", listOf(KeyDetail("X", "1"))))
+    }
+
     @Test fun dateOrderFollowsTheLocale() {
         assertTrue(ExtractionPrompt.dayFirst(Locale.forLanguageTag("he-IL")))
         assertTrue(ExtractionPrompt.dayFirst(Locale.UK))
