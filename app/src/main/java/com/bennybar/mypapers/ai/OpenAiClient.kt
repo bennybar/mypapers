@@ -35,20 +35,12 @@ class OpenAiClient {
         .writeTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    /** Checks the key and that the model exists for it. */
-    suspend fun check(config: AiConfig) = withContext(Dispatchers.IO) {
-        fun get(path: String) = http.newCall(Request.Builder().url("${config.endpoint}$path").header("Authorization", "Bearer ${config.apiKey}").build()).execute()
-        get("/models/${config.model}").use { r ->
-            if (r.isSuccessful) return@withContext
-            if (r.code != 404) throw error(r.code, r.body.string(), config)
-        }
-        // Some proxies only list their models: look for it there.
-        get("/models").use { r ->
-            val text = r.body.string()
-            if (!r.isSuccessful) throw error(r.code, text, config)
-            val ids = runCatching { Json.parseToJsonElement(text).jsonObject["data"]!!.jsonArray.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.contentOrNull } }.getOrDefault(emptyList())
-            if (config.model !in ids) throw AiException("Model not found at ${config.provider}: ${config.model}", retryable = false)
-        }
+    /**
+     * Checks the key, the model and the Responses API in one tiny real request: what reading uses.
+     * (Not the model lookup: on a LiteLLM proxy that's for its admins only.)
+     */
+    suspend fun check(config: AiConfig) {
+        complete(config, "Reply with ok set to true.", emptyList(), "check", CHECK_SCHEMA)
     }
 
     /**
@@ -145,6 +137,7 @@ class OpenAiClient {
     }
 
     companion object {
+        private const val CHECK_SCHEMA = """{"type":"object","additionalProperties":false,"required":["ok"],"properties":{"ok":{"type":"boolean"}}}"""
         private const val POLL_MS = 4_000L
         private const val LONG_LIMIT_MS = 30 * 60_000L
 

@@ -35,21 +35,18 @@ class ProxyTest {
         assertTrue(r.body!!.utf8().contains("\"model\":\"claude-sonnet\""))
     }
 
-    /** A proxy that doesn't know /models/{id} still passes the test when the model is in its list. */
-    @Test fun checkFallsBackToTheModelList() = runBlocking {
-        server.enqueue(MockResponse.Builder().code(404).body("{}").build())
-        server.enqueue(json("""{"data":[{"id":"gpt-x"},{"id":"claude-sonnet"}]}"""))
+    /** Test is a tiny real request to /responses (LiteLLM keeps /models/{id} for its admins). */
+    @Test fun checkAsksTheModel() = runBlocking {
+        server.enqueue(json(answer))
         OpenAiClient().check(config)
-        server.takeRequest()
-        assertEquals("/v1/models", server.takeRequest().url.encodedPath)
+        assertEquals("/v1/responses", server.takeRequest().url.encodedPath)
 
-        server.enqueue(MockResponse.Builder().code(404).body("{}").build())
-        server.enqueue(json("""{"data":[{"id":"gpt-x"}]}"""))
+        server.enqueue(MockResponse.Builder().code(401).body("""{"error":{"message":"Authentication Error, Invalid proxy server token passed."}}""").build())
         try {
             OpenAiClient().check(config)
-            fail("a model the proxy doesn't have passed")
+            fail("a refused key passed")
         } catch (e: AiException) {
-            assertTrue(e.message, e.message!!.contains("claude-sonnet"))
+            assertTrue(e.message, e.message!!.contains("Invalid proxy server token"))
         }
     }
 
