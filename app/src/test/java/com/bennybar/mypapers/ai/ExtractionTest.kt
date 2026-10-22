@@ -13,6 +13,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.Base64
 import java.util.Locale
@@ -207,12 +211,20 @@ class ExtractionTest {
             put("file_data", "data:application/pdf;base64," + Base64.getEncoder().encodeToString(pdf!!.readBytes()))
         }
         val config = AiConfig(key!!, AiSettings.DEFAULT_MODEL)
-        fun ask(q: String) = OpenAiClient.parseExtraction(runBlocking { OpenAiClient().complete(config, ExtractionPrompt.ask(q), listOf(part), "answer", ExtractionPrompt.ASK_SCHEMA) }).details
-        val url = ask("extract the URL")
-        println("  url: $url")
-        assertTrue(url.toString(), url.any { it.value.contains("https://track.example-shop.com/orders/77412") })
-        val none = ask("extract the IBAN")
-        println("  iban: $none")
-        assertTrue(none.toString(), none.isEmpty())
+        val record = "Title: Order 77412\nVendor: \nType: Receipt\nDate: \nAmount: \nTags: \nDetails:"
+        fun ask(history: List<PaperTurn>, q: String): JsonObject =
+            Json.parseToJsonElement(runBlocking { OpenAiClient().complete(config, ExtractionPrompt.ask(record, history, q), listOf(part), "answer", ExtractionPrompt.ASK_SCHEMA) }).jsonObject
+        fun details(o: JsonObject) = OpenAiClient.parseExtraction(o.toString()).details
+        val first = ask(emptyList(), "extract the URL")
+        println("  url: $first")
+        assertTrue(first.toString(), details(first).any { it.value.contains("https://track.example-shop.com/orders/77412") })
+        assertTrue(ask(emptyList(), "extract the IBAN").let { details(it).isEmpty() })
+        // A follow-up that changes the paper comes back as changes, not details.
+        val turn = PaperTurn("extract the URL", first["reply"]!!.jsonPrimitive.content, details(first))
+        val change = ask(listOf(turn), "set the title to Shop order and add the tag Online")
+        println("  change: $change")
+        val c = change["changes"]!!.jsonObject
+        assertEquals("Shop order", c["title"]!!.jsonPrimitive.content)
+        assertTrue(c.toString(), c["addTags"].toString().contains("Online"))
     }
 }

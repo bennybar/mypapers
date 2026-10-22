@@ -492,7 +492,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                     }
                 }
                 // What's typed in search, as a question for the AI about all the papers.
-                val shelved = asked?.first?.takeIf { askHidden }
+                val shelved = asked?.firstOrNull()?.first?.takeIf { askHidden }
                 if (shelved != null && !selecting) item(key = "answer") {
                     Notice("AI answer: “$shelved”", "Show", { askHidden = false }, Icons.Outlined.AutoAwesome)
                 }
@@ -567,8 +567,8 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
         }
     }
 
-    asked?.takeUnless { askHidden }?.let { (q, result) ->
-        AskAllSheet(q, result, onOpen = { askHidden = true; onOpen(it) }, onDismiss = { vm.closeAnswer() })
+    asked?.takeUnless { askHidden }?.let { turns ->
+        AskAllSheet(turns, onFollowUp = { vm.askAll(it, followUp = true) }, onOpen = { askHidden = true; onOpen(it) }, onDismiss = { vm.closeAnswer() })
     }
     if (filterSheet) {
         FilterSheet(

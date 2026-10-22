@@ -7,47 +7,84 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** An Ask AI question about one paper; [details] null while it's asked, [error] when it failed. */
+/** Changes to a paper the AI proposes ("set the title to …", "add tag Car"); null/empty: leave it. */
 @Serializable
-data class PaperAnswer(val question: String, val details: List<KeyDetail>? = null, val error: String? = null)
+data class PaperChanges(
+    val title: String? = null,
+    val vendor: String? = null,
+    val docType: String? = null,
+    /** yyyy-MM-dd. */
+    val date: String? = null,
+    val total: Double? = null,
+    val currency: String? = null,
+    val addTags: List<String> = emptyList(),
+    val removeTags: List<String> = emptyList(),
+    /** Labels of key details to remove. */
+    val removeDetails: List<String> = emptyList(),
+) {
+    val isEmpty get() = listOf(title, vendor, docType, date, total, currency).all { it == null } &&
+        addTags.isEmpty() && removeTags.isEmpty() && removeDetails.isEmpty()
+}
 
-/** A question about all the papers; [answer] null while it's asked. Papers by id, totals per currency in cents. */
+/**
+ * One question or instruction about a paper and what came back: a [reply], key [details] found
+ * (saved only on request) and proposed [changes] (applied only on request). Pending while all are null.
+ */
 @Serializable
-data class AllAnswer(
+data class PaperTurn(
+    val question: String,
+    val reply: String? = null,
+    val details: List<KeyDetail>? = null,
+    val changes: PaperChanges? = null,
+    val error: String? = null,
+    val saved: Boolean = false,
+    val applied: Boolean = false,
+) {
+    val done get() = reply != null || error != null
+}
+
+/** One answer in a conversation about all the papers; pending while [answer] and [error] are null. */
+@Serializable
+data class AllTurn(
     val question: String,
     val answer: String? = null,
     val paperIds: List<String> = emptyList(),
     val totals: Map<String, Long>? = null,
     val error: String? = null,
-)
+) {
+    val done get() = answer != null || error != null
+}
 
 /**
- * Answers the background jobs came back with, kept until they're seen (and closed), so one that
- * finished while the app was away is still there to read.
+ * Ask AI conversations: one per paper, and one about all the papers. The background jobs answer
+ * their last turn; kept until closed, so an answer that came while the app was away is still there.
  */
 class AiAnswers(context: Context) {
-    private val prefs = context.getSharedPreferences("ai_answers", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("ai_threads", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
 
     private val _papers = MutableStateFlow(
         prefs.all.filterKeys { it.startsWith(PAPER) }.mapNotNull { (k, v) ->
-            runCatching { k.removePrefix(PAPER) to json.decodeFromString<PaperAnswer>(v as String) }.getOrNull()
+            runCatching { k.removePrefix(PAPER) to json.decodeFromString<List<PaperTurn>>(v as String) }.getOrNull()
         }.toMap(),
     )
     /** By paper id. */
-    val papers: StateFlow<Map<String, PaperAnswer>> = _papers
+    val papers: StateFlow<Map<String, List<PaperTurn>>> = _papers
 
-    private val _all = MutableStateFlow(prefs.getString(ALL, null)?.let { runCatching { json.decodeFromString<AllAnswer>(it) }.getOrNull() })
-    val all: StateFlow<AllAnswer?> = _all
+    private val _all = MutableStateFlow(prefs.getString(ALL, null)?.let { runCatching { json.decodeFromString<List<AllTurn>>(it) }.getOrNull() })
+    val all: StateFlow<List<AllTurn>?> = _all
 
-    fun setPaper(id: String, answer: PaperAnswer?) {
-        prefs.edit().apply { if (answer == null) remove(PAPER + id) else putString(PAPER + id, json.encodeToString(answer)) }.apply()
-        _papers.value = if (answer == null) _papers.value - id else _papers.value + (id to answer)
+    /** [turns] null or empty: the conversation is closed. */
+    fun setPaper(id: String, turns: List<PaperTurn>?) {
+        val t = turns?.takeIf { it.isNotEmpty() }
+        prefs.edit().apply { if (t == null) remove(PAPER + id) else putString(PAPER + id, json.encodeToString(t)) }.apply()
+        _papers.value = if (t == null) _papers.value - id else _papers.value + (id to t)
     }
 
-    fun setAll(answer: AllAnswer?) {
-        prefs.edit().apply { if (answer == null) remove(ALL) else putString(ALL, json.encodeToString(answer)) }.apply()
-        _all.value = answer
+    fun setAll(turns: List<AllTurn>?) {
+        val t = turns?.takeIf { it.isNotEmpty() }
+        prefs.edit().apply { if (t == null) remove(ALL) else putString(ALL, json.encodeToString(t)) }.apply()
+        _all.value = t
     }
 
     private companion object {

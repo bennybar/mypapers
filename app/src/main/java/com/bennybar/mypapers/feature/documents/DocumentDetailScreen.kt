@@ -4,6 +4,7 @@ import android.content.ClipData
 import com.bennybar.mypapers.ai.TranscribeWorker
 import kotlinx.coroutines.flow.map
 import com.bennybar.mypapers.ai.AskWorker
+import com.bennybar.mypapers.ai.PaperTurn
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -123,10 +124,13 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     var editingText by rememberSaveable { mutableStateOf(false) }
     // Ask AI runs in the background too; its question and answer wait in app.answers.
     val askRunning by remember(id) { AskWorker.observeRunning(context, id) }.collectAsStateWithLifecycle(false)
-    val pending by remember(id) { app.answers.papers.map { it[id] } }.collectAsStateWithLifecycle(null)
-    val asking = pending?.question?.takeIf { askRunning }?.let { "Asking the AI: $it" }
-    // What the AI found, shown before anything is saved; nothing found or a failure: said, then dropped.
-    val answer = pending?.takeIf { !askRunning && !it.details.isNullOrEmpty() }
+    val thread by remember(id) { app.answers.papers.map { it[id] } }.collectAsStateWithLifecycle(null)
+    // The conversation sheet, put away (while it's still answering, or a paper is opened from it) or not.
+    var askHidden by rememberSaveable { mutableStateOf(false) }
+    val asking = thread?.lastOrNull()?.takeIf { askRunning && askHidden }?.question?.let { "Asking the AI: $it" }
+    // A new answer brings the sheet back.
+    val answered = thread?.count { it.done } ?: 0
+    LaunchedEffect(answered) { if (answered > 0) askHidden = false }
     val snackbar = remember { SnackbarHostState() }
 
     // Extract all text runs in the background (minutes), with notifications.
@@ -141,16 +145,8 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         }
     }
 
-    LaunchedEffect(pending, askRunning) {
-        val p = pending ?: return@LaunchedEffect
-        if (askRunning) return@LaunchedEffect
-        when {
-            p.error != null -> { app.answers.setPaper(id, null); snackbar.showSnackbar("Couldn't ask: ${p.error}") }
-            p.details?.isEmpty() == true -> { app.answers.setPaper(id, null); snackbar.showSnackbar("Not found in this paper") }
-        }
-    }
-
     fun ask(instruction: String) {
+        askHidden = false
         AskWorker.start(context, id, instruction)
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -212,7 +208,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                             )
                             DropdownMenuItem(
                                 text = { Text("Ask AI…") },
-                                enabled = aiSet && doc?.fileLocal == true && asking == null,
+                                enabled = aiSet && doc?.fileLocal == true && !askRunning,
                                 onClick = { menu = false; askDialog = true },
                             )
                             DropdownMenuItem(
@@ -267,21 +263,25 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         }
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
-    answer?.let { a ->
-        val question = a.question
-        val found = a.details.orEmpty()
-        AlertDialog(
-            onDismissRequest = { app.answers.setPaper(id, null) },
-            title = { Text(question) },
-            text = { Column(Modifier.verticalScroll(rememberScrollState())) { DetailList(found) } },
-            confirmButton = {
-                TextButton(onClick = {
-                    app.answers.setPaper(id, null)
-                    app.scope.launch { app.repository.saveDetails(id, found) }
-                }) { Text("Save to details") }
-            },
-            dismissButton = { TextButton(onClick = { app.answers.setPaper(id, null) }) { Text("Close") } },
-        )
+    thread?.takeUnless { askHidden }?.let { turns ->
+        doc?.let { d ->
+            fun mark(n: Int, change: (PaperTurn) -> PaperTurn) = app.answers.setPaper(id, turns.mapIndexed { i, t -> if (i == n) change(t) else t })
+            AskPaperSheet(
+                d, turns,
+                onFollowUp = { ask(it) },
+                onSave = { n ->
+                    mark(n) { it.copy(saved = true) }
+                    app.scope.launch { app.repository.saveDetails(id, turns[n].details.orEmpty()) }
+                },
+                onApply = { n ->
+                    mark(n) { it.copy(applied = true) }
+                    turns[n].changes?.let { c -> app.scope.launch { app.repository.applyChanges(id, c) } }
+                },
+                onClose = { app.answers.setPaper(id, null) },
+                // Swiped away while it's answering: kept, and back with the answer.
+                onDismiss = { if (askRunning) askHidden = true else app.answers.setPaper(id, null) },
+            )
+        }
     }
 }
 
@@ -495,7 +495,7 @@ private const val SHORT_TEXT_LINES = 12
 
 /** Label over value, tables as tables. Any part can be selected and copied; web addresses open. */
 @Composable
-private fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier) {
+internal fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier) {
     SelectionContainer {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             details.forEach { d ->

@@ -56,11 +56,33 @@ object ExtractionPrompt {
         """.trimIndent()
     }
 
-    /** A one-off question about one paper ("extract the URL"): the answer as key details. */
-    fun ask(instruction: String): String = """
-        You read a document from a personal paper archive. The user asks: "${instruction.trim()}"
-        Answer only that, from the attached document, as details: short label/value pairs, in the document's language (e.g. "URL" → "https://…", "Order number" → "A-1234"). One entry per value found, values copied exactly as printed. Write a date as YYYY-MM-DD. For a table (line items, a schedule, results), or when the user asks for one, return one entry whose value is the table: one row per line, cells separated by " | ", the first row the column headers. If the document doesn't have it, return no details.
-    """.trimIndent()
+    /**
+     * A question or instruction about one paper, in a conversation: [record] is the paper as the app
+     * has it now, [history] the earlier turns. Finds things (details), refines an earlier answer,
+     * or proposes changes to the record.
+     */
+    fun ask(record: String, history: List<PaperTurn>, instruction: String): String = buildString {
+        appendLine("You help with one document from a personal paper archive (attached). The app's record of it now:")
+        appendLine(record)
+        if (history.isNotEmpty()) {
+            appendLine()
+            appendLine("Earlier in this conversation:")
+            history.forEach { t ->
+                appendLine("User: ${t.question}")
+                appendLine("You: ${t.reply.orEmpty()}")
+                t.details?.forEach { appendLine("  ${it.label}: ${it.value}") }
+            }
+        }
+        appendLine()
+        appendLine("Now the user says: \"${instruction.trim()}\"")
+        appendLine()
+        appendLine("""
+            - To find, extract, explain or reshape information ("extract the URL", "as a table", "only section 3", "in English"): put it in details, short label/value pairs in the document's language unless asked otherwise (e.g. "URL" → "https://…"), values copied exactly as printed, dates as YYYY-MM-DD. A follow-up that reshapes an earlier answer returns the whole reshaped answer. For a table (line items, a schedule, results), or when asked for one, one entry whose value is the table: one row per line, cells separated by " | ", the first row the column headers.
+            - To change the record (title, vendor, type, date, amount, currency, tags, removing a detail by its label): fill only those fields of changes; leave the rest null or empty. Types: Receipt, Invoice, Warranty, Contract, Other. Dates YYYY-MM-DD.
+            - reply: one or two sentences in the user's language: what you found, what will change, or that the document doesn't have it.
+            - Never invent what isn't in the document or the user's words.
+        """.trimIndent())
+    }
 
     /** All of a paper's text, written out (a handwritten page too). */
     const val TRANSCRIBE = """
@@ -72,8 +94,13 @@ object ExtractionPrompt {
 
     const val TRANSCRIBE_SCHEMA = """{"type":"object","additionalProperties":false,"required":["text"],"properties":{"text":{"type":"string"}}}"""
 
-    const val ASK_SCHEMA = """{"type":"object","additionalProperties":false,"required":["details"],
-"properties":{"details":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["label","value"],"properties":{"label":{"type":"string"},"value":{"type":"string"}}}}}}"""
+    const val ASK_SCHEMA = """{"type":"object","additionalProperties":false,"required":["reply","details","changes"],
+"properties":{"reply":{"type":"string"},
+"details":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["label","value"],"properties":{"label":{"type":"string"},"value":{"type":"string"}}}},
+"changes":{"type":"object","additionalProperties":false,"required":["title","vendor","docType","date","total","currency","addTags","removeTags","removeDetails"],
+"properties":{"title":{"type":["string","null"]},"vendor":{"type":["string","null"]},"docType":{"type":["string","null"]},"date":{"type":["string","null"]},
+"total":{"type":["number","null"]},"currency":{"type":["string","null"]},"addTags":{"type":"array","items":{"type":"string"}},
+"removeTags":{"type":"array","items":{"type":"string"}},"removeDetails":{"type":"array","items":{"type":"string"}}}}}}"""
 
     /** The JSON schema the answer must follow (strict structured output). */
     const val SCHEMA = """{"type":"object","additionalProperties":false,

@@ -22,6 +22,17 @@ class AskAllTest {
         assertEquals(mapOf("ILS" to 1250L, "USD" to 500L), t)
     }
 
+    /** A follow-up carries the conversation so far into both steps. */
+    @Test fun followUpCarriesTheConversation() {
+        val history = listOf(AllTurn("how much on the dentist?", "₪750 at Dr. Levi."))
+        val docs = listOf(doc("1", "Dentist", 45000))
+        for (prompt in listOf(AskAll.pick("and last year?", docs, history), AskAll.answer("and last year?", history, true, listOf(1 to docs[0]), emptyList()))) {
+            assertTrue(prompt, prompt.contains("Q: how much on the dentist?") && prompt.contains("A: ₪750 at Dr. Levi."))
+            assertTrue(prompt, prompt.contains("Now they ask: \"and last year?\""))
+        }
+        assertTrue(AskAll.pick("where?", docs).contains("They ask: \"where?\""))
+    }
+
     @Test fun parsesAnswers() {
         assertEquals(listOf(3, 1), AskAll.numbers("""{"papers":[3,1,3],"total":true}"""))
         assertTrue(AskAll.isTotal("""{"papers":[],"total":true}"""))
@@ -53,7 +64,7 @@ class AskAllTest {
             val pick = c.complete(config, AskAll.pick(q, docs), emptyList(), "pick", AskAll.PICK_SCHEMA)
             val picked = AskAll.numbers(pick).map { it to docs[it - 1] }
             val total = AskAll.isTotal(pick)
-            val answer = c.complete(config, AskAll.answer(q, total, picked, emptyList()), emptyList(), "answer", AskAll.ANSWER_SCHEMA)
+            val answer = c.complete(config, AskAll.answer(q, emptyList(), total, picked, emptyList()), emptyList(), "answer", AskAll.ANSWER_SCHEMA)
             Triple(AskAll.answerText(answer), AskAll.numbers(answer), total)
         }
         val serial = run("what's the serial number of my washing machine?")

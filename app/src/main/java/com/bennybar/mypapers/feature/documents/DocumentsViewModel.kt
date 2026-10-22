@@ -144,22 +144,23 @@ class DocumentsViewModel : ViewModel() {
     suspend fun import(uri: Uri, name: String? = null): ImportResult = app.repository.import(uri, name)
 
     /**
-     * A question about all the papers and its answer (null while asking). Asked in the background
-     * ([AskAllWorker]); the answer waits in app.answers until closed, also when it came while away.
+     * The conversation about all the papers: each question with its answer (null while asking).
+     * Asked in the background ([AskAllWorker]); it waits in app.answers until closed, also when the
+     * answer came while away.
      */
-    val asked: StateFlow<Pair<String, Result<AskAllAnswer>?>?> = combine(app.answers.all, all) { a, docs ->
-        when {
-            a == null -> null
-            a.error != null -> a.question to Result.failure(Exception(a.error))
-            a.answer != null -> {
-                val byId = docs.orEmpty().associateBy { it.id }
-                a.question to Result.success(AskAllAnswer(a.answer, a.paperIds.mapNotNull { byId[it] }, a.totals))
+    val asked: StateFlow<List<Pair<String, Result<AskAllAnswer>?>>?> = combine(app.answers.all, all) { turns, docs ->
+        val byId = docs.orEmpty().associateBy { it.id }
+        turns?.map { t ->
+            t.question to when {
+                t.error != null -> Result.failure(Exception(t.error))
+                t.answer != null -> Result.success(AskAllAnswer(t.answer, t.paperIds.mapNotNull { byId[it] }, t.totals))
+                else -> null
             }
-            else -> a.question to null
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    fun askAll(question: String) = AskAllWorker.start(app, question)
+    /** A new question; [followUp]: carrying on the conversation. */
+    fun askAll(question: String, followUp: Boolean = false) = AskAllWorker.start(app, question, followUp)
 
     fun closeAnswer() = app.answers.setAll(null)
 

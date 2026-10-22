@@ -7,6 +7,12 @@ import com.bennybar.mypapers.ai.AiException
 import com.bennybar.mypapers.ai.AiInput
 import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.AskAll
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonArray
+import com.bennybar.mypapers.ai.AllTurn
+import com.bennybar.mypapers.ai.PaperChanges
+import com.bennybar.mypapers.ai.PaperTurn
 import com.bennybar.mypapers.ai.AskAllAnswer
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.OpenAiClient
@@ -282,31 +288,84 @@ class DocumentRepository(
     }
 
     /**
-     * Asks the AI one thing about a paper ("extract the URL"). Returns what was found (empty: nothing);
-     * nothing is saved until [saveDetails].
+     * The last of [turns] (a question or instruction about this paper) answered by the AI, with
+     * the earlier ones as the conversation so far. Nothing is saved or changed here: the answer
+     * proposes, [saveDetails] and [applyChanges] do it when asked.
      */
-    suspend fun ask(id: String, instruction: String): List<KeyDetail> {
-        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return emptyList()
+    suspend fun askPaper(id: String, turns: List<PaperTurn>): PaperTurn {
+        val turn = turns.last()
+        val doc = dao.get(id)?.takeUnless { it.deleted } ?: return turn.copy(error = "This paper was deleted")
         val config = ai.config.value
         if (!config.isSet) throw AiException("Add your OpenAI key in Settings first", retryable = false)
         if (!doc.fileLocal) throw AiException("The file isn't on this phone yet", retryable = false)
         val parts = withContext(Dispatchers.IO) { AiInput.parts(files.file(id), doc.mimeType, doc.fileName) }
-        val answer = openAi.complete(config, ExtractionPrompt.ask(instruction), parts, "answer", ExtractionPrompt.ASK_SCHEMA)
-        return OpenAiClient.parseExtraction(answer).details
+        val record = buildString {
+            appendLine("Title: ${doc.title}")
+            appendLine("Vendor: ${doc.vendor}")
+            appendLine("Type: ${doc.docType}")
+            appendLine("Date: ${doc.date.orEmpty()}")
+            appendLine("Amount: ${doc.totalCents?.let { it / 100.0 } ?: ""} ${doc.currency.orEmpty()}")
+            appendLine("Tags: ${doc.tags.joinToString(", ")}")
+            append("Details:")
+            doc.details.forEach { append("\n  ${it.label}: ${it.value}") }
+        }
+        val prompt = ExtractionPrompt.ask(record, turns.dropLast(1).filter { it.reply != null }, turn.question)
+        val o = Json.parseToJsonElement(openAi.complete(config, prompt, parts, "answer", ExtractionPrompt.ASK_SCHEMA)).jsonObject
+        val c = o["changes"] as? JsonObject
+        fun str(k: String) = (c?.get(k) as? JsonPrimitive)?.contentOrNull?.trim()?.ifEmpty { null }
+        fun list(k: String) = (c?.get(k) as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim()?.ifEmpty { null } }.orEmpty()
+        val changes = PaperChanges(
+            title = str("title"), vendor = str("vendor"),
+            docType = str("docType")?.takeIf { it in DOCUMENT_TYPES },
+            date = str("date")?.takeIf { runCatching { java.time.LocalDate.parse(it) }.isSuccess },
+            total = (c?.get("total") as? JsonPrimitive)?.doubleOrNull,
+            currency = str("currency")?.uppercase(),
+            addTags = list("addTags"), removeTags = list("removeTags"), removeDetails = list("removeDetails"),
+        )
+        return turn.copy(
+            reply = (o["reply"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+            details = OpenAiClient.parseExtraction(o.toString()).details,
+            changes = changes.takeUnless { it.isEmpty },
+        )
     }
 
-    /** A question about all the papers (see [AskAll]): the answer and the papers it's based on. */
-    suspend fun askAll(question: String): AskAllAnswer {
+    /** What the AI proposed, applied; changed fields count as the user's (a re-read leaves them). */
+    suspend fun applyChanges(id: String, c: PaperChanges) {
+        val d = dao.get(id)?.takeUnless { it.deleted } ?: return
+        val tags = (d.tags.filterNot { t -> c.removeTags.any { it.equals(t, ignoreCase = true) } } + c.addTags).distinctBy { it.lowercase() }
+        val details = d.details.filterNot { det -> c.removeDetails.any { it.equals(det.label, ignoreCase = true) } }
+        val edited = listOfNotNull(
+            "title".takeIf { c.title != null }, "vendor".takeIf { c.vendor != null }, "docType".takeIf { c.docType != null },
+            "date".takeIf { c.date != null }, "total".takeIf { c.total != null }, "currency".takeIf { c.currency != null },
+            "tags".takeIf { tags != d.tags }, "details".takeIf { details != d.details },
+        )
+        update(
+            d.copy(
+                title = c.title ?: d.title,
+                vendor = c.vendor ?: d.vendor,
+                docType = c.docType ?: d.docType,
+                date = c.date ?: d.date,
+                totalCents = c.total?.let { java.math.BigDecimal.valueOf(it).movePointRight(2).setScale(0, java.math.RoundingMode.HALF_UP).toLong() } ?: d.totalCents,
+                currency = c.currency ?: d.currency,
+                tags = tags,
+                details = details,
+                edited = (d.edited + edited).distinct(),
+            ),
+        )
+    }
+
+    /** A question about all the papers (see [AskAll]), after [history]: the answer and the papers it's based on. */
+    suspend fun askAll(question: String, history: List<AllTurn> = emptyList()): AskAllAnswer {
         val config = ai.config.value
         if (!config.isSet) throw AiException("Add your OpenAI key in Settings first", retryable = false)
         val docs = dao.all().sortedByDescending { it.date ?: "" }
         if (docs.isEmpty()) return AskAllAnswer("There are no papers yet.", emptyList(), null)
         fun numbered(ns: List<Int>) = ns.mapNotNull { n -> docs.getOrNull(n - 1)?.let { n to it } }
-        val pick = openAi.complete(config, AskAll.pick(question, docs), emptyList(), "pick", AskAll.PICK_SCHEMA)
+        val pick = openAi.complete(config, AskAll.pick(question, docs, history), emptyList(), "pick", AskAll.PICK_SCHEMA)
         val picked = numbered(AskAll.numbers(pick))
         if (picked.isEmpty()) return AskAllAnswer("Nothing in your papers seems to answer that.", emptyList(), null)
         val total = AskAll.isTotal(pick)
-        val prompt = AskAll.answer(question, total, picked.take(AskAll.MAX_READ), if (total) picked.drop(AskAll.MAX_READ) else emptyList())
+        val prompt = AskAll.answer(question, history, total, picked.take(AskAll.MAX_READ), if (total) picked.drop(AskAll.MAX_READ) else emptyList())
         val answer = openAi.complete(config, prompt, emptyList(), "answer", AskAll.ANSWER_SCHEMA)
         val used = numbered(AskAll.numbers(answer)).map { it.second }
         return AskAllAnswer(AskAll.answerText(answer), used, if (total) AskAll.totals(used) else null)

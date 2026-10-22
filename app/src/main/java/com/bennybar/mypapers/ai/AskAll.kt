@@ -32,8 +32,12 @@ object AskAll {
         d.details.joinToString("; ") { "${it.label}: ${it.value.replace('\n', ' ').take(80)}" },
     ).joinToString(" | ")
 
-    fun pick(question: String, docs: List<Document>): String = """
-        You help someone find things in their personal archive of receipts and documents. They ask: "${question.trim()}"
+    /** "They ask", or for a follow-up ("and last year?") the conversation so far and "Now they ask". */
+    private fun earlier(history: List<AllTurn>): String =
+        if (history.isEmpty()) "They ask" else "Earlier in this conversation:\n" + history.joinToString("\n") { "Q: ${it.question}\nA: ${it.answer.orEmpty()}" } + "\nNow they ask"
+
+    fun pick(question: String, docs: List<Document>, history: List<AllTurn> = emptyList()): String = """
+        You help someone find things in their personal archive of receipts and documents. ${earlier(history).replace("\n", " ")}: "${question.trim()}" (a follow-up reads with what came before)
         Below is one line per paper: number | date | type | title | vendor | amount | tags | keywords | details.
         - papers: the numbers of every paper that may help answer it, the most useful first (at most 100). None if nothing fits.
         - total: true if the answer is an amount added up over papers (how much spent or paid), else false.
@@ -45,8 +49,9 @@ object AskAll {
 "properties":{"papers":{"type":"array","items":{"type":"integer"}},"total":{"type":"boolean"}}}"""
 
     /** [read]: the papers given in full; [listed]: more picked ones, by their line only. */
-    fun answer(question: String, total: Boolean, read: List<Pair<Int, Document>>, listed: List<Pair<Int, Document>>): String = buildString {
-        appendLine("Answer a question about someone's personal archive of receipts and documents, from the papers below. They ask: \"${question.trim()}\"")
+    fun answer(question: String, history: List<AllTurn>, total: Boolean, read: List<Pair<Int, Document>>, listed: List<Pair<Int, Document>>): String = buildString {
+        appendLine("Answer a question about someone's personal archive of receipts and documents, from the papers below.")
+        appendLine(earlier(history) + ": \"${question.trim()}\" (a follow-up reads with what came before)")
         appendLine("- answer: short and direct, in the language of the question. Name the papers it comes from by their title. Copy names, numbers and dates exactly as written. If the papers don't answer it, say so plainly.")
         if (total) appendLine("  Don't add amounts up yourself: the app shows the total of the papers you list.")
         appendLine("- papers: the numbers of the papers the answer is based on${if (total) " (for a total: every paper that counts towards it)" else ""}.")
