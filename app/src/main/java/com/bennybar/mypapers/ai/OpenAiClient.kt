@@ -26,8 +26,8 @@ import java.util.concurrent.TimeUnit
 /** [retryable]: worth trying again later (rate limit, server trouble), unlike a bad key. */
 class AiException(message: String, val retryable: Boolean) : IOException(message)
 
-/** The OpenAI Responses API, with the user's own key. */
-class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
+/** The OpenAI Responses API, with the user's own key: OpenAI itself, or an OpenAI-compatible proxy (LiteLLM…). */
+class OpenAiClient {
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(300, TimeUnit.SECONDS)
@@ -36,8 +36,18 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
 
     /** Checks the key and that the model exists for it. */
     suspend fun check(config: AiConfig) = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url("$baseUrl/models/${config.model}").header("Authorization", "Bearer ${config.apiKey}").build()
-        http.newCall(request).execute().use { r -> if (!r.isSuccessful) throw error(r.code, r.body.string()) }
+        fun get(path: String) = http.newCall(Request.Builder().url("${config.endpoint}$path").header("Authorization", "Bearer ${config.apiKey}").build()).execute()
+        get("/models/${config.model}").use { r ->
+            if (r.isSuccessful) return@withContext
+            if (r.code != 404) throw error(r.code, r.body.string(), config)
+        }
+        // Some proxies only list their models: look for it there.
+        get("/models").use { r ->
+            val text = r.body.string()
+            if (!r.isSuccessful) throw error(r.code, text, config)
+            val ids = runCatching { Json.parseToJsonElement(text).jsonObject["data"]!!.jsonArray.mapNotNull { it.jsonObject["id"]?.jsonPrimitive?.contentOrNull } }.getOrDefault(emptyList())
+            if (config.model !in ids) throw AiException("Model not found at ${config.provider}: ${config.model}", retryable = false)
+        }
     }
 
     /**
@@ -50,13 +60,13 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
     /** Any structured answer: [schema] is the JSON schema it must follow; returns the answer's JSON text. */
     suspend fun complete(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String = "low"): String = withContext(Dispatchers.IO) {
         val body = requestBody(config.model, prompt, parts, schemaName, schema, effort).toString().toRequestBody("application/json".toMediaType())
-        val request = Request.Builder().url("$baseUrl/responses")
+        val request = Request.Builder().url("${config.endpoint}/responses")
             .header("Authorization", "Bearer ${config.apiKey}")
             .post(body)
             .build()
         http.newCall(request).execute().use { r ->
             val text = r.body.string()
-            if (!r.isSuccessful) throw error(r.code, text)
+            if (!r.isSuccessful) throw error(r.code, text, config)
             outputText(text)
         }
     }
@@ -69,33 +79,41 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
         val body = JsonObject(requestBody(config.model, prompt, parts, schemaName, schema, effort) + ("background" to JsonPrimitive(true)))
         fun call(request: Request): JsonObject = http.newCall(request).execute().use { r ->
             val text = r.body.string()
-            if (!r.isSuccessful) throw error(r.code, text)
+            if (!r.isSuccessful) throw error(r.code, text, config)
             Json.parseToJsonElement(text).jsonObject
         }
         val auth = "Bearer ${config.apiKey}"
-        var response = call(
-            Request.Builder().url("$baseUrl/responses").header("Authorization", auth)
-                .post(body.toString().toRequestBody("application/json".toMediaType())).build(),
-        )
-        val id = response["id"]!!.jsonPrimitive.content
+        var response = try {
+            call(
+                Request.Builder().url("${config.endpoint}/responses").header("Authorization", auth)
+                    .post(body.toString().toRequestBody("application/json".toMediaType())).build(),
+            )
+        } catch (e: AiException) {
+            // A proxy without background mode: one ordinary (long) request instead.
+            if (config.baseUrl.isBlank() || e.retryable) throw e
+            return@withContext complete(config, prompt, parts, schemaName, schema, effort)
+        }
+        // A proxy may answer at once, without background mode.
+        val id = response["id"]?.jsonPrimitive?.contentOrNull ?: return@withContext outputText(response.toString())
         val started = System.currentTimeMillis()
         while (response["status"]?.jsonPrimitive?.contentOrNull in setOf("queued", "in_progress")) {
-            if (System.currentTimeMillis() - started > LONG_LIMIT_MS) throw AiException("OpenAI took too long", retryable = false)
+            if (System.currentTimeMillis() - started > LONG_LIMIT_MS) throw AiException("${config.provider} took too long", retryable = false)
             kotlinx.coroutines.delay(POLL_MS)
-            response = call(Request.Builder().url("$baseUrl/responses/$id").header("Authorization", auth).build())
+            response = call(Request.Builder().url("${config.endpoint}/responses/$id").header("Authorization", auth).build())
         }
         outputText(response.toString())
     }
 
-    private fun error(code: Int, body: String): AiException {
+    private fun error(code: Int, body: String, config: AiConfig): AiException {
         val message = runCatching {
             Json.parseToJsonElement(body).jsonObject["error"]!!.jsonObject["message"]!!.jsonPrimitive.content
         }.getOrNull() ?: body.take(200)
+        val who = config.provider
         return when (code) {
-            401 -> AiException("The OpenAI key was refused", retryable = false)
-            404 -> AiException("Model not found: $message", retryable = false)
-            429, in 500..599 -> AiException("OpenAI: $message", retryable = true)
-            else -> AiException("OpenAI ($code): $message", retryable = false)
+            401 -> AiException("$who refused the key", retryable = false)
+            404 -> AiException("Not found at $who: $message", retryable = false)
+            429, in 500..599 -> AiException("$who: $message", retryable = true)
+            else -> AiException("$who ($code): $message", retryable = false)
         }
     }
 
@@ -140,7 +158,7 @@ class OpenAiClient(private val baseUrl: String = "https://api.openai.com/v1") {
                 .map { it.jsonObject }
                 .firstOrNull { it["type"]?.jsonPrimitive?.contentOrNull == "output_text" }
                 ?.get("text")?.jsonPrimitive?.content
-                ?: throw AiException("OpenAI returned no answer (${root["status"]?.jsonPrimitive?.contentOrNull})", retryable = true)
+                ?: throw AiException("The AI returned no answer (${root["status"]?.jsonPrimitive?.contentOrNull})", retryable = true)
         }
 
         fun parseExtraction(text: String): Extraction {

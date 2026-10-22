@@ -246,10 +246,12 @@ private fun AiSection() {
     val saved by app.ai.config.collectAsStateWithLifecycle()
     var apiKey by remember { mutableStateOf(saved.apiKey) }
     var model by remember { mutableStateOf(saved.model) }
+    var server by remember { mutableStateOf(saved.baseUrl) }
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val config = saved.copy(apiKey = apiKey.trim(), model = model.trim().ifBlank { AiSettings.DEFAULT_MODEL })
+    val config = saved.copy(apiKey = apiKey.trim(), model = model.trim().ifBlank { AiSettings.DEFAULT_MODEL }, baseUrl = server.trim())
+    val serverBad = server.isNotBlank() && !Regex("(?i)^https://\\S+$").matches(server.trim())
     val unread by remember { app.repository.observeUnread() }.collectAsStateWithLifecycle(emptyList())
     val readable by remember { app.repository.observeReadableCount() }.collectAsStateWithLifecycle(0)
     var confirmReread by remember { mutableStateOf(false) }
@@ -259,13 +261,13 @@ private fun AiSection() {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitle("AI reading")
         Text(
-            "Your own OpenAI key reads your papers: a clear title, the vendor, amounts, date, type and tags, for searching and filtering. The key stays on this phone.",
+            "Your own OpenAI key (or your own proxy server) reads your papers: a clear title, the vendor, amounts, date, type and tags, for searching and filtering. The key stays on this phone.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         OutlinedTextField(
             apiKey, { apiKey = it; status = null },
-            label = { Text("OpenAI API key") },
+            label = { Text(if (server.isBlank()) "OpenAI API key" else "API key") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -277,10 +279,21 @@ private fun AiSection() {
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
+        // An OpenAI-compatible proxy (LiteLLM…) instead of OpenAI: its address, its key, its model name.
+        OutlinedTextField(
+            server, { server = it; status = null },
+            label = { Text("Proxy server (optional)") },
+            placeholder = { Text("https://litellm.example.com/v1") },
+            supportingText = { Text(if (serverBad) "Starts with https:// (your key goes with each request, so it must be encrypted)" else "Leave empty for OpenAI. For LiteLLM or another OpenAI-compatible proxy: its address. It needs the Responses API.") },
+            isError = serverBad,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.fillMaxWidth(),
+        )
         status?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(
-                enabled = config.isSet && !busy,
+                enabled = config.isSet && !busy && !serverBad,
                 onClick = {
                     scope.launch {
                         busy = true
@@ -290,7 +303,7 @@ private fun AiSection() {
                 },
             ) { Text("Test") }
             Button(
-                enabled = !busy && config != saved,
+                enabled = !busy && config != saved && !serverBad,
                 onClick = {
                     app.ai.save(config)
                     status = "Saved"
