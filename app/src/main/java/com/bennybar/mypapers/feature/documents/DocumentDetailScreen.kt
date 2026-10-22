@@ -2,6 +2,8 @@ package com.bennybar.mypapers.feature.documents
 
 import android.content.ClipData
 import com.bennybar.mypapers.ai.TranscribeWorker
+import kotlinx.coroutines.flow.map
+import com.bennybar.mypapers.ai.AskWorker
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -118,10 +120,13 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
     val aiSet = app.ai.config.collectAsStateWithLifecycle().value.isSet
     var askDialog by rememberSaveable { mutableStateOf(false) }
     var confirmReset by rememberSaveable { mutableStateOf(false) }
-    var asking by remember { mutableStateOf<String?>(null) }
     var editingText by rememberSaveable { mutableStateOf(false) }
-    // The question and what the AI found, shown before anything is saved.
-    var answer by remember { mutableStateOf<Pair<String, List<KeyDetail>>?>(null) }
+    // Ask AI runs in the background too; its question and answer wait in app.answers.
+    val askRunning by remember(id) { AskWorker.observeRunning(context, id) }.collectAsStateWithLifecycle(false)
+    val pending by remember(id) { app.answers.papers.map { it[id] } }.collectAsStateWithLifecycle(null)
+    val asking = pending?.question?.takeIf { askRunning }?.let { "Asking the AI: $it" }
+    // What the AI found, shown before anything is saved; nothing found or a failure: said, then dropped.
+    val answer = pending?.takeIf { !askRunning && !it.details.isNullOrEmpty() }
     val snackbar = remember { SnackbarHostState() }
 
     // Extract all text runs in the background (minutes), with notifications.
@@ -136,17 +141,19 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         }
     }
 
+    LaunchedEffect(pending, askRunning) {
+        val p = pending ?: return@LaunchedEffect
+        if (askRunning) return@LaunchedEffect
+        when {
+            p.error != null -> { app.answers.setPaper(id, null); snackbar.showSnackbar("Couldn't ask: ${p.error}") }
+            p.details?.isEmpty() == true -> { app.answers.setPaper(id, null); snackbar.showSnackbar("Not found in this paper") }
+        }
+    }
+
     fun ask(instruction: String) {
-        asking = "Asking the AI: $instruction"
-        scope.launch {
-            val result = runCatching { app.repository.ask(id, instruction) }
-            asking = null
-            val found = result.getOrNull()
-            when {
-                found == null -> snackbar.showSnackbar("Couldn't ask: ${result.exceptionOrNull()?.message}")
-                found.isEmpty() -> snackbar.showSnackbar("Not found in this paper")
-                else -> answer = instruction to found
-            }
+        AskWorker.start(context, id, instruction)
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -260,18 +267,20 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
         }
     }
     if (askDialog) AskDialog(onDismiss = { askDialog = false }, onAsk = { askDialog = false; ask(it) })
-    answer?.let { (question, found) ->
+    answer?.let { a ->
+        val question = a.question
+        val found = a.details.orEmpty()
         AlertDialog(
-            onDismissRequest = { answer = null },
+            onDismissRequest = { app.answers.setPaper(id, null) },
             title = { Text(question) },
             text = { Column(Modifier.verticalScroll(rememberScrollState())) { DetailList(found) } },
             confirmButton = {
                 TextButton(onClick = {
-                    answer = null
+                    app.answers.setPaper(id, null)
                     app.scope.launch { app.repository.saveDetails(id, found) }
                 }) { Text("Save to details") }
             },
-            dismissButton = { TextButton(onClick = { answer = null }) { Text("Close") } },
+            dismissButton = { TextButton(onClick = { app.answers.setPaper(id, null) }) { Text("Close") } },
         )
     }
 }

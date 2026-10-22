@@ -7,6 +7,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
+import androidx.work.ForegroundInfo
+import com.bennybar.mypapers.feature.documents.title
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -18,8 +21,15 @@ import java.util.concurrent.TimeUnit
  * app is closed; waits for a network and retries rate limits and server errors.
  */
 class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        val id = inputData.getString(KEY_ID).orEmpty()
+        return AiNotifications.progress(applicationContext, ("read" + id).hashCode(), "Reading with AI", app.repository.get(id)?.title(), id)
+    }
+
     override suspend fun doWork(): Result {
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
+        // Its notification keeps Android from stopping it (not allowed from the background: runs without).
+        runCatching { setForeground(getForegroundInfo()) }
         return try {
             app.repository.extract(id)
             Result.success()
@@ -53,6 +63,7 @@ class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .addTag(TAG)
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork("extract-$id", ExistingWorkPolicy.REPLACE, request)
         }

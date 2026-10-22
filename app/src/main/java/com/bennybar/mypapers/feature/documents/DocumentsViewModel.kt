@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bennybar.mypapers.ai.AskAllAnswer
+import com.bennybar.mypapers.ai.AskAllWorker
 import com.bennybar.mypapers.ai.ExtractionPrompt
 import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.app
@@ -142,16 +143,25 @@ class DocumentsViewModel : ViewModel() {
 
     suspend fun import(uri: Uri, name: String? = null): ImportResult = app.repository.import(uri, name)
 
-    /** A question about all the papers and its answer (null while asking); kept here so it isn't asked again when coming back. */
-    val asked = MutableStateFlow<Pair<String, Result<AskAllAnswer>?>?>(null)
-
-    fun askAll(question: String) {
-        asked.value = question to null
-        viewModelScope.launch {
-            val r = runCatching { app.repository.askAll(question) }
-            if (asked.value?.first == question) asked.value = question to r
+    /**
+     * A question about all the papers and its answer (null while asking). Asked in the background
+     * ([AskAllWorker]); the answer waits in app.answers until closed, also when it came while away.
+     */
+    val asked: StateFlow<Pair<String, Result<AskAllAnswer>?>?> = combine(app.answers.all, all) { a, docs ->
+        when {
+            a == null -> null
+            a.error != null -> a.question to Result.failure(Exception(a.error))
+            a.answer != null -> {
+                val byId = docs.orEmpty().associateBy { it.id }
+                a.question to Result.success(AskAllAnswer(a.answer, a.paperIds.mapNotNull { byId[it] }, a.totals))
+            }
+            else -> a.question to null
         }
-    }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    fun askAll(question: String) = AskAllWorker.start(app, question)
+
+    fun closeAnswer() = app.answers.setAll(null)
 
     /** Syncs now; a sync already running (e.g. the first big upload) isn't waited for: its progress shows. */
     suspend fun refresh() {

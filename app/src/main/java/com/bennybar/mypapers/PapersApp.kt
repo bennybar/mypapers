@@ -9,7 +9,8 @@ import com.bennybar.mypapers.ai.AiSettings
 import com.bennybar.mypapers.ai.ExtractWorker
 import com.bennybar.mypapers.ai.OpenAiClient
 import com.bennybar.mypapers.ai.ReadAllWorker
-import com.bennybar.mypapers.ai.TranscribeWorker
+import com.bennybar.mypapers.ai.AiAnswers
+import com.bennybar.mypapers.ai.AiNotifications
 import com.bennybar.mypapers.data.DocumentDao
 import com.bennybar.mypapers.gmail.GmailImporter
 import com.bennybar.mypapers.gmail.GmailNotifications
@@ -49,6 +50,8 @@ class PapersApp : Application() {
     lateinit var sync: DriveSync
     lateinit var account: Account
     lateinit var ai: AiSettings
+    /** Answers from Ask AI jobs, waiting to be seen. */
+    lateinit var answers: AiAnswers
     lateinit var gmail: GmailImporter
     lateinit var formats: FormatSettings
     val openAi = OpenAiClient()
@@ -67,6 +70,7 @@ class PapersApp : Application() {
         drive = DriveSettings(this)
         account = Account()
         ai = AiSettings(this)
+        answers = AiAnswers(this)
         repository = DocumentRepository(
             dao, files, contentResolver, ai, openAi,
             onChanged = { requestSync() },
@@ -88,7 +92,7 @@ class PapersApp : Application() {
         gmail = GmailImporter(this, db.gmailCandidates(), GmailSettings(this), repository)
         GmailNotifications.createChannels(this)
         ExpiryReminders.createChannel(this)
-        TranscribeWorker.createChannels(this)
+        AiNotifications.createChannels(this)
         ExpiryReminders.schedule(this)
         gmail.scheduleSweep()
         // Signed out by an older version, which left Gmail connected.

@@ -14,6 +14,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import android.app.Activity
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
@@ -169,6 +172,8 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     val vendors by vm.vendors.collectAsStateWithLifecycle()
     var filterSheet by remember { mutableStateOf(false) }
     val asked by vm.asked.collectAsStateWithLifecycle()
+    // Asking runs in the background with notifications; asked for once (Android 13+), without waiting.
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val view by vm.view.collectAsStateWithLifecycle()
     // Put away while a paper from the answer is open; a notice brings it back.
     var askHidden by rememberSaveable { mutableStateOf(false) }
@@ -492,7 +497,13 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                     Notice("AI answer: “$shelved”", "Show", { askHidden = false }, Icons.Outlined.AutoAwesome)
                 }
                 if (query.isNotBlank() && query.trim() != shelved && ai.isSet && !selecting) item(key = "askAll") {
-                    Notice("Ask AI: “${query.trim()}”", "Ask", { askHidden = false; vm.askAll(query.trim()) }, Icons.Outlined.AutoAwesome)
+                    Notice("Ask AI: “${query.trim()}”", "Ask", {
+                        askHidden = false
+                        vm.askAll(query.trim())
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }, Icons.Outlined.AutoAwesome)
                 }
                 val list = results
                 // What's shown adds up to: count and totals, when searching or filtering.
@@ -557,7 +568,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     }
 
     asked?.takeUnless { askHidden }?.let { (q, result) ->
-        AskAllSheet(q, result, onOpen = { askHidden = true; onOpen(it) }, onDismiss = { vm.asked.value = null })
+        AskAllSheet(q, result, onOpen = { askHidden = true; onOpen(it) }, onDismiss = { vm.closeAnswer() })
     }
     if (filterSheet) {
         FilterSheet(
