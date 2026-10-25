@@ -31,6 +31,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -200,8 +202,20 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
             },
-            bottomBar = {
-                doc?.let { d ->
+        ) { padding ->
+            doc?.let { d ->
+                Box(Modifier.fillMaxSize()) {
+                    DocumentDetails(
+                        d, Modifier.padding(top = padding.calculateTopPadding()), onEdit,
+                        canRead = aiSet,
+                        asking = asking ?: if (transcribing) "Extracting all text… you'll get a notification when it's done" else null,
+                        onRead = { scope.launch { app.repository.requestReading(id) } },
+                        onOpen = onOpen,
+                        onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
+                        onDelete = { scope.launch { app.repository.trash(id) } },
+                        onEditText = { editingText = true },
+                        onReworkDetail = if (aiSet && doc?.fileLocal == true && !askRunning) { label -> reworking = label } else null,
+                    )
                     PaperToolbar(
                         d,
                         canAsk = aiSet && d.fileLocal && !askRunning,
@@ -220,22 +234,10 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                         onEdit = onEdit,
                         onAsk = { askDialog = true },
                         onExtract = ::transcribe,
+                        // Floats over the page, which scrolls on under it.
+                        modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
-            },
-        ) { padding ->
-            doc?.let { d ->
-                DocumentDetails(
-                    d, Modifier.padding(padding), onEdit,
-                    canRead = aiSet,
-                    asking = asking ?: if (transcribing) "Extracting all text… you'll get a notification when it's done" else null,
-                    onRead = { scope.launch { app.repository.requestReading(id) } },
-                    onOpen = onOpen,
-                    onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
-                    onDelete = { scope.launch { app.repository.trash(id) } },
-                    onEditText = { editingText = true },
-                    onReworkDetail = if (aiSet && doc?.fileLocal == true && !askRunning) { label -> reworking = label } else null,
-                )
             }
         }
     }
@@ -421,7 +423,8 @@ private fun DocumentDetails(
         }
         Spacer(Modifier.padding(top = 24.dp))
         DocumentPreview(app.repository.files.file(doc.id), doc.mimeType, available = doc.fileLocal)
-        Spacer(Modifier.padding(top = 24.dp))
+        // Room to scroll the end of the page up past the floating toolbar.
+        Spacer(Modifier.navigationBarsPadding().padding(top = 112.dp))
     }
 }
 

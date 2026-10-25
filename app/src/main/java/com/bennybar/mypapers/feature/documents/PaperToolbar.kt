@@ -2,7 +2,6 @@ package com.bennybar.mypapers.feature.documents
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -51,9 +50,10 @@ fun PaperToolbar(
     onEdit: () -> Unit,
     onAsk: () -> Unit,
     onExtract: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var shareMenu by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+    Box(modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
         HorizontalFloatingToolbar(
             expanded = true,
             floatingActionButton = {
