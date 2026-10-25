@@ -85,6 +85,7 @@ class ProxyTest {
             OpenAiClient().completeLong(config, "p", emptyList(), "t", ExtractionPrompt.TRANSCRIBE_SCHEMA, "medium")
         }
         server.takeRequest() // the request itself
+        server.takeRequest() // the first look at how it's going: its id is known by now
         job.cancelAndJoin()
         val paths = generateSequence { server.takeRequest(2, java.util.concurrent.TimeUnit.SECONDS) }.map { it.method + " " + it.url.encodedPath }.toList()
         assertTrue(paths.toString(), "POST /v1/responses/r9/cancel" in paths)
