@@ -49,6 +49,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -170,32 +171,12 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                 TopAppBar(
                     title = {},
                     navigationIcon = {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                     },
                     actions = {
-                        IconButton(
-                            enabled = doc?.fileLocal == true,
-                            onClick = { doc?.let { d -> scope.launch { Sharing.share(context, listOf(d)) } } },
-                        ) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
-                        IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
-                        IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+                        // Share, edit, Ask AI and extract text are on the floating toolbar below.
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Open with…") },
-                                enabled = doc?.fileLocal == true,
-                                onClick = {
-                                    menu = false
-                                    doc?.let { d ->
-                                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", app.repository.files.file(d.id))
-                                        context.startActivity(
-                                            Intent.createChooser(
-                                                Intent(Intent.ACTION_VIEW).setDataAndType(uri, d.mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                                                null,
-                                            ),
-                                        )
-                                    }
-                                },
-                            )
                             DropdownMenuItem(
                                 text = { Text("Read with AI") },
                                 enabled = aiSet && doc?.fileLocal == true && doc?.aiState != AI_PENDING,
@@ -210,16 +191,6 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                                 onClick = { menu = false; confirmReset = true },
                             )
                             DropdownMenuItem(
-                                text = { Text("Ask AI…") },
-                                enabled = aiSet && doc?.fileLocal == true && !askRunning,
-                                onClick = { menu = false; askDialog = true },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(if (doc?.transcript.isNullOrBlank()) "Extract all text" else "Extract all text again") },
-                                enabled = aiSet && doc?.fileLocal == true && !transcribing,
-                                onClick = { menu = false; transcribe() },
-                            )
-                            DropdownMenuItem(
                                 text = { Text("Move to trash", color = MaterialTheme.colorScheme.error) },
                                 // Restorable from the trash for 30 days: no need to ask. The page closes as it goes.
                                 onClick = { menu = false; scope.launch { app.repository.trash(id) } },
@@ -228,6 +199,29 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                 )
+            },
+            bottomBar = {
+                doc?.let { d ->
+                    PaperToolbar(
+                        d,
+                        canAsk = aiSet && d.fileLocal && !askRunning,
+                        canExtract = aiSet && d.fileLocal && !transcribing,
+                        onShare = { scope.launch { Sharing.share(context, listOf(d)) } },
+                        onOpenWith = {
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", app.repository.files.file(d.id))
+                            context.startActivity(
+                                Intent.createChooser(
+                                    Intent(Intent.ACTION_VIEW).setDataAndType(uri, d.mimeType).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                                    null,
+                                ),
+                            )
+                        },
+                        onExport = { scope.launch { Sharing.export(context, listOf(d)) } },
+                        onEdit = onEdit,
+                        onAsk = { askDialog = true },
+                        onExtract = ::transcribe,
+                    )
+                }
             },
         ) { padding ->
             doc?.let { d ->
@@ -470,7 +464,7 @@ private fun DetailsCard(details: List<KeyDetail>, onRework: ((String) -> Unit)?)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
                 // All of them at once, "Label: value" a line.
-                IconButton(onClick = {
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
                     val text = details.joinToString("\n") { if ('\n' in it.value) "${it.label}:\n${it.value}" else "${it.label}: ${shownDate(it.value)}" }
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Details", text))) }
                 }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy details") }
@@ -496,9 +490,9 @@ private fun TextCard(markdown: String, onEdit: () -> Unit) {
         Column(Modifier.padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = if (long) 8.dp else 20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Text", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
-                IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit text") }
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit text") }
                 // As Markdown: pastes as it is into notes apps, docs and chats.
-                IconButton(onClick = {
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Text", markdown))) }
                 }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy text") }
             }
@@ -525,7 +519,7 @@ internal fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier,
                         Text(d.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f, fill = false))
                         // Rework this one with the AI ("as a table", "in English"): the result replaces it.
                         if (onRework != null) {
-                            IconButton(onClick = { onRework(d.label) }, modifier = Modifier.size(32.dp)) {
+                            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onRework(d.label) }, modifier = Modifier.size(32.dp)) {
                                 Icon(Icons.Outlined.AutoAwesome, contentDescription = "Rework ${d.label} with AI", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                             }
                         }

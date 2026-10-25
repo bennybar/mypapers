@@ -11,8 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,9 +28,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -78,7 +82,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenGmail: () -> Unit, onOpenTrash: () 
             TopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
             )
         },
@@ -367,7 +371,7 @@ private fun SettingSwitch(title: String, detail: String, checked: Boolean, onCha
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun GmailSection(onOpenGmail: () -> Unit) {
     val saved by app.gmail.settings.config.collectAsStateWithLifecycle()
@@ -405,14 +409,20 @@ private fun GmailSection(onOpenGmail: () -> Unit) {
         )
         if (saved.isConnected) {
             Text("First scan goes back", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(3, 6, 12, 24).forEach { m ->
-                    FilterChip(
-                        selected = saved.monthsBack == m,
-                        onClick = { app.gmail.settings.save(saved.copy(monthsBack = m)) },
-                        label = { Text("$m months") },
-                        shape = CircleShape,
-                    )
+            // One connected group: the chosen one fills and changes shape.
+            val months = listOf(3, 6, 12, 24)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+                months.forEachIndexed { i, m ->
+                    ToggleButton(
+                        checked = saved.monthsBack == m,
+                        onCheckedChange = { app.gmail.settings.save(saved.copy(monthsBack = m)) },
+                        shapes = when (i) {
+                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            months.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                        },
+                        modifier = Modifier.weight(1f).semantics { role = Role.RadioButton },
+                    ) { Text("$m mo", maxLines = 1) }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {

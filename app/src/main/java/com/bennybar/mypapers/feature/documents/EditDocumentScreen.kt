@@ -29,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -168,7 +169,7 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
             TopAppBar(
                 title = { Text("Edit") },
                 navigationIcon = {
-                    IconButton(onClick = ::leave) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = ::leave) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
                     // Always in reach, whatever the font size or keyboard.
@@ -300,7 +301,7 @@ private fun EditForm(doc: Document, allTags: List<String>, onDone: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        IconButton(onClick = { details = details.filterIndexed { j, _ -> j != i } }) {
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { details = details.filterIndexed { j, _ -> j != i } }) {
                             Icon(Icons.Filled.Close, contentDescription = "Remove ${label.ifBlank { "detail" }}")
                         }
                     }

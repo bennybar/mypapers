@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -89,7 +90,7 @@ fun PageViewer(file: File, isPdf: Boolean, pageCount: Int, startPage: Int, onClo
                     .padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onClose) {
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onClose) {
                     Icon(Icons.Filled.Close, contentDescription = "Close", tint = androidx.compose.ui.graphics.Color.White)
                 }
                 if (pageCount > 1) {

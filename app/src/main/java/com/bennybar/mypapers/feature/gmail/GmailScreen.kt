@@ -29,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -77,10 +78,10 @@ fun GmailScreen(onBack: () -> Unit) {
             TopAppBar(
                 title = { Text("From Gmail") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(shapes = IconButtonDefaults.shapes(), onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
-                    IconButton(enabled = !busy, onClick = { app.gmail.scanNow() }) {
+                    IconButton(shapes = IconButtonDefaults.shapes(), enabled = !busy, onClick = { app.gmail.scanNow() }) {
                         Icon(Icons.Outlined.Refresh, contentDescription = "Look again")
                     }
                 },

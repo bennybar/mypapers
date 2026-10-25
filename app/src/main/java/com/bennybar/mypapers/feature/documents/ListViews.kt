@@ -39,6 +39,15 @@ import androidx.compose.material.icons.outlined.RequestQuote
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material3.Icon
+import androidx.compose.material3.toShape
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,14 +79,35 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
-/** How the home screen lists papers; the top bar's button goes to the next one. */
+/** How the home screen lists papers, picked in [ViewToggle]. */
 enum class ListView(val label: String, val icon: ImageVector) {
     CARDS("Cards", Icons.Outlined.ViewAgenda),
     COMPACT("Compact list", Icons.AutoMirrored.Outlined.ViewList),
     GRID("Thumbnails", Icons.Outlined.GridView),
-    TIMELINE("Timeline by month", Icons.Outlined.CalendarMonth);
+    TIMELINE("Timeline by month", Icons.Outlined.CalendarMonth),
+}
 
-    fun next() = entries[(ordinal + 1) % entries.size]
+/** The four views as one connected group: the chosen one fills and changes shape. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun ViewToggle(view: ListView, onChange: (ListView) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+        ListView.entries.forEachIndexed { i, v ->
+            ToggleButton(
+                checked = v == view,
+                onCheckedChange = { onChange(v) },
+                shapes = when (i) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    ListView.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                contentPadding = PaddingValues(horizontal = 10.dp),
+                modifier = Modifier.heightIn(min = 32.dp).semantics { role = Role.RadioButton },
+            ) {
+                Icon(v.icon, contentDescription = v.label, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
 }
 
 /** The paper's kind at a glance. */
@@ -88,6 +118,17 @@ private fun Document.kindIcon() = when (docType) {
     "Contract" -> Icons.Outlined.Handshake
     else -> Icons.Outlined.Description
 }
+
+/** Each kind in its own shape, so a list reads at a glance: receipt, invoice, warranty, contract, other. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun Document.kindShape(): Shape = when (docType) {
+    "Receipt" -> MaterialShapes.Cookie6Sided
+    "Invoice" -> MaterialShapes.Clover4Leaf
+    "Warranty" -> MaterialShapes.Gem
+    "Contract" -> MaterialShapes.Sunny
+    else -> MaterialShapes.Square
+}.toShape()
 
 /** "12 Oct", with the year when it isn't this one ("12 Oct 2025"). */
 private fun shortDate(day: LocalDate): String =
@@ -148,7 +189,7 @@ fun CompactRow(doc: Document, signedIn: Boolean, selected: Boolean, onClick: () 
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(32.dp),
             )
-            else -> Box(Modifier.size(32.dp).background(cs.secondaryContainer, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
+            else -> Box(Modifier.size(34.dp).background(cs.secondaryContainer, doc.kindShape()), contentAlignment = Alignment.Center) {
                 Icon(doc.kindIcon(), contentDescription = doc.docType.ifBlank { null }, tint = cs.onSecondaryContainer, modifier = Modifier.size(18.dp))
             }
         }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -133,7 +134,7 @@ internal fun FollowUpField(placeholder: String, onSend: (String) -> Unit, modifi
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Send),
         keyboardActions = KeyboardActions(onSend = { send() }),
         trailingIcon = {
-            IconButton(onClick = { send() }, enabled = text.isNotBlank()) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send") }
+            IconButton(shapes = IconButtonDefaults.shapes(), onClick = { send() }, enabled = text.isNotBlank()) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send") }
         },
         modifier = modifier.fillMaxWidth(),
     )

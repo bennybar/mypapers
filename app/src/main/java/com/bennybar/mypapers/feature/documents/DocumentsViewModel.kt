@@ -48,9 +48,9 @@ class DocumentsViewModel : ViewModel() {
     /** How the list looks, kept from the last time. */
     val view = MutableStateFlow(prefs.getString("view", null)?.let { v -> ListView.entries.firstOrNull { it.name == v } } ?: ListView.CARDS)
 
-    fun nextView() {
-        view.value = view.value.next()
-        prefs.edit().putString("view", view.value.name).apply()
+    fun setView(v: ListView) {
+        view.value = v
+        prefs.edit().putString("view", v.name).apply()
     }
 
     init {

@@ -100,6 +100,7 @@ import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -112,6 +113,9 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
@@ -333,12 +337,12 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                 TopAppBar(
                     title = { Text("${selection.size} selected") },
                     navigationIcon = {
-                        IconButton(onClick = { vm.clearSelection() }) { Icon(Icons.Filled.Close, contentDescription = "Done") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { vm.clearSelection() }) { Icon(Icons.Filled.Close, contentDescription = "Done") }
                     },
                     actions = {
-                        IconButton(onClick = { share(docs) }) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
-                        IconButton(onClick = { deleteWithUndo(selection) }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
-                        IconButton(onClick = { selectionMenu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { share(docs) }) { Icon(Icons.Outlined.Share, contentDescription = "Share") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { deleteWithUndo(selection) }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { selectionMenu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
                         DropdownMenu(expanded = selectionMenu, onDismissRequest = { selectionMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text("Select all") },
@@ -377,15 +381,15 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                     },
                 )
             } else Column {
-                LargeTopAppBar(
+                LargeFlexibleTopAppBar(
                     title = { Text("My Papers") },
+                    // How many there are, or how many the search and filters leave.
+                    subtitle = results?.let { r ->
+                        { Text(if (narrowed) "${r.size} shown" else if (r.size == 1) "1 paper" else "${r.size} papers") }
+                    },
                     actions = {
-                        // Cards → compact list → thumbnails → timeline → cards.
-                        IconButton(onClick = { vm.nextView() }) {
-                            Icon(view.icon, contentDescription = "${view.label} view. Switch to ${view.next().label}")
-                        }
                         // Read everything the AI hasn't read yet (a spinner while it's at it).
-                        IconButton(onClick = {
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
                             when {
                                 reading != null -> {}
                                 !ai.isSet -> onSettings()
@@ -398,7 +402,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                                 Icon(Icons.Outlined.AutoAwesome, contentDescription = "Read unread papers with AI")
                             }
                         }
-                        IconButton(onClick = onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = onSettings) { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
                     },
                     scrollBehavior = scroll,
                     // One colour with the search and chips below it (no seam when scrolled).
@@ -413,6 +417,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                         modifier = Modifier.padding(top = 8.dp),
                     ) {
                         // The order first (remembered), then types (filled when on), then tags.
+                        item(key = "view") { ViewToggle(view, vm::setView) }
                         item(key = "sort") {
                             SortChip(filters.sort, searching = query.isNotBlank()) { vm.filters.value = filters.copy(sort = it) }
                         }
@@ -438,6 +443,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
             }
         },
     ) { padding ->
+        val pull = rememberPullToRefreshState()
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = {
@@ -447,6 +453,9 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                     refreshing = false
                 }
             },
+            state = pull,
+            // The shape-shifting indicator on its own container.
+            indicator = { PullToRefreshDefaults.LoadingIndicator(state = pull, isRefreshing = refreshing, modifier = Modifier.align(Alignment.TopCenter)) },
             modifier = Modifier.fillMaxSize().padding(top = padding.calculateTopPadding()),
         ) {
             LazyColumn(
@@ -703,8 +712,8 @@ private fun SearchField(query: String, onChange: (String) -> Unit, filterCount: 
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = {
             Row {
-                if (query.isNotEmpty()) IconButton(onClick = { onChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear") }
-                IconButton(onClick = onFilters) {
+                if (query.isNotEmpty()) IconButton(shapes = IconButtonDefaults.shapes(), onClick = { onChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear") }
+                IconButton(shapes = IconButtonDefaults.shapes(), onClick = onFilters) {
                     BadgedBox(badge = { if (filterCount > 0) Badge { Text("$filterCount") } }) {
                         Icon(Icons.Outlined.Tune, contentDescription = "Filter and sort")
                     }

@@ -21,6 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -105,9 +106,9 @@ fun TextEditorDialog(markdown: String, onSave: (String) -> Unit, onDelete: () ->
             topBar = {
                 TopAppBar(
                     title = { Text("Edit text") },
-                    navigationIcon = { IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Cancel") } },
+                    navigationIcon = { IconButton(shapes = IconButtonDefaults.shapes(), onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Cancel") } },
                     actions = {
-                        IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete text") }
+                        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete text") }
                         TextButton(onClick = { onSave(EditorMarkdown.fromEditor(state.toMarkdown())) }) { Text("Save") }
                     },
                 )
