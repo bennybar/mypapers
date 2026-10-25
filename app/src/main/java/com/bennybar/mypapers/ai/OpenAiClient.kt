@@ -19,6 +19,12 @@ import kotlinx.serialization.json.putJsonObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.NonCancellable
+import okhttp3.Response
+import okhttp3.Callback
+import okhttp3.Call
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -26,6 +32,18 @@ import java.util.concurrent.TimeUnit
 /** [retryable]: worth trying again later (rate limit, server trouble), unlike a bad key. */
 /** [code]: the HTTP status it came with, 0 if none. */
 class AiException(message: String, val retryable: Boolean, val code: Int = 0) : IOException(message)
+
+/**
+ * The call's response; stopping the coroutine (a cancelled job) cancels the call, which drops the
+ * connection, so the AI isn't left working on a request no one waits for.
+ */
+private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
+    cont.invokeOnCancellation { cancel() }
+    enqueue(object : Callback {
+        override fun onResponse(call: Call, response: Response) = cont.resume(response) { _, r, _ -> r.close() }
+        override fun onFailure(call: Call, e: IOException) = cont.resumeWithException(e)
+    })
+}
 
 /** The OpenAI Responses API, with the user's own key: OpenAI itself, or an OpenAI-compatible proxy (LiteLLM…). */
 class OpenAiClient {
@@ -77,7 +95,7 @@ class OpenAiClient {
             .post(body)
             .build()
         try {
-            http.newCall(request).execute().use { r ->
+            http.newCall(request).await().use { r ->
                 val text = r.body.string()
                 if (!r.isSuccessful) throw error(r.code, text, config)
                 outputText(text)
@@ -95,7 +113,7 @@ class OpenAiClient {
     suspend fun completeLong(config: AiConfig, prompt: String, parts: List<JsonObject>, schemaName: String, schema: String, effort: String): String = withContext(Dispatchers.IO) {
         val reasoning = effortFor(config, effort)
         val body = JsonObject(requestBody(config.model, prompt, parts, schemaName, schema, reasoning) + ("background" to JsonPrimitive(true)))
-        fun call(request: Request): JsonObject = http.newCall(request).execute().use { r ->
+        suspend fun call(request: Request): JsonObject = http.newCall(request).await().use { r ->
             val text = r.body.string()
             if (!r.isSuccessful) throw error(r.code, text, config)
             Json.parseToJsonElement(text).jsonObject
@@ -115,10 +133,23 @@ class OpenAiClient {
         // A proxy may answer at once, without background mode.
         val id = response["id"]?.jsonPrimitive?.contentOrNull ?: return@withContext outputText(response.toString())
         val started = System.currentTimeMillis()
-        while (response["status"]?.jsonPrimitive?.contentOrNull in setOf("queued", "in_progress")) {
-            if (System.currentTimeMillis() - started > LONG_LIMIT_MS) throw AiException("${config.provider} took too long", retryable = false)
-            kotlinx.coroutines.delay(POLL_MS)
-            response = call(Request.Builder().url("${config.endpoint}/responses/$id").header("Authorization", auth).build())
+        try {
+            while (response["status"]?.jsonPrimitive?.contentOrNull in setOf("queued", "in_progress")) {
+                if (System.currentTimeMillis() - started > LONG_LIMIT_MS) throw AiException("${config.provider} took too long", retryable = false)
+                kotlinx.coroutines.delay(POLL_MS)
+                response = call(Request.Builder().url("${config.endpoint}/responses/$id").header("Authorization", auth).build())
+            }
+        } catch (e: Exception) {
+            // Stopped here (or given up on): stopped there too, so it isn't worked on (and charged) for nothing.
+            withContext(NonCancellable) {
+                runCatching {
+                    http.newCall(
+                        Request.Builder().url("${config.endpoint}/responses/$id/cancel").header("Authorization", auth)
+                            .post(ByteArray(0).toRequestBody(null)).build(),
+                    ).execute().close()
+                }
+            }
+            throw e
         }
         outputText(response.toString())
     }

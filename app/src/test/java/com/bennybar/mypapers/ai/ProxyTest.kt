@@ -1,6 +1,9 @@
 package com.bennybar.mypapers.ai
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.Dispatchers
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.After
@@ -71,6 +74,29 @@ class ProxyTest {
         server.enqueue(json(answer))
         client.complete(config, "p", emptyList(), "t", ExtractionPrompt.TRANSCRIBE_SCHEMA)
         assertTrue(!server.takeRequest().body!!.utf8().contains("reasoning"))
+    }
+
+    /** Stopped while the AI works in the background: it's told to stop too. */
+    @Test fun stoppingCancelsTheBackgroundResponse() = runBlocking {
+        server.enqueue(json("""{"id":"r9","status":"in_progress"}"""))
+        repeat(5) { server.enqueue(json("""{"id":"r9","status":"in_progress"}""")) }
+        server.enqueue(json("""{"id":"r9","status":"cancelled"}"""))
+        val job = launch(Dispatchers.IO) {
+            OpenAiClient().completeLong(config, "p", emptyList(), "t", ExtractionPrompt.TRANSCRIBE_SCHEMA, "medium")
+        }
+        server.takeRequest() // the request itself
+        job.cancelAndJoin()
+        val paths = generateSequence { server.takeRequest(2, java.util.concurrent.TimeUnit.SECONDS) }.map { it.method + " " + it.url.encodedPath }.toList()
+        assertTrue(paths.toString(), "POST /v1/responses/r9/cancel" in paths)
+    }
+
+    /** Stopped while waiting for an ordinary answer: the request is dropped, not waited out. */
+    @Test fun stoppingDropsTheRequest() = runBlocking {
+        server.enqueue(MockResponse.Builder().code(200).headersDelay(30, java.util.concurrent.TimeUnit.SECONDS).body(answer).build())
+        val job = launch(Dispatchers.IO) { OpenAiClient().complete(config, "p", emptyList(), "t", ExtractionPrompt.TRANSCRIBE_SCHEMA) }
+        server.takeRequest()
+        val took = kotlin.system.measureTimeMillis { job.cancelAndJoin() }
+        assertTrue("took $took ms", took < 5_000)
     }
 
     /** A proxy that answers a background request at once. */
