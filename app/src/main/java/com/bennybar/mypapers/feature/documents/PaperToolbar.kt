@@ -42,7 +42,6 @@ import com.bennybar.mypapers.data.Document
 @Composable
 fun PaperToolbar(
     doc: Document,
-    canAsk: Boolean,
     canExtract: Boolean,
     onShare: () -> Unit,
     onOpenWith: () -> Unit,
@@ -57,7 +56,7 @@ fun PaperToolbar(
         HorizontalFloatingToolbar(
             expanded = true,
             floatingActionButton = {
-                FloatingToolbarDefaults.VibrantFloatingActionButton(onClick = { if (canAsk) onAsk() }) {
+                FloatingToolbarDefaults.VibrantFloatingActionButton(onClick = onAsk) {
                     Icon(Icons.Outlined.AutoAwesome, contentDescription = "Ask AI")
                 }
             },

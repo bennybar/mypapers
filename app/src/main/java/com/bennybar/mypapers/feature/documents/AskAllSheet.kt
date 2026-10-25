@@ -34,6 +34,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -49,7 +50,7 @@ import com.bennybar.mypapers.ui.Format
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun AskAllSheet(turns: List<Pair<String, Result<AskAllAnswer>?>>, onFollowUp: (String) -> Unit, onOpen: (String) -> Unit, onDismiss: () -> Unit) {
+fun AskAllSheet(turns: List<Pair<String, Result<AskAllAnswer>?>>, onFollowUp: (String) -> Unit, onOpen: (String) -> Unit, onStop: () -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, bottom = 24.dp)) {
             Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -57,7 +58,10 @@ fun AskAllSheet(turns: List<Pair<String, Result<AskAllAnswer>?>>, onFollowUp: (S
                 if (n > 0) HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 Text(question, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp, bottom = 12.dp))
                 when {
-                    result == null -> Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+                    result == null -> Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        LoadingIndicator()
+                        TextButton(onClick = onStop) { Text("Stop") }
+                    }
                     result.isFailure -> Text(
                         "Couldn't ask: ${result.exceptionOrNull()?.message}",
                         style = MaterialTheme.typography.bodyLarge,

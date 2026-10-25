@@ -2,6 +2,8 @@ package com.bennybar.mypapers.feature.documents
 
 import androidx.compose.material.icons.outlined.Schedule
 import com.bennybar.mypapers.search.SortBy
+import com.bennybar.mypapers.ai.AskAllWorker
+import com.bennybar.mypapers.ai.ReadAllWorker
 import com.bennybar.mypapers.search.Filters
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -486,7 +488,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
                         Notice("Backing up to Google Drive · ${uploading.done + 1} of ${uploading.total}", null, {}, Icons.Outlined.CloudUpload)
                     }
                     progress != null -> item(key = "reading") {
-                        Notice("Reading papers with AI · ${progress.first + 1} of ${progress.second}", null, {}, Icons.Outlined.AutoAwesome)
+                        Notice("Reading papers with AI · ${progress.first + 1} of ${progress.second}", "Stop", { ReadAllWorker.cancel(context) }, Icons.Outlined.AutoAwesome)
                     }
                     gmailFound > 0 -> item(key = "gmail") {
                         Notice(
@@ -577,7 +579,7 @@ fun DocumentsScreen(onOpen: (String) -> Unit, onEdit: (String) -> Unit, onSettin
     }
 
     asked?.takeUnless { askHidden }?.let { turns ->
-        AskAllSheet(turns, onFollowUp = { vm.askAll(it, followUp = true) }, onOpen = { askHidden = true; onOpen(it) }, onDismiss = { vm.closeAnswer() })
+        AskAllSheet(turns, onFollowUp = { vm.askAll(it, followUp = true) }, onOpen = { askHidden = true; onOpen(it) }, onStop = { AskAllWorker.cancel(context) }, onDismiss = { vm.closeAnswer() })
     }
     if (filterSheet) {
         FilterSheet(

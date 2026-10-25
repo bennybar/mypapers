@@ -48,6 +48,7 @@ fun AskPaperSheet(
     onSave: (Int) -> Unit,
     onApply: (Int) -> Unit,
     onClose: () -> Unit,
+    onStop: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
@@ -61,7 +62,10 @@ fun AskPaperSheet(
                 if (n > 0) HorizontalDivider(Modifier.padding(vertical = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 Text(t.question, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
                 when {
-                    !t.done -> Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+                    !t.done -> Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        LoadingIndicator()
+                        TextButton(onClick = onStop) { Text("Stop") }
+                    }
                     t.error != null -> Text("Couldn't ask: ${t.error}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
                     else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (!t.reply.isNullOrBlank()) SelectionContainer { Text(t.reply, style = MaterialTheme.typography.bodyLarge) }

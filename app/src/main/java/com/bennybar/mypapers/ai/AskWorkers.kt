@@ -10,6 +10,7 @@ import androidx.work.ListenableWorker
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -20,6 +21,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 private const val KEY_ID = "id"
+
+/** A question stopped before it was answered. */
+private const val STOPPED = "Stopped"
 private const val MAX_ATTEMPTS = 3
 
 /** Started while the app is open, so it can run as a foreground job with its notification from the start. */
@@ -42,32 +46,35 @@ private fun ListenableWorker.retryable(e: Exception) =
 
 /** Ask AI about one paper: answers the last turn of its conversation in [AiAnswers], which waits there for the paper's page. */
 class AskWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    private val id get() = inputData.getString(KEY_ID).orEmpty()
-    private val notificationId get() = ("ask" + id).hashCode()
+    private val paperId get() = inputData.getString(KEY_ID).orEmpty()
+    private val notificationId get() = ("ask" + paperId).hashCode()
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
-        AiNotifications.progress(applicationContext, notificationId, "Asking the AI", app.answers.papers.value[id]?.lastOrNull()?.question, id)
+        AiNotifications.progress(applicationContext, notificationId, id, "Asking the AI", app.answers.papers.value[paperId]?.lastOrNull()?.question, paperId)
 
     /** The conversation with its last turn replaced by [turn] (if it's still the one asked). */
     private fun answer(question: String, turn: PaperTurn) {
-        val turns = app.answers.papers.value[id] ?: return
-        if (turns.lastOrNull()?.question == question && !turns.last().done) app.answers.setPaper(id, turns.dropLast(1) + turn)
+        val turns = app.answers.papers.value[paperId] ?: return
+        if (turns.lastOrNull()?.question == question && !turns.last().done) app.answers.setPaper(paperId, turns.dropLast(1) + turn)
     }
 
     override suspend fun doWork(): Result {
         runCatching { setForeground(getForegroundInfo()) }
-        val turns = app.answers.papers.value[id] ?: return Result.success()
+        val turns = app.answers.papers.value[paperId] ?: return Result.success()
         val question = turns.lastOrNull()?.takeUnless { it.done }?.question ?: return Result.success()
         return try {
-            val turn = app.repository.askPaper(id, turns)
+            val turn = app.repository.askPaper(paperId, turns)
             answer(question, turn)
-            AiNotifications.done(applicationContext, notificationId, "Answer ready", turn.reply ?: question, id)
+            AiNotifications.done(applicationContext, notificationId, "Answer ready", turn.reply ?: question, paperId)
             Result.success()
         } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
+            if (e is kotlinx.coroutines.CancellationException) {
+                if (stopReason == WorkInfo.STOP_REASON_CANCELLED_BY_APP) answer(question, PaperTurn(question, error = STOPPED))
+                throw e
+            }
             if (retryable(e)) return Result.retry()
             answer(question, PaperTurn(question, error = e.message ?: e.javaClass.simpleName))
-            AiNotifications.done(applicationContext, notificationId, "Couldn't ask the AI", e.message, id)
+            AiNotifications.done(applicationContext, notificationId, "Couldn't ask the AI", e.message, paperId)
             Result.failure()
         }
     }
@@ -75,6 +82,13 @@ class AskWorker(context: Context, params: WorkerParameters) : CoroutineWorker(co
     companion object {
         /** True while it's queued or running for this paper. */
         fun observeRunning(context: Context, id: String) = observeWork(context, "ask-$id")
+
+        /** Stops the question being asked; its turn says so. */
+        fun cancel(context: Context, id: String) {
+            WorkManager.getInstance(context).cancelUniqueWork("ask-$id")
+            val turns = app.answers.papers.value[id] ?: return
+            if (turns.lastOrNull()?.done == false) app.answers.setPaper(id, turns.dropLast(1) + turns.last().copy(error = STOPPED))
+        }
 
         /** A question, or a follow-up to the conversation so far. */
         fun start(context: Context, id: String, question: String, reworks: String? = null) {
@@ -89,7 +103,7 @@ class AskWorker(context: Context, params: WorkerParameters) : CoroutineWorker(co
 /** A question about all the papers: answers the last turn of that conversation in [AiAnswers], for the home screen. */
 class AskAllWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo =
-        AiNotifications.progress(applicationContext, NOTIFICATION, "Asking about your papers", app.answers.all.value?.lastOrNull()?.question, null)
+        AiNotifications.progress(applicationContext, NOTIFICATION, id, "Asking about your papers", app.answers.all.value?.lastOrNull()?.question, null)
 
     private fun answer(question: String, turn: AllTurn) {
         val turns = app.answers.all.value ?: return
@@ -106,7 +120,10 @@ class AskAllWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             AiNotifications.done(applicationContext, NOTIFICATION, "Answer ready", question, null)
             Result.success()
         } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
+            if (e is kotlinx.coroutines.CancellationException) {
+                if (stopReason == WorkInfo.STOP_REASON_CANCELLED_BY_APP) answer(question, AllTurn(question, error = STOPPED))
+                throw e
+            }
             if (retryable(e)) return Result.retry()
             answer(question, AllTurn(question, error = e.message ?: e.javaClass.simpleName))
             AiNotifications.done(applicationContext, NOTIFICATION, "Couldn't ask the AI", e.message, null)
@@ -118,6 +135,12 @@ class AskAllWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         private const val NOTIFICATION = 2002
 
         fun observeRunning(context: Context) = observeWork(context, "ask-all")
+
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork("ask-all")
+            val turns = app.answers.all.value ?: return
+            if (turns.lastOrNull()?.done == false) app.answers.setAll(turns.dropLast(1) + turns.last().copy(error = STOPPED))
+        }
 
         /** A new question ([followUp] false: the conversation starts over) or a follow-up. */
         fun start(context: Context, question: String, followUp: Boolean) {

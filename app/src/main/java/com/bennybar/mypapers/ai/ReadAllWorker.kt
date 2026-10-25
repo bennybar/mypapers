@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
  * read, so an interrupted run loses nothing: the next run reads what's left.
  */
 class ReadAllWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    override suspend fun getForegroundInfo() = AiNotifications.progress(applicationContext, NOTIFICATION, TITLE, null, null)
+    override suspend fun getForegroundInfo() = AiNotifications.progress(applicationContext, NOTIFICATION, id, TITLE, null, null)
 
     override suspend fun doWork(): Result {
         // Not allowed from the background on newer Android: then it just runs without the notification.
@@ -35,7 +35,7 @@ class ReadAllWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val ids = if (inputData.getBoolean(ALL, false)) app.repository.readableIds(notReadSince = since) else app.repository.unreadIds()
         var failures = 0
         ids.forEachIndexed { i, id ->
-            runCatching { setForeground(AiNotifications.progress(applicationContext, NOTIFICATION, TITLE, null, null, i, ids.size)) }
+            runCatching { setForeground(AiNotifications.progress(applicationContext, NOTIFICATION, this@ReadAllWorker.id, TITLE, null, null, i, ids.size)) }
             setProgress(workDataOf(DONE to i, TOTAL to ids.size))
             try {
                 app.repository.markReading(id)
@@ -74,6 +74,9 @@ class ReadAllWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         private const val TOTAL = "total"
         private const val ALL = "all"
         private const val SINCE = "since"
+
+        /** Stops it; what it was reading goes back to unread. */
+        fun cancel(context: Context) = WorkManager.getInstance(context).cancelUniqueWork(NAME)
 
         /** [all]: re-read every paper, not only unread ones. */
         fun start(context: Context, all: Boolean = false) {

@@ -153,6 +153,7 @@ private fun AppRoot(pendingRoute: MutableStateFlow<Route?>) {
                         onBack = controller::popBackStack,
                         onEdit = { controller.navigate(Route.EditDocument(id)) },
                         onOpen = { controller.navigate(Route.Document(it)) },
+                        onSettings = { controller.navigate(Route.Settings) },
                     )
                 }
                 screen<Route.EditDocument> { EditDocumentScreen(it.toRoute<Route.EditDocument>().id, onDone = controller::popBackStack) }

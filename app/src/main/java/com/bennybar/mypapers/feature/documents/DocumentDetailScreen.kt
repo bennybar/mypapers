@@ -4,6 +4,7 @@ import android.content.ClipData
 import com.bennybar.mypapers.ai.TranscribeWorker
 import kotlinx.coroutines.flow.map
 import com.bennybar.mypapers.ai.AskWorker
+import com.bennybar.mypapers.ai.ExtractWorker
 import com.bennybar.mypapers.ai.PaperTurn
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
@@ -105,7 +106,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onOpen: (String) -> Unit) {
+fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onOpen: (String) -> Unit, onSettings: () -> Unit) {
     val flow = remember(id) { app.repository.observe(id) }
     val doc by flow.collectAsStateWithLifecycle(null)
     var seen by remember { mutableStateOf(false) }
@@ -209,6 +210,11 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                         d, Modifier.padding(top = padding.calculateTopPadding()), onEdit,
                         canRead = aiSet,
                         asking = asking ?: if (transcribing) "Extracting all text… you'll get a notification when it's done" else null,
+                        onStop = { if (asking != null) AskWorker.cancel(context, id) else TranscribeWorker.cancel(context, id) },
+                        onStopReading = {
+                            ExtractWorker.cancel(context, id)
+                            scope.launch { app.repository.markUnread(id) }
+                        },
                         onRead = { scope.launch { app.repository.requestReading(id) } },
                         onOpen = onOpen,
                         onKeepBoth = { scope.launch { app.repository.keepBoth(id) } },
@@ -218,7 +224,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                     )
                     PaperToolbar(
                         d,
-                        canAsk = aiSet && d.fileLocal && !askRunning,
+
                         canExtract = aiSet && d.fileLocal && !transcribing,
                         onShare = { scope.launch { Sharing.share(context, listOf(d)) } },
                         onOpenWith = {
@@ -232,7 +238,15 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                         },
                         onExport = { scope.launch { Sharing.export(context, listOf(d)) } },
                         onEdit = onEdit,
-                        onAsk = { askDialog = true },
+                        // No key yet: to Settings to add one; already asking: back to the conversation.
+                        onAsk = {
+                            when {
+                                !aiSet -> onSettings()
+                                !d.fileLocal -> scope.launch { snackbar.showSnackbar("The file isn't on this phone yet") }
+                                askRunning -> askHidden = false
+                                else -> askDialog = true
+                            }
+                        },
                         onExtract = ::transcribe,
                         // Floats over the page, which scrolls on under it.
                         modifier = Modifier.align(Alignment.BottomCenter),
@@ -287,6 +301,7 @@ fun DocumentDetailScreen(id: String, onBack: () -> Unit, onEdit: () -> Unit, onO
                     turns[n].changes?.let { c -> app.scope.launch { app.repository.applyChanges(id, c) } }
                 },
                 onClose = { app.answers.setPaper(id, null) },
+                onStop = { AskWorker.cancel(context, id) },
                 // Swiped away while it's answering: kept, and back with the answer.
                 onDismiss = { if (askRunning) askHidden = true else app.answers.setPaper(id, null) },
             )
@@ -337,6 +352,9 @@ private fun DocumentDetails(
     onEdit: () -> Unit,
     canRead: Boolean,
     asking: String?,
+    /** Stops what [asking] says is under way. */
+    onStop: () -> Unit,
+    onStopReading: () -> Unit,
     onRead: () -> Unit,
     onOpen: (String) -> Unit,
     onKeepBoth: () -> Unit,
@@ -365,6 +383,7 @@ private fun DocumentDetails(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
                 AiStatus(doc, Modifier.weight(1f))
                 if (doc.aiState == AI_FAILED && canRead) TextButton(onClick = onRead) { Text("Retry") }
+                if (doc.aiState == AI_PENDING) TextButton(onClick = onStopReading) { Text("Stop") }
             }
         }
         if (asking != null) {
@@ -374,8 +393,9 @@ private fun DocumentDetails(
                     asking,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 8.dp),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                 )
+                TextButton(onClick = onStop) { Text("Stop") }
             }
         }
         ExpiryLabel(doc, Modifier.padding(top = 12.dp))

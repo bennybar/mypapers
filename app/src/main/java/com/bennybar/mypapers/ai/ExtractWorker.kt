@@ -9,6 +9,9 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.ForegroundInfo
+import androidx.work.WorkInfo
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import com.bennybar.mypapers.feature.documents.title
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -23,7 +26,7 @@ import java.util.concurrent.TimeUnit
 class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun getForegroundInfo(): ForegroundInfo {
         val id = inputData.getString(KEY_ID).orEmpty()
-        return AiNotifications.progress(applicationContext, ("read" + id).hashCode(), "Reading with AI", app.repository.get(id)?.title(), id)
+        return AiNotifications.progress(applicationContext, ("read" + id).hashCode(), this.id, "Reading with AI", app.repository.get(id)?.title(), id)
     }
 
     override suspend fun doWork(): Result {
@@ -46,7 +49,11 @@ class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             }
         } catch (e: Exception) {
             // Anything else (an odd answer, a locked PDF): failed, not stuck on "Reading…".
-            if (e is kotlinx.coroutines.CancellationException) throw e
+            if (e is kotlinx.coroutines.CancellationException) {
+                // Cancelled (its notification, or Stop): back to unread rather than "Reading…" for ever.
+                if (stopReason == WorkInfo.STOP_REASON_CANCELLED_BY_APP) withContext(NonCancellable) { app.repository.markUnread(id) }
+                throw e
+            }
             app.repository.markExtractionFailed(id, e.message ?: e.javaClass.simpleName)
             Result.failure()
         }
@@ -56,6 +63,8 @@ class ExtractWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         const val TAG = "extract"
         private const val KEY_ID = "id"
         private const val MAX_ATTEMPTS = 4
+
+        fun cancel(context: Context, id: String) = WorkManager.getInstance(context).cancelUniqueWork("extract-$id")
 
         fun enqueue(context: Context, id: String) {
             val request = OneTimeWorkRequestBuilder<ExtractWorker>()

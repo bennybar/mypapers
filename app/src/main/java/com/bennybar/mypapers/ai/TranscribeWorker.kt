@@ -23,16 +23,16 @@ import java.util.concurrent.TimeUnit
  * notification while the AI writes the paper out, then one saying it's done (tap to open it).
  */
 class TranscribeWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    private val id get() = inputData.getString(KEY_ID).orEmpty()
+    private val paperId get() = inputData.getString(KEY_ID).orEmpty()
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
-        AiNotifications.progress(applicationContext, id.hashCode(), "Extracting all text", app.repository.get(id)?.title() ?: "a paper", id)
+        AiNotifications.progress(applicationContext, paperId.hashCode(), id, "Extracting all text", app.repository.get(paperId)?.title() ?: "a paper", paperId)
 
     override suspend fun doWork(): Result {
         // Not allowed from the background on newer Android: then it just runs without the notification.
         runCatching { setForeground(getForegroundInfo()) }
         return try {
-            val text = app.repository.transcribe(id)
+            val text = app.repository.transcribe(paperId)
             done(if (text.isEmpty()) "No text found" else "Text extracted", null)
             Result.success()
         } catch (e: AiException) {
@@ -51,7 +51,7 @@ class TranscribeWorker(context: Context, params: WorkerParameters) : CoroutineWo
     }
 
     private suspend fun done(title: String, error: String?) =
-        AiNotifications.done(applicationContext, id.hashCode() + 1, title, error ?: app.repository.get(id)?.title(), id)
+        AiNotifications.done(applicationContext, paperId.hashCode() + 1, title, error ?: app.repository.get(paperId)?.title(), paperId)
 
     companion object {
         private const val KEY_ID = "id"
@@ -71,6 +71,8 @@ class TranscribeWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 .build()
             WorkManager.getInstance(context).enqueueUniqueWork(name(id), ExistingWorkPolicy.KEEP, request)
         }
+
+        fun cancel(context: Context, id: String) = WorkManager.getInstance(context).cancelUniqueWork(name(id))
 
         /** True while it's queued or running for this paper. */
         fun observeRunning(context: Context, id: String): Flow<Boolean> =

@@ -9,6 +9,8 @@ import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.ForegroundInfo
+import androidx.work.WorkManager
+import java.util.UUID
 import com.bennybar.mypapers.MainActivity
 import com.bennybar.mypapers.R
 import com.bennybar.mypapers.gmail.GmailNotifications
@@ -28,8 +30,11 @@ object AiNotifications {
         nm.createNotificationChannel(NotificationChannel(CHANNEL_DONE, "AI finished", NotificationManager.IMPORTANCE_DEFAULT))
     }
 
-    /** The ongoing one; [paperId]: the paper it's about (null: the app); [total] 0: no count. */
-    fun progress(context: Context, notificationId: Int, title: String, text: String?, paperId: String?, done: Int = 0, total: Int = 0): ForegroundInfo {
+    /**
+     * The ongoing one, with Cancel (which stops the job [workId]); [paperId]: the paper it's about
+     * (null: the app); [total] 0: no count.
+     */
+    fun progress(context: Context, notificationId: Int, workId: UUID, title: String, text: String?, paperId: String?, done: Int = 0, total: Int = 0): ForegroundInfo {
         val n = NotificationCompat.Builder(context, CHANNEL_PROGRESS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
@@ -40,6 +45,7 @@ object AiNotifications {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open(context, paperId))
+            .addAction(0, "Cancel", WorkManager.getInstance(context).createCancelPendingIntent(workId))
             .build()
         return ForegroundInfo(notificationId, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
