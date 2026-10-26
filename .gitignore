@@ -17,3 +17,9 @@ local.properties
 .kotlin
 key.properties
 *.jks
+
+# iOS
+ios/build/
+ios/DerivedData/
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/

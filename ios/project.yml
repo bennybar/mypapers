@@ -1,0 +1,72 @@
+name: MyPapers
+options:
+  bundleIdPrefix: com.bennybar
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Set to your Apple Developer team for device builds and TestFlight.
+    DEVELOPMENT_TEAM: ""
+    # The simulator only needs a local signature (tests won't load unsigned).
+    "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: 10.1.0
+targets:
+  MyPapers:
+    type: application
+    platform: iOS
+    sources:
+      - path: MyPapers
+    resources:
+      - path: MyPapers/Resources
+    dependencies:
+      - package: GoogleSignIn
+    info:
+      path: MyPapers/Info.plist
+      properties:
+        CFBundleDisplayName: My Papers
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSCameraUsageDescription: Scan your receipts and documents.
+        NSPhotoLibraryUsageDescription: Add photos of your papers.
+        ITSAppUsesNonExemptEncryption: false
+        # Google Sign-In: the iOS client ID and its reversed form as a URL scheme (set when the client exists).
+        GIDClientID: $(GOOGLE_IOS_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleURLSchemes: [$(GOOGLE_REVERSED_CLIENT_ID)]
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.bennybar.mypapers.sync
+          - com.bennybar.mypapers.gmail
+          - com.bennybar.mypapers.ai.*
+        UIBackgroundModes: [fetch, processing]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bennybar.mypapers
+        GOOGLE_IOS_CLIENT_ID: ""
+        GOOGLE_REVERSED_CLIENT_ID: ""
+        GOOGLE_WEB_CLIENT_ID: ""
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_PREVIEWS: YES
+  MyPapersTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [MyPapersTests]
+    dependencies:
+      - target: MyPapers
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  MyPapers:
+    build:
+      targets:
+        MyPapers: all
+        MyPapersTests: [test]
+    test:
+      targets: [MyPapersTests]

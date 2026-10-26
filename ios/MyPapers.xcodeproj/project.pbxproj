@@ -1,0 +1,521 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		07ECE23EF1C7378F16E7CD9E /* Day.swift in Sources */ = {isa = PBXBuildFile; fileRef = 341FB484DEA5911FB370E3A9 /* Day.swift */; };
+		098BBBCFCB0F6ED9A998490D /* Conversations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A507912ABA9FBB8F77D2C4C /* Conversations.swift */; };
+		137A60FBCBE27E43297B3D1F /* LogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 752DF6DF6C57932B433821E9 /* LogicTests.swift */; };
+		17F3D782C7569490FE9FBF9F /* PaperJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 190F4A48B686B91772B1CF41 /* PaperJSON.swift */; };
+		4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */; };
+		54FFDF623201CEFCE6A6F7B1 /* Prompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0290D63A5F3AC9B63E96917 /* Prompts.swift */; };
+		6B5399291F9958DCC4D37418 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 4B12C053A407CBFB36B4EDC2 /* GoogleSignIn */; };
+		72B9135359BC001358B6AFBB /* Extraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA84C9A395269A830D624076 /* Extraction.swift */; };
+		8660D33684676C20D7477C82 /* PaperFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCAF6383897D4D176B84B8D /* PaperFiles.swift */; };
+		A483166811C838C27A03CF2D /* MyPapersApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E936D85966649CBE7C668A2C /* MyPapersApp.swift */; };
+		BC4FF802A09920F062AF6506 /* Filters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10833C540B84950FE1479523 /* Filters.swift */; };
+		BFD32ABEEFBAF93FC28B728A /* FuzzySearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0808AC0ADC80CBB2DF5F9B /* FuzzySearch.swift */; };
+		DA5D6E9E3A7310D88E003955 /* Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDEE5A1DCE725B1EC8DF8294 /* Format.swift */; };
+		DCE0C4F8F78A502650391ED3 /* Paper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE70CF2DF17D9612DB000E5 /* Paper.swift */; };
+		E166D2A418CA7BE119B6D69B /* Expiry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F1F2494B7BCAD4B4CF9D40 /* Expiry.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1ABF2B7B19DCB747191AE894 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 58199CFDF50661D51FACB8F1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B1D6FBE96156E4D0CEF16F9B;
+			remoteInfo = MyPapers;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		095F7CD560C9B08BE0D858E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0A0808AC0ADC80CBB2DF5F9B /* FuzzySearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuzzySearch.swift; sourceTree = "<group>"; };
+		10833C540B84950FE1479523 /* Filters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Filters.swift; sourceTree = "<group>"; };
+		13F1F2494B7BCAD4B4CF9D40 /* Expiry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Expiry.swift; sourceTree = "<group>"; };
+		190F4A48B686B91772B1CF41 /* PaperJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperJSON.swift; sourceTree = "<group>"; };
+		2A507912ABA9FBB8F77D2C4C /* Conversations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversations.swift; sourceTree = "<group>"; };
+		341FB484DEA5911FB370E3A9 /* Day.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Day.swift; sourceTree = "<group>"; };
+		3FCAF6383897D4D176B84B8D /* PaperFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperFiles.swift; sourceTree = "<group>"; };
+		752DF6DF6C57932B433821E9 /* LogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicTests.swift; sourceTree = "<group>"; };
+		BEB1190E27F570F9012EA199 /* MyPapersTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MyPapersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0290D63A5F3AC9B63E96917 /* Prompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prompts.swift; sourceTree = "<group>"; };
+		DDEE5A1DCE725B1EC8DF8294 /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
+		DEE70CF2DF17D9612DB000E5 /* Paper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paper.swift; sourceTree = "<group>"; };
+		E936D85966649CBE7C668A2C /* MyPapersApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPapersApp.swift; sourceTree = "<group>"; };
+		E979AC321A8DC5834428FEE4 /* MyPapers.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MyPapers.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EA84C9A395269A830D624076 /* Extraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extraction.swift; sourceTree = "<group>"; };
+		F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Duplicates.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3F8890D1B2838704FF1A021F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6B5399291F9958DCC4D37418 /* GoogleSignIn in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		244D2B4D9612A42755C8B4F6 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				DEE70CF2DF17D9612DB000E5 /* Paper.swift */,
+				3FCAF6383897D4D176B84B8D /* PaperFiles.swift */,
+				190F4A48B686B91772B1CF41 /* PaperJSON.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		3FFB9CF56518B80544FFDB4C /* Logic */ = {
+			isa = PBXGroup;
+			children = (
+				341FB484DEA5911FB370E3A9 /* Day.swift */,
+				F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */,
+				13F1F2494B7BCAD4B4CF9D40 /* Expiry.swift */,
+				10833C540B84950FE1479523 /* Filters.swift */,
+				DDEE5A1DCE725B1EC8DF8294 /* Format.swift */,
+				0A0808AC0ADC80CBB2DF5F9B /* FuzzySearch.swift */,
+			);
+			path = Logic;
+			sourceTree = "<group>";
+		};
+		53D041160D4F7ACBDB86A67D /* AI */ = {
+			isa = PBXGroup;
+			children = (
+				2A507912ABA9FBB8F77D2C4C /* Conversations.swift */,
+				EA84C9A395269A830D624076 /* Extraction.swift */,
+				C0290D63A5F3AC9B63E96917 /* Prompts.swift */,
+			);
+			path = AI;
+			sourceTree = "<group>";
+		};
+		9EC45323AE13106623FEE875 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E979AC321A8DC5834428FEE4 /* MyPapers.app */,
+				BEB1190E27F570F9012EA199 /* MyPapersTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B3F9A847263E93CC6647BB7C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				E936D85966649CBE7C668A2C /* MyPapersApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		BCCD7DE7820ED9B970BC31C0 /* MyPapers */ = {
+			isa = PBXGroup;
+			children = (
+				095F7CD560C9B08BE0D858E3 /* Info.plist */,
+				53D041160D4F7ACBDB86A67D /* AI */,
+				B3F9A847263E93CC6647BB7C /* App */,
+				3FFB9CF56518B80544FFDB4C /* Logic */,
+				244D2B4D9612A42755C8B4F6 /* Model */,
+			);
+			path = MyPapers;
+			sourceTree = "<group>";
+		};
+		F45A50AEBEB88F15F8C6F0B9 = {
+			isa = PBXGroup;
+			children = (
+				BCCD7DE7820ED9B970BC31C0 /* MyPapers */,
+				F5B985C87ECB4E41C649C163 /* MyPapersTests */,
+				9EC45323AE13106623FEE875 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F5B985C87ECB4E41C649C163 /* MyPapersTests */ = {
+			isa = PBXGroup;
+			children = (
+				752DF6DF6C57932B433821E9 /* LogicTests.swift */,
+			);
+			path = MyPapersTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4CB0FE7D562FB85621D65041 /* MyPapersTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C903E1AAA5584C094D32B7A4 /* Build configuration list for PBXNativeTarget "MyPapersTests" */;
+			buildPhases = (
+				9DF23D4285F2B9DC7562441C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				96734CAC71E0C8BFDE25274D /* PBXTargetDependency */,
+			);
+			name = MyPapersTests;
+			packageProductDependencies = (
+			);
+			productName = MyPapersTests;
+			productReference = BEB1190E27F570F9012EA199 /* MyPapersTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		B1D6FBE96156E4D0CEF16F9B /* MyPapers */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3F66914B39D26E2F07E98EFC /* Build configuration list for PBXNativeTarget "MyPapers" */;
+			buildPhases = (
+				00D90DD1A3C696144B503956 /* Sources */,
+				3F8890D1B2838704FF1A021F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MyPapers;
+			packageProductDependencies = (
+				4B12C053A407CBFB36B4EDC2 /* GoogleSignIn */,
+			);
+			productName = MyPapers;
+			productReference = E979AC321A8DC5834428FEE4 /* MyPapers.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		58199CFDF50661D51FACB8F1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					4CB0FE7D562FB85621D65041 = {
+						DevelopmentTeam = "";
+					};
+					B1D6FBE96156E4D0CEF16F9B = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = 2D2944A72DFAEAFA9CB9E1A6 /* Build configuration list for PBXProject "MyPapers" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = F45A50AEBEB88F15F8C6F0B9;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9376F2412B9D0F97DD7CE1EC /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 9EC45323AE13106623FEE875 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B1D6FBE96156E4D0CEF16F9B /* MyPapers */,
+				4CB0FE7D562FB85621D65041 /* MyPapersTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		00D90DD1A3C696144B503956 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				098BBBCFCB0F6ED9A998490D /* Conversations.swift in Sources */,
+				07ECE23EF1C7378F16E7CD9E /* Day.swift in Sources */,
+				4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */,
+				E166D2A418CA7BE119B6D69B /* Expiry.swift in Sources */,
+				72B9135359BC001358B6AFBB /* Extraction.swift in Sources */,
+				BC4FF802A09920F062AF6506 /* Filters.swift in Sources */,
+				DA5D6E9E3A7310D88E003955 /* Format.swift in Sources */,
+				BFD32ABEEFBAF93FC28B728A /* FuzzySearch.swift in Sources */,
+				A483166811C838C27A03CF2D /* MyPapersApp.swift in Sources */,
+				DCE0C4F8F78A502650391ED3 /* Paper.swift in Sources */,
+				8660D33684676C20D7477C82 /* PaperFiles.swift in Sources */,
+				17F3D782C7569490FE9FBF9F /* PaperJSON.swift in Sources */,
+				54FFDF623201CEFCE6A6F7B1 /* Prompts.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9DF23D4285F2B9DC7562441C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				137A60FBCBE27E43297B3D1F /* LogicTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		96734CAC71E0C8BFDE25274D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B1D6FBE96156E4D0CEF16F9B /* MyPapers */;
+			targetProxy = 1ABF2B7B19DCB747191AE894 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		38B4AC47B857AB4E73146F62 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.MyPapersTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MyPapers.app/MyPapers";
+			};
+			name = Debug;
+		};
+		7CBE3EB9D9D5F39788A9D798 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_PREVIEWS = YES;
+				GOOGLE_IOS_CLIENT_ID = "";
+				GOOGLE_REVERSED_CLIENT_ID = "";
+				GOOGLE_WEB_CLIENT_ID = "";
+				INFOPLIST_FILE = MyPapers/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.mypapers;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		918D5CEC342D94D319CCE205 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		9313E7194B4E0FAB44D4317F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.MyPapersTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MyPapers.app/MyPapers";
+			};
+			name = Release;
+		};
+		C3C31422239D139D8771D6D2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_PREVIEWS = YES;
+				GOOGLE_IOS_CLIENT_ID = "";
+				GOOGLE_REVERSED_CLIENT_ID = "";
+				GOOGLE_WEB_CLIENT_ID = "";
+				INFOPLIST_FILE = MyPapers/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.mypapers;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D5EA26CC2C78A6D0A4265972 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2D2944A72DFAEAFA9CB9E1A6 /* Build configuration list for PBXProject "MyPapers" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D5EA26CC2C78A6D0A4265972 /* Debug */,
+				918D5CEC342D94D319CCE205 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3F66914B39D26E2F07E98EFC /* Build configuration list for PBXNativeTarget "MyPapers" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C3C31422239D139D8771D6D2 /* Debug */,
+				7CBE3EB9D9D5F39788A9D798 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C903E1AAA5584C094D32B7A4 /* Build configuration list for PBXNativeTarget "MyPapersTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				38B4AC47B857AB4E73146F62 /* Debug */,
+				9313E7194B4E0FAB44D4317F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9376F2412B9D0F97DD7CE1EC /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 10.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		4B12C053A407CBFB36B4EDC2 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9376F2412B9D0F97DD7CE1EC /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 58199CFDF50661D51FACB8F1 /* Project object */;
+}
