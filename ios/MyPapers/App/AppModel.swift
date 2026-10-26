@@ -125,6 +125,8 @@ final class AppModel {
                 }
             } catch { failed += 1 }
         }
+        // Expiry reminders and the AI's notifications need permission; asked once, with the first paper.
+        if !added.isEmpty { AIJobs.requestNotificationPermission() }
         if failed > 0 {
             toast(urls.count == 1 ? "Couldn't read this file" : "Added \(added.count), \(failed) couldn't be read")
         } else if let id = duplicates.first, duplicates.count == 1, added.isEmpty {
