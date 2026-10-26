@@ -14,6 +14,7 @@
 		137A60FBCBE27E43297B3D1F /* LogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 752DF6DF6C57932B433821E9 /* LogicTests.swift */; };
 		17F3D782C7569490FE9FBF9F /* PaperJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 190F4A48B686B91772B1CF41 /* PaperJSON.swift */; };
 		1A52DB3B4BD22118CBE55EE8 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6377E126BCED12E1C3AE85A3 /* LibraryView.swift */; };
+		2154949437352070C2CD1261 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = FB4A442C1D79F2214A0168F8 /* AppIcon.icon */; };
 		28DF46BB21A495B80E093766 /* DriveSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28C8B9FC6743D37B91F7BC2 /* DriveSync.swift */; };
 		2A17A0D087C7720B6F98DECC /* AIAskAllTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3BE20FC3F5210FB05A94240 /* AIAskAllTests.swift */; };
 		2CE0ED0244DBAD9098AC0C15 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849E7748E43B5AFC332827BE /* AppModel.swift */; };
@@ -21,7 +22,6 @@
 		32FBBF0C99A5FA6CB8380BA0 /* GmailImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586C5974CA08A20505EF7311 /* GmailImporter.swift */; };
 		36C95D12234573E033F98D70 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */; };
 		377CCD0B891D5C247A13A130 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */; };
-		388194C48312B34491D58A4F /* app-icon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 535DB8A07F614FD7E393338D /* app-icon.svg */; };
 		4500D195A41EB00B015BC4E9 /* SyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C424AE13B91F6C98B3AC56 /* SyncTests.swift */; };
 		482FC5EAE5D8F7F4509A1179 /* PaperStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5664694B25B3B5A9671788 /* PaperStore.swift */; };
 		4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */; };
@@ -108,7 +108,6 @@
 		3FCAF6383897D4D176B84B8D /* PaperFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperFiles.swift; sourceTree = "<group>"; };
 		3FCECCD5D97A3B2438D1F981 /* AIJobs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIJobs.swift; sourceTree = "<group>"; };
 		50D7A60E59DF28A8CE5573AC /* LibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModel.swift; sourceTree = "<group>"; };
-		535DB8A07F614FD7E393338D /* app-icon.svg */ = {isa = PBXFileReference; path = "app-icon.svg"; sourceTree = "<group>"; };
 		586C5974CA08A20505EF7311 /* GmailImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailImporter.swift; sourceTree = "<group>"; };
 		6377E126BCED12E1C3AE85A3 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		74E793E4253C0A9EECC08AD0 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
@@ -144,6 +143,7 @@
 		F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Duplicates.swift; sourceTree = "<group>"; };
 		F28C8B9FC6743D37B91F7BC2 /* DriveSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSync.swift; sourceTree = "<group>"; };
 		F95E6E5DBF3E0C1B90822E3B /* PaperViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperViews.swift; sourceTree = "<group>"; };
+		FB4A442C1D79F2214A0168F8 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,7 +172,6 @@
 		2B05311A3CF40CE745884A81 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				535DB8A07F614FD7E393338D /* app-icon.svg */,
 				EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */,
 			);
 			path = Resources;
@@ -278,6 +277,7 @@
 		BCCD7DE7820ED9B970BC31C0 /* MyPapers */ = {
 			isa = PBXGroup;
 			children = (
+				FB4A442C1D79F2214A0168F8 /* AppIcon.icon */,
 				095F7CD560C9B08BE0D858E3 /* Info.plist */,
 				9973446A6B7FB194DD3AE544 /* MyPapers.entitlements */,
 				53D041160D4F7ACBDB86A67D /* AI */,
@@ -426,8 +426,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2154949437352070C2CD1261 /* AppIcon.icon in Resources */,
 				377CCD0B891D5C247A13A130 /* Assets.xcassets in Resources */,
-				388194C48312B34491D58A4F /* app-icon.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
