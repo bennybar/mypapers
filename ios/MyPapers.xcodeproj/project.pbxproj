@@ -20,6 +20,8 @@
 		31B63C941DDCD4D14EE19001 /* PaperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11A2E43BC724B6DDF4DCBBB /* PaperView.swift */; };
 		32FBBF0C99A5FA6CB8380BA0 /* GmailImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586C5974CA08A20505EF7311 /* GmailImporter.swift */; };
 		36C95D12234573E033F98D70 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */; };
+		377CCD0B891D5C247A13A130 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */; };
+		388194C48312B34491D58A4F /* app-icon.svg in Resources */ = {isa = PBXBuildFile; fileRef = 535DB8A07F614FD7E393338D /* app-icon.svg */; };
 		4500D195A41EB00B015BC4E9 /* SyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C424AE13B91F6C98B3AC56 /* SyncTests.swift */; };
 		482FC5EAE5D8F7F4509A1179 /* PaperStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5664694B25B3B5A9671788 /* PaperStore.swift */; };
 		4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */; };
@@ -106,6 +108,7 @@
 		3FCAF6383897D4D176B84B8D /* PaperFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperFiles.swift; sourceTree = "<group>"; };
 		3FCECCD5D97A3B2438D1F981 /* AIJobs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIJobs.swift; sourceTree = "<group>"; };
 		50D7A60E59DF28A8CE5573AC /* LibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModel.swift; sourceTree = "<group>"; };
+		535DB8A07F614FD7E393338D /* app-icon.svg */ = {isa = PBXFileReference; path = "app-icon.svg"; sourceTree = "<group>"; };
 		586C5974CA08A20505EF7311 /* GmailImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailImporter.swift; sourceTree = "<group>"; };
 		6377E126BCED12E1C3AE85A3 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		74E793E4253C0A9EECC08AD0 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
@@ -136,6 +139,7 @@
 		E936D85966649CBE7C668A2C /* MyPapersApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPapersApp.swift; sourceTree = "<group>"; };
 		E979AC321A8DC5834428FEE4 /* MyPapers.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MyPapers.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA84C9A395269A830D624076 /* Extraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extraction.swift; sourceTree = "<group>"; };
+		EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		ED530A66EDB299F4559E32EF /* AskSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskSheets.swift; sourceTree = "<group>"; };
 		F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Duplicates.swift; sourceTree = "<group>"; };
 		F28C8B9FC6743D37B91F7BC2 /* DriveSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSync.swift; sourceTree = "<group>"; };
@@ -163,6 +167,15 @@
 				CC5664694B25B3B5A9671788 /* PaperStore.swift */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		2B05311A3CF40CE745884A81 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				535DB8A07F614FD7E393338D /* app-icon.svg */,
+				EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		2F4C33CD9473EB7EB20D3064 /* MyPapersShare */ = {
@@ -272,6 +285,7 @@
 				4DC67410E75153746AD91B92 /* Gmail */,
 				3FFB9CF56518B80544FFDB4C /* Logic */,
 				244D2B4D9612A42755C8B4F6 /* Model */,
+				2B05311A3CF40CE745884A81 /* Resources */,
 				5A47FD23980EBFDB0376AB27 /* Sync */,
 				BBB55564AC4E2C5190D30F2F /* UI */,
 			);
@@ -343,6 +357,7 @@
 			buildConfigurationList = 3F66914B39D26E2F07E98EFC /* Build configuration list for PBXNativeTarget "MyPapers" */;
 			buildPhases = (
 				00D90DD1A3C696144B503956 /* Sources */,
+				AD0DC5FD15A7E0478759CEA3 /* Resources */,
 				3F8890D1B2838704FF1A021F /* Frameworks */,
 				B06701C75FA39C9BD3AF851F /* Embed Foundation Extensions */,
 			);
@@ -405,6 +420,18 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AD0DC5FD15A7E0478759CEA3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				377CCD0B891D5C247A13A130 /* Assets.xcassets in Resources */,
+				388194C48312B34491D58A4F /* app-icon.svg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		00D90DD1A3C696144B503956 /* Sources */ = {
