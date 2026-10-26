@@ -529,8 +529,8 @@
 				CODE_SIGN_ENTITLEMENTS = MyPapers/MyPapers.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_PREVIEWS = YES;
-				GOOGLE_IOS_CLIENT_ID = "";
-				GOOGLE_REVERSED_CLIENT_ID = "";
+				GOOGLE_IOS_CLIENT_ID = "496214456891-14jjoa0flc2hmrhrqrk6vrqh5hlgkb0s.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.496214456891-14jjoa0flc2hmrhrqrk6vrqh5hlgkb0s";
 				GOOGLE_WEB_CLIENT_ID = "";
 				INFOPLIST_FILE = MyPapers/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -628,8 +628,8 @@
 				CODE_SIGN_ENTITLEMENTS = MyPapers/MyPapers.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_PREVIEWS = YES;
-				GOOGLE_IOS_CLIENT_ID = "";
-				GOOGLE_REVERSED_CLIENT_ID = "";
+				GOOGLE_IOS_CLIENT_ID = "496214456891-14jjoa0flc2hmrhrqrk6vrqh5hlgkb0s.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.496214456891-14jjoa0flc2hmrhrqrk6vrqh5hlgkb0s";
 				GOOGLE_WEB_CLIENT_ID = "";
 				INFOPLIST_FILE = MyPapers/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
