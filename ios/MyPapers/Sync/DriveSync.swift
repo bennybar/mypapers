@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Observation
 
 /** Where the change feed was last read, and which account this phone's papers were synced with. */
@@ -72,6 +73,9 @@ final class DriveSync {
 
     /** Runs one full sync (a second caller waits for the running one, then syncs again). */
     func sync() async {
+        // Leaving the app right after an edit still lets the upload finish (iOS gives ~30 s).
+        let id = UIApplication.shared.beginBackgroundTask(withName: "Drive sync")
+        defer { if id != .invalid { UIApplication.shared.endBackgroundTask(id) } }
         await whileIdle { await self.syncOnce() }
     }
 

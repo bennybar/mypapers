@@ -18,7 +18,10 @@ struct MyPapersApp: App {
                     await app.account.restore()
                     await app.onForeground()
                 }
-                .onChange(of: phase) { _, p in if p == .active { Task { await app.onForeground() } } }
+                .onChange(of: phase) { _, p in
+                    if p == .active { Task { await app.onForeground() } }
+                    if p == .background { AppDelegate.scheduleSync() }
+                }
         }
         .modelContainer(app.container)
     }
@@ -32,7 +35,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
         // Before launch finishes, as iOS requires.
         GmailImporter.registerBackgroundTask()
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: AppDelegate.syncTaskId, using: .main) { task in
+            // Now and then while the app isn't open: pick up papers from other devices, send up what's left.
+            AppDelegate.scheduleSync()
+            let work = Task { @MainActor in await self.app?.syncNow() }
+            task.expirationHandler = { work.cancel() }
+            Task { @MainActor in
+                await work.value
+                task.setTaskCompleted(success: true)
+            }
+        }
         return true
+    }
+
+    static let syncTaskId = "com.bennybar.mypapers.sync"
+
+    /** The next background sync, in an hour or more (iOS picks the moment). */
+    static func scheduleSync() {
+        let request = BGAppRefreshTaskRequest(identifier: syncTaskId)
+        request.earliestBeginDate = Date().addingTimeInterval(60 * 60)
+        do { try BGTaskScheduler.shared.submit(request) } catch {
+            backgroundLog.error("sync refresh refused: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
@@ -69,6 +93,7 @@ struct RootView: View {
             #if DEBUG
             // For screenshots: `-open paper|settings|gmail|trash` and `-style cards|compact|grid|timeline`.
             let args = ProcessInfo.processInfo.arguments
+            if args.contains("-debugJob") { app.jobs.debugJob() }
             if let i = args.firstIndex(of: "-style"), i + 1 < args.count, let s = ListStyle(rawValue: args[i + 1]) { app.library.style = s }
             if let i = args.firstIndex(of: "-open"), i + 1 < args.count {
                 switch args[i + 1] {

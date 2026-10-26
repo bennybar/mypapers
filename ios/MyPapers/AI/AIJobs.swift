@@ -1,7 +1,23 @@
 import BackgroundTasks
 import Foundation
 import Observation
+import UIKit
 import UserNotifications
+import os
+
+let backgroundLog = Logger(subsystem: "com.bennybar.mypapers", category: "background")
+
+#if DEBUG
+/** Debug builds also keep background events in Documents/background.log (to read off a phone). */
+func backgroundTrace(_ line: String) {
+    let url = URL.documentsDirectory.appending(path: "background.log")
+    let text = "\(Date().formatted(.iso8601)) \(line)\n"
+    if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(Data(text.utf8)); try? h.close() }
+    else { try? text.write(to: url, atomically: true, encoding: .utf8) }
+}
+#else
+func backgroundTrace(_ line: String) {}
+#endif
 
 /**
  * The AI's jobs, each a cancellable task (Android's WorkManager workers): reading a paper, reading
@@ -25,6 +41,12 @@ final class AIJobs {
     /** Which run of a key is the current one (a new question replaces a running one). */
     @ObservationIgnored private var tokens: [String: UUID] = [:]
     @ObservationIgnored private var background: [String: BGContinuedProcessingTask] = [:]
+    /** The ~30 seconds iOS gives any app after it leaves the screen, for when the above is refused. */
+    @ObservationIgnored private var shortBackground: [String: UIBackgroundTaskIdentifier] = [:]
+    /** Moves the system's progress bar for jobs that can't measure their own (one long AI request). */
+    @ObservationIgnored private var tickers: [String: Task<Void, Never>] = [:]
+    /** The last answer iOS gave to "keep this going" (for Settings' diagnostics). */
+    private(set) var lastBackgroundResult = ""
 
     init(service: AIService, conversations: Conversations) {
         self.service = service
@@ -181,14 +203,30 @@ final class AIJobs {
         tokens[key] = nil
         tasks[key] = nil
         running.remove(key)
+        tickers.removeValue(forKey: key)?.cancel()
         if let bg = background.removeValue(forKey: key) {
             bg.progress.completedUnitCount = bg.progress.totalUnitCount
             bg.setTaskCompleted(success: true)
+            backgroundLog.info("\(key, privacy: .public): done, background task completed"); backgroundTrace("\(key): done, background task completed")
         }
+        if let id = shortBackground.removeValue(forKey: key) { UIApplication.shared.endBackgroundTask(id) }
     }
 
-    /** Asks iOS to keep this job going in the background, with its own progress and stop button. */
+    /**
+     * Asks iOS to keep this job going in the background, with its own progress and stop button
+     * (BGContinuedProcessingTask). Its progress must keep moving, or iOS ends it as stuck: jobs that
+     * can't measure their own get a ticker. Also takes the short background time every app gets, so
+     * a refused request still leaves ~30 seconds to finish after leaving the app.
+     */
     private func keepAlive(_ key: String, token: UUID, title: String, subtitle: String) {
+        if shortBackground[key] == nil {
+            shortBackground[key] = UIApplication.shared.beginBackgroundTask(withName: key) { [weak self] in
+                // Time's up: give it back (the job carries on if the app is kept alive otherwise).
+                MainActor.assumeIsolated {
+                    if let id = self?.shortBackground.removeValue(forKey: key) { UIApplication.shared.endBackgroundTask(id) }
+                }
+            }
+        }
         let identifier = "com.bennybar.mypapers.ai.\(key).\(token.uuidString)"
         let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: identifier, using: .main) { [weak self] task in
             MainActor.assumeIsolated {
@@ -196,18 +234,44 @@ final class AIJobs {
                     task.setTaskCompleted(success: true)
                     return
                 }
+                backgroundLog.info("\(key, privacy: .public): background task started"); backgroundTrace("\(key): background task started")
                 task.progress.totalUnitCount = 100
                 task.expirationHandler = { [weak self] in
+                    backgroundLog.info("\(key, privacy: .public): background task expired, stopping the job"); backgroundTrace("\(key): background task expired, stopping the job")
                     Task { @MainActor in self?.cancel(key) }
                 }
                 self.background[key] = task
+                if key != AIJobs.readAllKey { self.tick(key, task) }
             }
         }
-        guard registered else { return }
+        guard registered else {
+            lastBackgroundResult = "Couldn't register \(key)"
+            backgroundLog.error("\(key, privacy: .public): couldn't register the background task"); backgroundTrace("\(key): couldn't register the background task")
+            return
+        }
         let request = BGContinuedProcessingTaskRequest(identifier: identifier, title: title, subtitle: subtitle)
         // Now or not at all: the job itself has already started.
         request.strategy = .fail
-        try? BGTaskScheduler.shared.submit(request)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            lastBackgroundResult = "Background running allowed (\(key))"
+            backgroundLog.info("\(key, privacy: .public): background task submitted"); backgroundTrace("\(key): background task submitted")
+        } catch {
+            lastBackgroundResult = "Background running refused: \(error.localizedDescription)"
+            backgroundLog.error("\(key, privacy: .public): background task refused: \(error.localizedDescription, privacy: .public)"); backgroundTrace("\(key): background task refused: \(error.localizedDescription)")
+        }
+    }
+
+    /** Creeps the progress toward 95% (never there), so iOS sees the job alive until it really ends. */
+    private func tick(_ key: String, _ task: BGContinuedProcessingTask) {
+        tickers[key]?.cancel()
+        tickers[key] = Task { @MainActor in
+            while !Task.isCancelled {
+                let done = task.progress.completedUnitCount
+                task.progress.completedUnitCount = min(95, done + max(1, (95 - done) / 12))
+                try? await Task.sleep(for: .seconds(3))
+            }
+        }
     }
 
     private func progress(_ key: String, done: Int, total: Int) {
@@ -215,6 +279,21 @@ final class AIJobs {
         bg.progress.totalUnitCount = Int64(total)
         bg.progress.completedUnitCount = Int64(done)
     }
+
+    #if DEBUG
+    /** A stand-in job that only waits, reporting progress, to check background running (`-debugJob`). */
+    func debugJob(seconds: Int = 120) {
+        start("debug", title: "Background check", subtitle: "Counting \(seconds) seconds") {
+            for s in 1...seconds {
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { backgroundLog.info("debug: cancelled at \(s)s"); backgroundTrace("debug: cancelled at \(s)s"); return }
+                if s % 10 == 0 { backgroundLog.info("debug: still running at \(s)s, app state \(UIApplication.shared.applicationState.rawValue)"); backgroundTrace("debug: still running at \(s)s, app state \(UIApplication.shared.applicationState.rawValue)") }
+            }
+            backgroundLog.info("debug: finished all \(seconds)s"); backgroundTrace("debug: finished all \(seconds)s")
+            AIJobs.notify("Background check done", "Ran \(seconds) seconds", paperId: nil)
+        }
+    }
+    #endif
 
     /** [op], again after a while when it failed in a way worth retrying, up to three times in all. */
     private func withRetries<T>(_ op: () async throws -> T) async throws -> T {
