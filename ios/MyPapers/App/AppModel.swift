@@ -237,6 +237,16 @@ final class AppModel {
         }
     }
 
+    /**
+     * The paper's file under its title with the right extension, for the full-screen viewer (Quick Look
+     * goes by the extension, and the stored file has none: it's named by the paper's id).
+     */
+    func viewable(_ id: String) -> URL? {
+        guard let p = store.live(id), p.fileLocal, let (_, name) = Self.named([p]).first else { return nil }
+        let url = Self.shareDir().appending(path: name)
+        return (try? FileManager.default.copyItem(at: PaperFiles.url(id), to: url)) != nil ? url : nil
+    }
+
     /** One ZIP with papers.csv and the files (with a .md of the text where extracted), to the share sheet. */
     func export(ids: [String]) {
         let papers = ids.compactMap(store.live).sorted { Filters.paperDay($0) < Filters.paperDay($1) }

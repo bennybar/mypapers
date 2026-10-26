@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import UIKit
 
 /** Made-up papers for simulator screenshots (`-demo`). Never used on a phone with a real library. */
 enum DemoData {
@@ -12,6 +13,16 @@ enum DemoData {
             p.totalCents = cents; p.currency = cents == nil ? nil : "ILS"; p.tags = tags
             p.details = details.map { KeyDetail(label: $0.0, value: $0.1) }
             p.aiState = aiDone; p.dirty = false; p.fileUploaded = true
+            // A real one-page PDF, so the page preview and the full-screen viewer can be checked.
+            let pdf = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842)).pdfData { ctx in
+                ctx.beginPage()
+                ([title, vendor, date] + p.details.map { "\($0.label): \($0.value)" }).enumerated().forEach { i, line in
+                    (line as NSString).draw(at: CGPoint(x: 48, y: 60 + i * 28), withAttributes: [.font: UIFont.systemFont(ofSize: i == 0 ? 22 : 15)])
+                }
+            }
+            if (try? pdf.write(to: PaperFiles.url(p.id))) != nil {
+                p.fileLocal = true; p.mimeType = "application/pdf"; p.fileName = "\(title).pdf"
+            }
             store.insert(p)
         }
         paper("Shufersal groceries", "Shufersal", "Receipt", "2026-10-12", 31240, ["Groceries"], daysAgo: 1)

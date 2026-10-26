@@ -69,7 +69,7 @@ struct PaperView: View {
             if !p.transcript.isEmpty { TextSection(markdown: p.transcript) { editingText = true } }
             if !p.notes.isEmpty { Section("Notes") { Text(p.notes).textSelection(.enabled) } }
             Section {
-                PagesPreview(paper: p) { preview = PaperFiles.url(p.id) }
+                PagesPreview(paper: p) { preview = app.viewable(p.id) }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             } header: { Text("File") } footer: { Text(p.fileName ?? "") }
         }
@@ -92,7 +92,7 @@ struct PaperView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 Menu {
                     Button { app.share(ids: [id]) } label: { Label("Share", systemImage: "square.and.arrow.up") }
-                    Button { preview = PaperFiles.url(id) } label: { Label("Open", systemImage: "doc.viewfinder") }.disabled(!p.fileLocal)
+                    Button { preview = app.viewable(id) } label: { Label("Open", systemImage: "doc.viewfinder") }.disabled(!p.fileLocal)
                     Button { app.export(ids: [id]) } label: { Label("Export (spreadsheet + file)", systemImage: "tablecells") }
                 } label: { Label("Share", systemImage: "square.and.arrow.up") } primaryAction: { app.share(ids: [id]) }
                 Button { editing = true } label: { Label("Edit", systemImage: "pencil") }

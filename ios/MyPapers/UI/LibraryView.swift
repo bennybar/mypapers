@@ -91,7 +91,8 @@ struct LibraryView: View {
             }
             .background(Color(.systemGroupedBackground))
         } else {
-            List(selection: $lib.selection) {
+            // Selection only in Select mode: otherwise iOS would take a tap as "select" and never open the paper.
+            List(selection: Binding(get: { editMode.isEditing ? lib.selection : [] }, set: { if editMode.isEditing { lib.selection = $0 } })) {
                 if !searching { notices(all) }
                 if searching { askRow }
                 if lib.narrowed && !results.isEmpty {
