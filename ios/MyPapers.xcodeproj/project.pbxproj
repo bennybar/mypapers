@@ -8,20 +8,52 @@
 
 /* Begin PBXBuildFile section */
 		07ECE23EF1C7378F16E7CD9E /* Day.swift in Sources */ = {isa = PBXBuildFile; fileRef = 341FB484DEA5911FB370E3A9 /* Day.swift */; };
+		09691A4E59401313B78B3F3E /* GmailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C2DB758A9FEAD9EF250C442 /* GmailTests.swift */; };
 		098BBBCFCB0F6ED9A998490D /* Conversations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A507912ABA9FBB8F77D2C4C /* Conversations.swift */; };
+		0C2550E2D9F7C3F91F6A0A0F /* GmailAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC51414DE75860EB5CD0817C /* GmailAPI.swift */; };
 		137A60FBCBE27E43297B3D1F /* LogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 752DF6DF6C57932B433821E9 /* LogicTests.swift */; };
 		17F3D782C7569490FE9FBF9F /* PaperJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 190F4A48B686B91772B1CF41 /* PaperJSON.swift */; };
+		1A52DB3B4BD22118CBE55EE8 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6377E126BCED12E1C3AE85A3 /* LibraryView.swift */; };
+		28DF46BB21A495B80E093766 /* DriveSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28C8B9FC6743D37B91F7BC2 /* DriveSync.swift */; };
+		2A17A0D087C7720B6F98DECC /* AIAskAllTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3BE20FC3F5210FB05A94240 /* AIAskAllTests.swift */; };
+		2CE0ED0244DBAD9098AC0C15 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 849E7748E43B5AFC332827BE /* AppModel.swift */; };
+		31B63C941DDCD4D14EE19001 /* PaperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11A2E43BC724B6DDF4DCBBB /* PaperView.swift */; };
+		32FBBF0C99A5FA6CB8380BA0 /* GmailImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586C5974CA08A20505EF7311 /* GmailImporter.swift */; };
+		36C95D12234573E033F98D70 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */; };
+		4500D195A41EB00B015BC4E9 /* SyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C424AE13B91F6C98B3AC56 /* SyncTests.swift */; };
+		482FC5EAE5D8F7F4509A1179 /* PaperStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5664694B25B3B5A9671788 /* PaperStore.swift */; };
 		4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */; };
 		54FFDF623201CEFCE6A6F7B1 /* Prompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0290D63A5F3AC9B63E96917 /* Prompts.swift */; };
+		57D7B28AAE2A2C20BB197ACA /* PaperViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F95E6E5DBF3E0C1B90822E3B /* PaperViews.swift */; };
+		65021D01FB8EB20C71E7701B /* GoogleAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 098669ABFBD3C2F8DB94399A /* GoogleAccount.swift */; };
 		6B5399291F9958DCC4D37418 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 4B12C053A407CBFB36B4EDC2 /* GoogleSignIn */; };
+		6BBDE66DD4469F3C44949ED4 /* AIProxyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07D651CC1D5719AD02A110B /* AIProxyTests.swift */; };
+		6FA8D990132577D28DFD2B37 /* LibraryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D7A60E59DF28A8CE5573AC /* LibraryModel.swift */; };
 		72B9135359BC001358B6AFBB /* Extraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA84C9A395269A830D624076 /* Extraction.swift */; };
+		824C28329851440BB460766D /* MarkdownViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63B7983FF36A2D07F016A74 /* MarkdownViews.swift */; };
 		8660D33684676C20D7477C82 /* PaperFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCAF6383897D4D176B84B8D /* PaperFiles.swift */; };
+		8B3ECFA37279F464F8A38162 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E793E4253C0A9EECC08AD0 /* AIService.swift */; };
+		8EB6FEABB43E24158C64A638 /* AskSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED530A66EDB299F4559E32EF /* AskSheets.swift */; };
+		90B4820D2489A7C650816697 /* EditPaperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BD7C268636F9A85FFC9EC69 /* EditPaperView.swift */; };
+		9B9FAF845A111DF202554E72 /* AIInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BE4B147D0A193BD5176A27 /* AIInput.swift */; };
 		A483166811C838C27A03CF2D /* MyPapersApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E936D85966649CBE7C668A2C /* MyPapersApp.swift */; };
+		A4BF866689D22546C3BC89F3 /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE48CF4A71CA0DBFB78FA0B2 /* DriveClient.swift */; };
+		B2807A912D0BDA725F546218 /* ScannerAndTrash.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1596B647BF80FD5C920EE788 /* ScannerAndTrash.swift */; };
+		B5BF2F515115B66AB7F6D004 /* AskAll.swift in Sources */ = {isa = PBXBuildFile; fileRef = 971E3CAF380EE9DA8B9CABD1 /* AskAll.swift */; };
 		BC4FF802A09920F062AF6506 /* Filters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10833C540B84950FE1479523 /* Filters.swift */; };
 		BFD32ABEEFBAF93FC28B728A /* FuzzySearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0808AC0ADC80CBB2DF5F9B /* FuzzySearch.swift */; };
+		C8C89BD42EEFF74C4182D053 /* GmailModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE83F8382D3434A601CF64A4 /* GmailModels.swift */; };
+		D4C5DA302C284B0BB7B29376 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996DC1253031628BAAB6466A /* SettingsView.swift */; };
 		DA5D6E9E3A7310D88E003955 /* Format.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDEE5A1DCE725B1EC8DF8294 /* Format.swift */; };
 		DCE0C4F8F78A502650391ED3 /* Paper.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE70CF2DF17D9612DB000E5 /* Paper.swift */; };
+		DCF6128946C26A46B85B9513 /* AISettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 302180FEFA54B6043F402729 /* AISettings.swift */; };
+		DD182FA7C82A14CC48007E1B /* GmailSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 380498F729BECAA125988C15 /* GmailSettings.swift */; };
+		DFAFA5AED6C72FC68660EC19 /* HTMLToPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFBD1A31D155A65C3257D14C /* HTMLToPDF.swift */; };
 		E166D2A418CA7BE119B6D69B /* Expiry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13F1F2494B7BCAD4B4CF9D40 /* Expiry.swift */; };
+		F01F874D8FFB20D8D85E35AC /* MyPapersShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 35C19AA3C3A124DBBCE4AD34 /* MyPapersShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F4BE430AE55E55D010CE0506 /* ExpiryReminders.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B44AEFCFF9C693E4A65F39 /* ExpiryReminders.swift */; };
+		F65FCD47D1855B7872D3DB46 /* OpenAIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9F570B1B255F221F87C0E88 /* OpenAIClient.swift */; };
+		FC7C0FEDDAC79EE92699DB4C /* AIJobs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCECCD5D97A3B2438D1F981 /* AIJobs.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,26 +64,82 @@
 			remoteGlobalIDString = B1D6FBE96156E4D0CEF16F9B;
 			remoteInfo = MyPapers;
 		};
+		C381D6EA94AF6ED8028132B3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 58199CFDF50661D51FACB8F1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6067CE3D5266B205E6CDDFA1;
+			remoteInfo = MyPapersShare;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B06701C75FA39C9BD3AF851F /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F01F874D8FFB20D8D85E35AC /* MyPapersShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		095F7CD560C9B08BE0D858E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		098669ABFBD3C2F8DB94399A /* GoogleAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAccount.swift; sourceTree = "<group>"; };
 		0A0808AC0ADC80CBB2DF5F9B /* FuzzySearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuzzySearch.swift; sourceTree = "<group>"; };
 		10833C540B84950FE1479523 /* Filters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Filters.swift; sourceTree = "<group>"; };
 		13F1F2494B7BCAD4B4CF9D40 /* Expiry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Expiry.swift; sourceTree = "<group>"; };
+		1596B647BF80FD5C920EE788 /* ScannerAndTrash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerAndTrash.swift; sourceTree = "<group>"; };
+		18C424AE13B91F6C98B3AC56 /* SyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncTests.swift; sourceTree = "<group>"; };
 		190F4A48B686B91772B1CF41 /* PaperJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperJSON.swift; sourceTree = "<group>"; };
+		1BD7C268636F9A85FFC9EC69 /* EditPaperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPaperView.swift; sourceTree = "<group>"; };
 		2A507912ABA9FBB8F77D2C4C /* Conversations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conversations.swift; sourceTree = "<group>"; };
+		302180FEFA54B6043F402729 /* AISettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISettings.swift; sourceTree = "<group>"; };
 		341FB484DEA5911FB370E3A9 /* Day.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Day.swift; sourceTree = "<group>"; };
+		35C19AA3C3A124DBBCE4AD34 /* MyPapersShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MyPapersShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		380498F729BECAA125988C15 /* GmailSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailSettings.swift; sourceTree = "<group>"; };
+		3C2DB758A9FEAD9EF250C442 /* GmailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailTests.swift; sourceTree = "<group>"; };
 		3FCAF6383897D4D176B84B8D /* PaperFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperFiles.swift; sourceTree = "<group>"; };
+		3FCECCD5D97A3B2438D1F981 /* AIJobs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIJobs.swift; sourceTree = "<group>"; };
+		50D7A60E59DF28A8CE5573AC /* LibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModel.swift; sourceTree = "<group>"; };
+		586C5974CA08A20505EF7311 /* GmailImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailImporter.swift; sourceTree = "<group>"; };
+		6377E126BCED12E1C3AE85A3 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		74E793E4253C0A9EECC08AD0 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		752DF6DF6C57932B433821E9 /* LogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicTests.swift; sourceTree = "<group>"; };
+		849E7748E43B5AFC332827BE /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		971E3CAF380EE9DA8B9CABD1 /* AskAll.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAll.swift; sourceTree = "<group>"; };
+		996DC1253031628BAAB6466A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9973446A6B7FB194DD3AE544 /* MyPapers.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyPapers.entitlements; sourceTree = "<group>"; };
+		A130EE1BB1E142D32BF53422 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A153CC238DC27C39F5849C35 /* MyPapersShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyPapersShare.entitlements; sourceTree = "<group>"; };
+		A63B7983FF36A2D07F016A74 /* MarkdownViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownViews.swift; sourceTree = "<group>"; };
+		B07D651CC1D5719AD02A110B /* AIProxyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProxyTests.swift; sourceTree = "<group>"; };
+		BC51414DE75860EB5CD0817C /* GmailAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAPI.swift; sourceTree = "<group>"; };
+		BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		BE48CF4A71CA0DBFB78FA0B2 /* DriveClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveClient.swift; sourceTree = "<group>"; };
 		BEB1190E27F570F9012EA199 /* MyPapersTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MyPapersTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0290D63A5F3AC9B63E96917 /* Prompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prompts.swift; sourceTree = "<group>"; };
+		C9B44AEFCFF9C693E4A65F39 /* ExpiryReminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpiryReminders.swift; sourceTree = "<group>"; };
+		CC5664694B25B3B5A9671788 /* PaperStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperStore.swift; sourceTree = "<group>"; };
+		D8BE4B147D0A193BD5176A27 /* AIInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIInput.swift; sourceTree = "<group>"; };
+		D9F570B1B255F221F87C0E88 /* OpenAIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIClient.swift; sourceTree = "<group>"; };
 		DDEE5A1DCE725B1EC8DF8294 /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
+		DE83F8382D3434A601CF64A4 /* GmailModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModels.swift; sourceTree = "<group>"; };
 		DEE70CF2DF17D9612DB000E5 /* Paper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paper.swift; sourceTree = "<group>"; };
+		DFBD1A31D155A65C3257D14C /* HTMLToPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLToPDF.swift; sourceTree = "<group>"; };
+		E11A2E43BC724B6DDF4DCBBB /* PaperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperView.swift; sourceTree = "<group>"; };
+		E3BE20FC3F5210FB05A94240 /* AIAskAllTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAskAllTests.swift; sourceTree = "<group>"; };
 		E936D85966649CBE7C668A2C /* MyPapersApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPapersApp.swift; sourceTree = "<group>"; };
 		E979AC321A8DC5834428FEE4 /* MyPapers.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MyPapers.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA84C9A395269A830D624076 /* Extraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extraction.swift; sourceTree = "<group>"; };
+		ED530A66EDB299F4559E32EF /* AskSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskSheets.swift; sourceTree = "<group>"; };
 		F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Duplicates.swift; sourceTree = "<group>"; };
+		F28C8B9FC6743D37B91F7BC2 /* DriveSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveSync.swift; sourceTree = "<group>"; };
+		F95E6E5DBF3E0C1B90822E3B /* PaperViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,8 +160,19 @@
 				DEE70CF2DF17D9612DB000E5 /* Paper.swift */,
 				3FCAF6383897D4D176B84B8D /* PaperFiles.swift */,
 				190F4A48B686B91772B1CF41 /* PaperJSON.swift */,
+				CC5664694B25B3B5A9671788 /* PaperStore.swift */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		2F4C33CD9473EB7EB20D3064 /* MyPapersShare */ = {
+			isa = PBXGroup;
+			children = (
+				A130EE1BB1E142D32BF53422 /* Info.plist */,
+				A153CC238DC27C39F5849C35 /* MyPapersShare.entitlements */,
+				BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */,
+			);
+			path = MyPapersShare;
 			sourceTree = "<group>";
 		};
 		3FFB9CF56518B80544FFDB4C /* Logic */ = {
@@ -82,6 +181,7 @@
 				341FB484DEA5911FB370E3A9 /* Day.swift */,
 				F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */,
 				13F1F2494B7BCAD4B4CF9D40 /* Expiry.swift */,
+				C9B44AEFCFF9C693E4A65F39 /* ExpiryReminders.swift */,
 				10833C540B84950FE1479523 /* Filters.swift */,
 				DDEE5A1DCE725B1EC8DF8294 /* Format.swift */,
 				0A0808AC0ADC80CBB2DF5F9B /* FuzzySearch.swift */,
@@ -89,20 +189,49 @@
 			path = Logic;
 			sourceTree = "<group>";
 		};
+		4DC67410E75153746AD91B92 /* Gmail */ = {
+			isa = PBXGroup;
+			children = (
+				BC51414DE75860EB5CD0817C /* GmailAPI.swift */,
+				586C5974CA08A20505EF7311 /* GmailImporter.swift */,
+				DE83F8382D3434A601CF64A4 /* GmailModels.swift */,
+				380498F729BECAA125988C15 /* GmailSettings.swift */,
+				DFBD1A31D155A65C3257D14C /* HTMLToPDF.swift */,
+			);
+			path = Gmail;
+			sourceTree = "<group>";
+		};
 		53D041160D4F7ACBDB86A67D /* AI */ = {
 			isa = PBXGroup;
 			children = (
+				D8BE4B147D0A193BD5176A27 /* AIInput.swift */,
+				3FCECCD5D97A3B2438D1F981 /* AIJobs.swift */,
+				74E793E4253C0A9EECC08AD0 /* AIService.swift */,
+				302180FEFA54B6043F402729 /* AISettings.swift */,
+				971E3CAF380EE9DA8B9CABD1 /* AskAll.swift */,
 				2A507912ABA9FBB8F77D2C4C /* Conversations.swift */,
 				EA84C9A395269A830D624076 /* Extraction.swift */,
+				D9F570B1B255F221F87C0E88 /* OpenAIClient.swift */,
 				C0290D63A5F3AC9B63E96917 /* Prompts.swift */,
 			);
 			path = AI;
+			sourceTree = "<group>";
+		};
+		5A47FD23980EBFDB0376AB27 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				BE48CF4A71CA0DBFB78FA0B2 /* DriveClient.swift */,
+				F28C8B9FC6743D37B91F7BC2 /* DriveSync.swift */,
+				098669ABFBD3C2F8DB94399A /* GoogleAccount.swift */,
+			);
+			path = Sync;
 			sourceTree = "<group>";
 		};
 		9EC45323AE13106623FEE875 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				E979AC321A8DC5834428FEE4 /* MyPapers.app */,
+				35C19AA3C3A124DBBCE4AD34 /* MyPapersShare.appex */,
 				BEB1190E27F570F9012EA199 /* MyPapersTests.xctest */,
 			);
 			name = Products;
@@ -111,19 +240,40 @@
 		B3F9A847263E93CC6647BB7C /* App */ = {
 			isa = PBXGroup;
 			children = (
+				849E7748E43B5AFC332827BE /* AppModel.swift */,
 				E936D85966649CBE7C668A2C /* MyPapersApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		BBB55564AC4E2C5190D30F2F /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				ED530A66EDB299F4559E32EF /* AskSheets.swift */,
+				1BD7C268636F9A85FFC9EC69 /* EditPaperView.swift */,
+				50D7A60E59DF28A8CE5573AC /* LibraryModel.swift */,
+				6377E126BCED12E1C3AE85A3 /* LibraryView.swift */,
+				A63B7983FF36A2D07F016A74 /* MarkdownViews.swift */,
+				E11A2E43BC724B6DDF4DCBBB /* PaperView.swift */,
+				F95E6E5DBF3E0C1B90822E3B /* PaperViews.swift */,
+				1596B647BF80FD5C920EE788 /* ScannerAndTrash.swift */,
+				996DC1253031628BAAB6466A /* SettingsView.swift */,
+			);
+			path = UI;
 			sourceTree = "<group>";
 		};
 		BCCD7DE7820ED9B970BC31C0 /* MyPapers */ = {
 			isa = PBXGroup;
 			children = (
 				095F7CD560C9B08BE0D858E3 /* Info.plist */,
+				9973446A6B7FB194DD3AE544 /* MyPapers.entitlements */,
 				53D041160D4F7ACBDB86A67D /* AI */,
 				B3F9A847263E93CC6647BB7C /* App */,
+				4DC67410E75153746AD91B92 /* Gmail */,
 				3FFB9CF56518B80544FFDB4C /* Logic */,
 				244D2B4D9612A42755C8B4F6 /* Model */,
+				5A47FD23980EBFDB0376AB27 /* Sync */,
+				BBB55564AC4E2C5190D30F2F /* UI */,
 			);
 			path = MyPapers;
 			sourceTree = "<group>";
@@ -132,6 +282,7 @@
 			isa = PBXGroup;
 			children = (
 				BCCD7DE7820ED9B970BC31C0 /* MyPapers */,
+				2F4C33CD9473EB7EB20D3064 /* MyPapersShare */,
 				F5B985C87ECB4E41C649C163 /* MyPapersTests */,
 				9EC45323AE13106623FEE875 /* Products */,
 			);
@@ -140,7 +291,11 @@
 		F5B985C87ECB4E41C649C163 /* MyPapersTests */ = {
 			isa = PBXGroup;
 			children = (
+				E3BE20FC3F5210FB05A94240 /* AIAskAllTests.swift */,
+				B07D651CC1D5719AD02A110B /* AIProxyTests.swift */,
+				3C2DB758A9FEAD9EF250C442 /* GmailTests.swift */,
 				752DF6DF6C57932B433821E9 /* LogicTests.swift */,
+				18C424AE13B91F6C98B3AC56 /* SyncTests.swift */,
 			);
 			path = MyPapersTests;
 			sourceTree = "<group>";
@@ -166,16 +321,35 @@
 			productReference = BEB1190E27F570F9012EA199 /* MyPapersTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		6067CE3D5266B205E6CDDFA1 /* MyPapersShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B0FB0BC31BE3DB72AF20E819 /* Build configuration list for PBXNativeTarget "MyPapersShare" */;
+			buildPhases = (
+				26554E08DD5D2A941B7E060C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MyPapersShare;
+			packageProductDependencies = (
+			);
+			productName = MyPapersShare;
+			productReference = 35C19AA3C3A124DBBCE4AD34 /* MyPapersShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		B1D6FBE96156E4D0CEF16F9B /* MyPapers */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3F66914B39D26E2F07E98EFC /* Build configuration list for PBXNativeTarget "MyPapers" */;
 			buildPhases = (
 				00D90DD1A3C696144B503956 /* Sources */,
 				3F8890D1B2838704FF1A021F /* Frameworks */,
+				B06701C75FA39C9BD3AF851F /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AA45038FBC458123E33A46B0 /* PBXTargetDependency */,
 			);
 			name = MyPapers;
 			packageProductDependencies = (
@@ -195,6 +369,9 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					4CB0FE7D562FB85621D65041 = {
+						DevelopmentTeam = "";
+					};
+					6067CE3D5266B205E6CDDFA1 = {
 						DevelopmentTeam = "";
 					};
 					B1D6FBE96156E4D0CEF16F9B = {
@@ -220,6 +397,7 @@
 			projectRoot = "";
 			targets = (
 				B1D6FBE96156E4D0CEF16F9B /* MyPapers */,
+				6067CE3D5266B205E6CDDFA1 /* MyPapersShare */,
 				4CB0FE7D562FB85621D65041 /* MyPapersTests */,
 			);
 		};
@@ -230,19 +408,53 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9B9FAF845A111DF202554E72 /* AIInput.swift in Sources */,
+				FC7C0FEDDAC79EE92699DB4C /* AIJobs.swift in Sources */,
+				8B3ECFA37279F464F8A38162 /* AIService.swift in Sources */,
+				DCF6128946C26A46B85B9513 /* AISettings.swift in Sources */,
+				2CE0ED0244DBAD9098AC0C15 /* AppModel.swift in Sources */,
+				B5BF2F515115B66AB7F6D004 /* AskAll.swift in Sources */,
+				8EB6FEABB43E24158C64A638 /* AskSheets.swift in Sources */,
 				098BBBCFCB0F6ED9A998490D /* Conversations.swift in Sources */,
 				07ECE23EF1C7378F16E7CD9E /* Day.swift in Sources */,
+				A4BF866689D22546C3BC89F3 /* DriveClient.swift in Sources */,
+				28DF46BB21A495B80E093766 /* DriveSync.swift in Sources */,
 				4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */,
+				90B4820D2489A7C650816697 /* EditPaperView.swift in Sources */,
 				E166D2A418CA7BE119B6D69B /* Expiry.swift in Sources */,
+				F4BE430AE55E55D010CE0506 /* ExpiryReminders.swift in Sources */,
 				72B9135359BC001358B6AFBB /* Extraction.swift in Sources */,
 				BC4FF802A09920F062AF6506 /* Filters.swift in Sources */,
 				DA5D6E9E3A7310D88E003955 /* Format.swift in Sources */,
 				BFD32ABEEFBAF93FC28B728A /* FuzzySearch.swift in Sources */,
+				0C2550E2D9F7C3F91F6A0A0F /* GmailAPI.swift in Sources */,
+				32FBBF0C99A5FA6CB8380BA0 /* GmailImporter.swift in Sources */,
+				C8C89BD42EEFF74C4182D053 /* GmailModels.swift in Sources */,
+				DD182FA7C82A14CC48007E1B /* GmailSettings.swift in Sources */,
+				65021D01FB8EB20C71E7701B /* GoogleAccount.swift in Sources */,
+				DFAFA5AED6C72FC68660EC19 /* HTMLToPDF.swift in Sources */,
+				6FA8D990132577D28DFD2B37 /* LibraryModel.swift in Sources */,
+				1A52DB3B4BD22118CBE55EE8 /* LibraryView.swift in Sources */,
+				824C28329851440BB460766D /* MarkdownViews.swift in Sources */,
 				A483166811C838C27A03CF2D /* MyPapersApp.swift in Sources */,
+				F65FCD47D1855B7872D3DB46 /* OpenAIClient.swift in Sources */,
 				DCE0C4F8F78A502650391ED3 /* Paper.swift in Sources */,
 				8660D33684676C20D7477C82 /* PaperFiles.swift in Sources */,
 				17F3D782C7569490FE9FBF9F /* PaperJSON.swift in Sources */,
+				482FC5EAE5D8F7F4509A1179 /* PaperStore.swift in Sources */,
+				31B63C941DDCD4D14EE19001 /* PaperView.swift in Sources */,
+				57D7B28AAE2A2C20BB197ACA /* PaperViews.swift in Sources */,
 				54FFDF623201CEFCE6A6F7B1 /* Prompts.swift in Sources */,
+				B2807A912D0BDA725F546218 /* ScannerAndTrash.swift in Sources */,
+				D4C5DA302C284B0BB7B29376 /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		26554E08DD5D2A941B7E060C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				36C95D12234573E033F98D70 /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -250,7 +462,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2A17A0D087C7720B6F98DECC /* AIAskAllTests.swift in Sources */,
+				6BBDE66DD4469F3C44949ED4 /* AIProxyTests.swift in Sources */,
+				09691A4E59401313B78B3F3E /* GmailTests.swift in Sources */,
 				137A60FBCBE27E43297B3D1F /* LogicTests.swift in Sources */,
+				4500D195A41EB00B015BC4E9 /* SyncTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -262,9 +478,30 @@
 			target = B1D6FBE96156E4D0CEF16F9B /* MyPapers */;
 			targetProxy = 1ABF2B7B19DCB747191AE894 /* PBXContainerItemProxy */;
 		};
+		AA45038FBC458123E33A46B0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6067CE3D5266B205E6CDDFA1 /* MyPapersShare */;
+			targetProxy = C381D6EA94AF6ED8028132B3 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2DA15AEEDE6B05012904A6EE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MyPapersShare/MyPapersShare.entitlements;
+				INFOPLIST_FILE = MyPapersShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.mypapers.share;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		38B4AC47B857AB4E73146F62 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -286,6 +523,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MyPapers/MyPapers.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_PREVIEWS = YES;
 				GOOGLE_IOS_CLIENT_ID = "";
@@ -383,6 +621,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MyPapers/MyPapers.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_PREVIEWS = YES;
 				GOOGLE_IOS_CLIENT_ID = "";
@@ -394,6 +633,22 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.mypapers;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		CC0661E9C60CEB679999E517 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MyPapersShare/MyPapersShare.entitlements;
+				INFOPLIST_FILE = MyPapersShare/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.mypapers.share;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -483,6 +738,15 @@
 			buildConfigurations = (
 				C3C31422239D139D8771D6D2 /* Debug */,
 				7CBE3EB9D9D5F39788A9D798 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B0FB0BC31BE3DB72AF20E819 /* Build configuration list for PBXNativeTarget "MyPapersShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC0661E9C60CEB679999E517 /* Debug */,
+				2DA15AEEDE6B05012904A6EE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

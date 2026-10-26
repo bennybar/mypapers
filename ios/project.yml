@@ -27,6 +27,11 @@ targets:
       - path: MyPapers/Resources
     dependencies:
       - package: GoogleSignIn
+      - target: MyPapersShare
+    entitlements:
+      path: MyPapers/MyPapers.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.bennybar.mypapers]
     info:
       path: MyPapers/Info.plist
       properties:
@@ -53,6 +58,28 @@ targets:
         GOOGLE_WEB_CLIENT_ID: ""
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
+  MyPapersShare:
+    type: app-extension
+    platform: iOS
+    sources: [MyPapersShare]
+    entitlements:
+      path: MyPapersShare/MyPapersShare.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.bennybar.mypapers]
+    info:
+      path: MyPapersShare/Info.plist
+      properties:
+        CFBundleDisplayName: My Papers
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsFileWithMaxCount: 20
+              NSExtensionActivationSupportsImageWithMaxCount: 20
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bennybar.mypapers.share
   MyPapersTests:
     type: bundle.unit-test
     platform: iOS
