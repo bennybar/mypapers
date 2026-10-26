@@ -185,14 +185,14 @@ private struct GmailSection: View {
                 if !s.isConnected {
                     Button("Connect Gmail") { connect() }.disabled(app.account.email == nil)
                 } else {
-                    Button(g.busy ? "Scanning…" : (s.lastScanAt == 0 ? "Scan now" : "Scan again")) { g.scanNow(); app.path.append(.gmail) }.disabled(g.busy)
+                    Button(g.busy ? "Scanning…" : (s.lastScanAt == 0 ? "Scan now" : "Scan again")) { g.scanNow(); app.tab = .gmail }.disabled(g.busy)
                     Spacer()
                     Button("Disconnect", role: .destructive) { g.disconnect() }
                 }
             }
             .buttonStyle(.glass)
             if app.account.email == nil { Text("Sign in first (above) — Gmail uses the same Google account.").font(.caption) }
-            if g.newCount > 0 { Button("Review \(g.newCount) found in Gmail") { app.path.append(.gmail) } }
+            if g.newCount > 0 { Button("Review \(g.newCount) found in Gmail") { app.tab = .gmail } }
         } header: { Text("Gmail") }
     }
 

@@ -35,6 +35,20 @@
                ReferencedContainer = "container:MyPapers.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "781456D07B54DCC388204804"
+               BuildableName = "MyPapersUITests.xctest"
+               BlueprintName = "MyPapersUITests"
+               ReferencedContainer = "container:MyPapers.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -61,6 +75,17 @@
                BlueprintIdentifier = "4CB0FE7D562FB85621D65041"
                BuildableName = "MyPapersTests.xctest"
                BlueprintName = "MyPapersTests"
+               ReferencedContainer = "container:MyPapers.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "781456D07B54DCC388204804"
+               BuildableName = "MyPapersUITests.xctest"
+               BlueprintName = "MyPapersUITests"
                ReferencedContainer = "container:MyPapers.xcodeproj">
             </BuildableReference>
          </TestableReference>

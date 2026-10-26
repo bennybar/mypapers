@@ -91,11 +91,22 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  MyPapersUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [MyPapersUITests]
+    dependencies:
+      - target: MyPapers
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: MyPapers
 schemes:
   MyPapers:
     build:
       targets:
         MyPapers: all
         MyPapersTests: [test]
+        MyPapersUITests: [test]
     test:
-      targets: [MyPapersTests]
+      targets: [MyPapersTests, MyPapersUITests]

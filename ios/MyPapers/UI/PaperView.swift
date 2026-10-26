@@ -33,15 +33,24 @@ struct PaperView: View {
     private func content(_ p: Paper) -> some View {
         let asking = app.jobs.isAsking(id)
         let transcribing = app.jobs.isTranscribing(id)
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(p.displayTitle).font(.largeTitle.weight(.semibold)).textSelection(.enabled)
-                Text(p.subtitle).font(.title3).foregroundStyle(.secondary)
-                HStack {
-                    AIStatusLine(paper: p)
-                    Spacer()
-                    if p.aiState == aiFailed, app.ai.config.isSet { Button("Retry") { app.requestReading(id) } }
-                    if p.aiState == aiPending { Button("Stop") { app.jobs.cancelRead(id) } }
+        List {
+            // What it is at a glance: the amount, tags, when it runs out, what the AI is doing.
+            Section {
+                if let a = p.amountText {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(a).font(.system(.largeTitle, design: .rounded).weight(.bold)).foregroundStyle(.tint).monospacedDigit()
+                        if let vat = p.vatCents { Text("VAT \(Format.amount(vat, p.currency))").font(.subheadline).foregroundStyle(.secondary) }
+                    }
+                }
+                if !p.tags.isEmpty { TagChips(tags: p.tags) }
+                if Expiry.date(p.details, dayFirst: Format.dayFirst()) != nil { ExpiryLabel(paper: p) }
+                if p.aiState == aiPending || p.aiState == aiFailed {
+                    HStack {
+                        AIStatusLine(paper: p)
+                        Spacer()
+                        if p.aiState == aiFailed, app.ai.config.isSet { Button("Retry") { app.requestReading(id) }.buttonStyle(.glass) }
+                        if p.aiState == aiPending { Button("Stop") { app.jobs.cancelRead(id) }.buttonStyle(.glass) }
+                    }
                 }
                 if asking && askHidden || transcribing {
                     HStack(spacing: 10) {
@@ -49,27 +58,26 @@ struct PaperView: View {
                         Text(transcribing ? "Extracting all text… you'll get a notification when it's done" : "Asking the AI: \(app.conversations.papers[id]?.last?.question ?? "")")
                             .font(.subheadline).foregroundStyle(.secondary)
                         Spacer()
-                        Button("Stop") { if transcribing { app.jobs.cancelTranscribe(id) } else { app.jobs.cancelAsk(id) } }
+                        Button("Stop") { if transcribing { app.jobs.cancelTranscribe(id) } else { app.jobs.cancelAsk(id) } }.buttonStyle(.glass)
                     }
                 }
-                ExpiryLabel(paper: p)
                 if let dup = p.duplicateOf, let other = app.store.live(dup) { DuplicateBanner(other: other, paperID: id) }
-                if let a = p.amountText {
-                    Text(a).font(.system(.largeTitle, design: .rounded).weight(.bold)).foregroundStyle(.tint)
-                    if let vat = p.vatCents { Text("VAT \(Format.amount(vat, p.currency))").font(.subheadline).foregroundStyle(.secondary) }
-                }
-                if !p.tags.isEmpty { TagChips(tags: p.tags) }
-                if !p.details.isEmpty {
-                    DetailsCard(details: p.details, onRework: app.ai.config.isSet && p.fileLocal && !asking ? { reworking = $0 } : nil)
-                }
-                if !p.transcript.isEmpty { TextCard(markdown: p.transcript) { editingText = true } }
-                if !p.notes.isEmpty { Text(p.notes).textSelection(.enabled) }
-                PagesPreview(paper: p) { preview = PaperFiles.url(p.id) }
             }
-            .padding(.horizontal, 24)
-            // Room to scroll the end of the page up past the floating toolbar.
-            .padding(.bottom, 120)
+            if !p.details.isEmpty {
+                DetailsSection(details: p.details, onRework: app.ai.config.isSet && p.fileLocal && !asking ? { reworking = $0 } : nil)
+            }
+            if !p.transcript.isEmpty { TextSection(markdown: p.transcript) { editingText = true } }
+            if !p.notes.isEmpty { Section("Notes") { Text(p.notes).textSelection(.enabled) } }
+            Section {
+                PagesPreview(paper: p) { preview = PaperFiles.url(p.id) }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            } header: { Text("File") } footer: { Text(p.fileName ?? "") }
         }
+        .listStyle(.insetGrouped)
+        // The paper's own glass action bar takes the tab bar's place.
+        .toolbar(.hidden, for: .tabBar)
+        .navigationTitle(p.displayTitle)
+        .navigationSubtitle(p.subtitle)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -94,7 +102,7 @@ struct PaperView: View {
             ToolbarSpacer(.flexible, placement: .bottomBar)
             ToolbarItem(placement: .bottomBar) {
                 Button {
-                    if !app.ai.config.isSet { app.path.append(Route.settings) }
+                    if !app.ai.config.isSet { app.tab = .settings }
                     else if !p.fileLocal { app.toast("The file isn't on this phone yet") }
                     else if asking { askHidden = false }
                     else { askPrompt = true }
@@ -102,7 +110,6 @@ struct PaperView: View {
                 .buttonStyle(.glassProminent)
             }
         }
-        .toolbarTitleDisplayMode(.inline)
         .confirmationDialog("Reset this paper?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button("Reset", role: .destructive) { app.reset(id) }
         } message: {
@@ -299,6 +306,61 @@ struct PageImage: View {
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .task(id: "\(paper.id):\(paper.fileHash ?? "")") {
             image = await Thumbnails.shared.image(for: paper.id, hash: paper.fileHash ?? "", pdf: PaperFiles.isPDF(paper), pixels: 1600)
+        }
+    }
+}
+
+/** The AI's key details as native rows; long-press to copy one or rework it with the AI. */
+struct DetailsSection: View {
+    let details: [KeyDetail]
+    let onRework: ((String) -> Void)?
+
+    var body: some View {
+        Section {
+            ForEach(details, id: \.self) { d in
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(d.label).font(.subheadline).foregroundStyle(.secondary)
+                    if let rows = tableRows(d.value) { DetailTable(rows: rows) } else { Text(linked(shownDate(d.value))).textSelection(.enabled) }
+                }
+                .contextMenu {
+                    Button("Copy", systemImage: "doc.on.doc") { UIPasteboard.general.string = d.value }
+                    if let onRework { Button("Rework with AI…", systemImage: "sparkles") { onRework(d.label) } }
+                }
+                .swipeActions(edge: .trailing) {
+                    if let onRework { Button { onRework(d.label) } label: { Label("Rework", systemImage: "sparkles") }.tint(.purple) }
+                }
+            }
+        } header: {
+            HStack {
+                Text("Details")
+                Spacer()
+                Button {
+                    UIPasteboard.general.string = details.map { $0.value.contains("\n") ? "\($0.label):\n\($0.value)" : "\($0.label): \(shownDate($0.value))" }.joined(separator: "\n")
+                } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel("Copy details")
+            }
+        }
+    }
+}
+
+/** The paper written out ("Extract all text"): the start of it, or all of it; copy; edit. */
+struct TextSection: View {
+    let markdown: String
+    let onEdit: () -> Void
+    @State private var all = false
+
+    var body: some View {
+        let lines = markdown.split(separator: "\n", omittingEmptySubsequences: false)
+        let long = lines.count > 12
+        Section {
+            MarkdownView(text: long && !all ? lines.prefix(12).joined(separator: "\n") : markdown)
+            if long { Button(all ? "Show Less" : "Show All") { withAnimation { all.toggle() } } }
+        } header: {
+            HStack(spacing: 16) {
+                Text("Text")
+                Spacer()
+                Button(action: onEdit) { Image(systemName: "pencil") }.accessibilityLabel("Edit text")
+                Button { UIPasteboard.general.string = markdown } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel("Copy text")
+            }
         }
     }
 }

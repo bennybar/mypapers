@@ -77,30 +77,42 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var app = app
-        NavigationStack(path: $app.path) {
-            LibraryView()
-                .navigationDestination(for: Route.self) { route in
-                    switch route {
-                    case .paper(let id): PaperView(id: id)
-                    case .settings: SettingsView()
-                    case .gmail: GmailView()
-                    case .trash: TrashView()
-                    }
+        @Bindable var lib = app.library
+        TabView(selection: $app.tab) {
+            Tab("Papers", systemImage: "doc.text", value: AppTab.papers) {
+                NavigationStack(path: $app.path) { LibraryView().destinations() }
+            }
+            Tab("Gmail", systemImage: "envelope", value: AppTab.gmail) {
+                NavigationStack { GmailView().destinations() }
+            }
+            .badge(app.gmail.newCount)
+            Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+                NavigationStack(path: $app.settingsPath) { SettingsView().destinations() }
+            }
+            // iOS 26's search tab: the field floats at the bottom, matches and "Ask AI" above it.
+            Tab(value: AppTab.search, role: .search) {
+                NavigationStack(path: $app.searchPath) {
+                    LibraryView(searching: true).destinations()
                 }
+            }
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .searchable(text: $lib.query, prompt: "Papers, amounts, details…")
         .onAppear {
             app.namespace = namespace
             #if DEBUG
             // For screenshots: `-open paper|settings|gmail|trash` and `-style cards|compact|grid|timeline`.
             let args = ProcessInfo.processInfo.arguments
             if args.contains("-debugJob") { app.jobs.debugJob() }
+            if args.contains("-demo") { DemoData.load(into: app.store) }
             if let i = args.firstIndex(of: "-style"), i + 1 < args.count, let s = ListStyle(rawValue: args[i + 1]) { app.library.style = s }
             if let i = args.firstIndex(of: "-open"), i + 1 < args.count {
                 switch args[i + 1] {
                 case "paper": if let p = app.store.all().first { app.path = [.paper(p.id)] }
-                case "settings": app.path = [.settings]
-                case "gmail": app.path = [.gmail]
-                case "trash": app.path = [.trash]
+                case "settings": app.tab = .settings
+                case "gmail": app.tab = .gmail
+                case "trash": app.tab = .settings; app.settingsPath = [.trash]
+                case "search": app.tab = .search
                 default: break
                 }
             }
@@ -120,6 +132,20 @@ struct RootView: View {
             }
         }
         .animation(.spring, value: app.toastText)
+    }
+}
+
+extension View {
+    /** Where any tab's stack can go. */
+    func destinations() -> some View {
+        navigationDestination(for: Route.self) { route in
+            switch route {
+            case .paper(let id): PaperView(id: id)
+            case .settings: SettingsView()
+            case .gmail: GmailView()
+            case .trash: TrashView()
+            }
+        }
     }
 }
 

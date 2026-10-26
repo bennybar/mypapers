@@ -22,6 +22,7 @@
 		32FBBF0C99A5FA6CB8380BA0 /* GmailImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586C5974CA08A20505EF7311 /* GmailImporter.swift */; };
 		36C95D12234573E033F98D70 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */; };
 		377CCD0B891D5C247A13A130 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */; };
+		434D91088BE304E9EF4193D4 /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5172E6BEA47C418777815E /* DemoData.swift */; };
 		4500D195A41EB00B015BC4E9 /* SyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C424AE13B91F6C98B3AC56 /* SyncTests.swift */; };
 		482FC5EAE5D8F7F4509A1179 /* PaperStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5664694B25B3B5A9671788 /* PaperStore.swift */; };
 		4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */; };
@@ -35,6 +36,7 @@
 		824C28329851440BB460766D /* MarkdownViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63B7983FF36A2D07F016A74 /* MarkdownViews.swift */; };
 		8660D33684676C20D7477C82 /* PaperFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCAF6383897D4D176B84B8D /* PaperFiles.swift */; };
 		8B3ECFA37279F464F8A38162 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E793E4253C0A9EECC08AD0 /* AIService.swift */; };
+		8BF42E6CCDC246B35DB5C9FA /* ScreensUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6BCE9FC45EEBA001507954F /* ScreensUITests.swift */; };
 		8EB6FEABB43E24158C64A638 /* AskSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED530A66EDB299F4559E32EF /* AskSheets.swift */; };
 		90B4820D2489A7C650816697 /* EditPaperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BD7C268636F9A85FFC9EC69 /* EditPaperView.swift */; };
 		9B9FAF845A111DF202554E72 /* AIInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BE4B147D0A193BD5176A27 /* AIInput.swift */; };
@@ -72,6 +74,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 6067CE3D5266B205E6CDDFA1;
 			remoteInfo = MyPapersShare;
+		};
+		D21575F640123230798ADD0F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 58199CFDF50661D51FACB8F1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B1D6FBE96156E4D0CEF16F9B;
+			remoteInfo = MyPapers;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -118,7 +127,9 @@
 		9973446A6B7FB194DD3AE544 /* MyPapers.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyPapers.entitlements; sourceTree = "<group>"; };
 		A130EE1BB1E142D32BF53422 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A153CC238DC27C39F5849C35 /* MyPapersShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyPapersShare.entitlements; sourceTree = "<group>"; };
+		A5D57257B62CDA017A3604F1 /* MyPapersUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MyPapersUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A63B7983FF36A2D07F016A74 /* MarkdownViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownViews.swift; sourceTree = "<group>"; };
+		A6BCE9FC45EEBA001507954F /* ScreensUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreensUITests.swift; sourceTree = "<group>"; };
 		B07D651CC1D5719AD02A110B /* AIProxyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProxyTests.swift; sourceTree = "<group>"; };
 		BC51414DE75860EB5CD0817C /* GmailAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAPI.swift; sourceTree = "<group>"; };
 		BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -138,6 +149,7 @@
 		E936D85966649CBE7C668A2C /* MyPapersApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyPapersApp.swift; sourceTree = "<group>"; };
 		E979AC321A8DC5834428FEE4 /* MyPapers.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MyPapers.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA84C9A395269A830D624076 /* Extraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extraction.swift; sourceTree = "<group>"; };
+		EB5172E6BEA47C418777815E /* DemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoData.swift; sourceTree = "<group>"; };
 		EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		ED530A66EDB299F4559E32EF /* AskSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskSheets.swift; sourceTree = "<group>"; };
 		F283DEBC14F3B3E55CF5F72D /* Duplicates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Duplicates.swift; sourceTree = "<group>"; };
@@ -201,6 +213,14 @@
 			path = Logic;
 			sourceTree = "<group>";
 		};
+		4B479C2C032EBE8E6C5C60BF /* MyPapersUITests */ = {
+			isa = PBXGroup;
+			children = (
+				A6BCE9FC45EEBA001507954F /* ScreensUITests.swift */,
+			);
+			path = MyPapersUITests;
+			sourceTree = "<group>";
+		};
 		4DC67410E75153746AD91B92 /* Gmail */ = {
 			isa = PBXGroup;
 			children = (
@@ -245,6 +265,7 @@
 				E979AC321A8DC5834428FEE4 /* MyPapers.app */,
 				35C19AA3C3A124DBBCE4AD34 /* MyPapersShare.appex */,
 				BEB1190E27F570F9012EA199 /* MyPapersTests.xctest */,
+				A5D57257B62CDA017A3604F1 /* MyPapersUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -253,6 +274,7 @@
 			isa = PBXGroup;
 			children = (
 				849E7748E43B5AFC332827BE /* AppModel.swift */,
+				EB5172E6BEA47C418777815E /* DemoData.swift */,
 				E936D85966649CBE7C668A2C /* MyPapersApp.swift */,
 			);
 			path = App;
@@ -298,6 +320,7 @@
 				BCCD7DE7820ED9B970BC31C0 /* MyPapers */,
 				2F4C33CD9473EB7EB20D3064 /* MyPapersShare */,
 				F5B985C87ECB4E41C649C163 /* MyPapersTests */,
+				4B479C2C032EBE8E6C5C60BF /* MyPapersUITests */,
 				9EC45323AE13106623FEE875 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -352,6 +375,24 @@
 			productReference = 35C19AA3C3A124DBBCE4AD34 /* MyPapersShare.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		781456D07B54DCC388204804 /* MyPapersUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D59FAB01A2222584F12E5187 /* Build configuration list for PBXNativeTarget "MyPapersUITests" */;
+			buildPhases = (
+				C1F3BF3D217B4BBDF1ED2600 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0DAF70B3F8912BBBA2E016A7 /* PBXTargetDependency */,
+			);
+			name = MyPapersUITests;
+			packageProductDependencies = (
+			);
+			productName = MyPapersUITests;
+			productReference = A5D57257B62CDA017A3604F1 /* MyPapersUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		B1D6FBE96156E4D0CEF16F9B /* MyPapers */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3F66914B39D26E2F07E98EFC /* Build configuration list for PBXNativeTarget "MyPapers" */;
@@ -391,6 +432,11 @@
 						DevelopmentTeam = 57L2ULXB7Z;
 						ProvisioningStyle = Automatic;
 					};
+					781456D07B54DCC388204804 = {
+						DevelopmentTeam = 57L2ULXB7Z;
+						ProvisioningStyle = Automatic;
+						TestTargetID = B1D6FBE96156E4D0CEF16F9B;
+					};
 					B1D6FBE96156E4D0CEF16F9B = {
 						DevelopmentTeam = 57L2ULXB7Z;
 						ProvisioningStyle = Automatic;
@@ -417,6 +463,7 @@
 				B1D6FBE96156E4D0CEF16F9B /* MyPapers */,
 				6067CE3D5266B205E6CDDFA1 /* MyPapersShare */,
 				4CB0FE7D562FB85621D65041 /* MyPapersTests */,
+				781456D07B54DCC388204804 /* MyPapersUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -447,6 +494,7 @@
 				8EB6FEABB43E24158C64A638 /* AskSheets.swift in Sources */,
 				098BBBCFCB0F6ED9A998490D /* Conversations.swift in Sources */,
 				07ECE23EF1C7378F16E7CD9E /* Day.swift in Sources */,
+				434D91088BE304E9EF4193D4 /* DemoData.swift in Sources */,
 				A4BF866689D22546C3BC89F3 /* DriveClient.swift in Sources */,
 				28DF46BB21A495B80E093766 /* DriveSync.swift in Sources */,
 				4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */,
@@ -500,9 +548,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C1F3BF3D217B4BBDF1ED2600 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8BF42E6CCDC246B35DB5C9FA /* ScreensUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		0DAF70B3F8912BBBA2E016A7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B1D6FBE96156E4D0CEF16F9B /* MyPapers */;
+			targetProxy = D21575F640123230798ADD0F /* PBXContainerItemProxy */;
+		};
 		96734CAC71E0C8BFDE25274D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = B1D6FBE96156E4D0CEF16F9B /* MyPapers */;
@@ -516,6 +577,23 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		2A310D4729A158DDD2962A7C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.MyPapersUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MyPapers;
+			};
+			name = Release;
+		};
 		2DA15AEEDE6B05012904A6EE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -753,6 +831,23 @@
 			};
 			name = Debug;
 		};
+		FCE02BA3035ADCABB025AA32 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.bennybar.MyPapersUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MyPapers;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -788,6 +883,15 @@
 			buildConfigurations = (
 				38B4AC47B857AB4E73146F62 /* Debug */,
 				9313E7194B4E0FAB44D4317F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D59FAB01A2222584F12E5187 /* Build configuration list for PBXNativeTarget "MyPapersUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FCE02BA3035ADCABB025AA32 /* Debug */,
+				2A310D4729A158DDD2962A7C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

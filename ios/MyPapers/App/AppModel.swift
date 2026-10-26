@@ -3,6 +3,9 @@ import SwiftData
 import SwiftUI
 import UserNotifications
 
+/** The tabs of the floating tab bar. */
+enum AppTab: Hashable { case papers, gmail, settings, search }
+
 /** Where the navigation stack can go. */
 enum Route: Hashable {
     case paper(String)
@@ -31,7 +34,11 @@ final class AppModel {
     let gmail: GmailImporter
     let library = LibraryModel()
 
+    var tab: AppTab = .papers
+    /** The Papers tab's stack (the Search tab opens papers here too). */
     var path: [Route] = []
+    var searchPath: [Route] = []
+    var settingsPath: [Route] = []
     var namespace: Namespace.ID?
     /** A short message at the bottom ("Added", "Already in My Papers"). */
     var toastText: String?
@@ -110,9 +117,16 @@ final class AppModel {
 
     // MARK: Papers
 
+    /** Opens a paper in the tab showing (Search keeps its own stack). */
     func open(_ id: String) {
-        if case .paper(let open)? = path.last, open == id { return }
-        path.append(.paper(id))
+        if tab == .search {
+            if case .paper(let open)? = searchPath.last, open == id { return }
+            searchPath.append(.paper(id))
+        } else {
+            if tab != .papers { tab = .papers }
+            if case .paper(let open)? = path.last, open == id { return }
+            path.append(.paper(id))
+        }
     }
 
     func importFiles(_ urls: [URL], name: String? = nil) {
@@ -167,7 +181,9 @@ final class AppModel {
 
     func moveToTrash(ids: [String]) {
         ids.forEach(store.moveToTrash)
-        if path.last.map({ if case .paper(let id) = $0 { ids.contains(id) } else { false } }) == true { path.removeLast() }
+        func leave(_ p: inout [Route]) { if p.last.map({ if case .paper(let id) = $0 { ids.contains(id) } else { false } }) == true { p.removeLast() } }
+        leave(&path)
+        leave(&searchPath)
         toast(ids.count == 1 ? "Moved to trash" : "\(ids.count) moved to trash")
     }
 
@@ -181,7 +197,7 @@ final class AppModel {
 
     /** The library's sparkle: read what's unread, or say why not. */
     func readUnreadTapped() {
-        if !ai.config.isSet { path.append(.settings) }
+        if !ai.config.isSet { tab = .settings }
         else if store.unread().isEmpty { toast("Every paper is read") }
         else { readUnread() }
     }
@@ -304,9 +320,9 @@ final class AppModel {
 
     /** A tapped notification: the paper, the Gmail finds or Settings. */
     func handleNotification(_ info: [AnyHashable: Any]) {
-        if let id = info["paperId"] as? String { path = [.paper(id)] }
-        else if (info["open"] as? String) == "gmail" { path = [.gmail] }
-        else if (info["open"] as? String) == "settings" { path = [.settings] }
+        if let id = info["paperId"] as? String { tab = .papers; path = [.paper(id)] }
+        else if (info["open"] as? String) == "gmail" { tab = .gmail }
+        else if (info["open"] as? String) == "settings" { tab = .settings }
     }
 
     static func topViewController() -> UIViewController? {

@@ -130,29 +130,25 @@ struct PaperCard: View {
 struct CompactRow: View {
     let paper: Paper
     let signedIn: Bool
-    let selected: Bool
     var day: Int? = nil
 
     var body: some View {
         HStack(spacing: 12) {
-            if selected {
-                Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(.tint).frame(width: 34)
-            } else if let day {
-                Text("\(day)").font(.headline).foregroundStyle(.secondary).frame(width: 34)
+            if let day {
+                Text("\(day)").font(.headline).foregroundStyle(.secondary).frame(width: 30)
             } else {
                 Image(systemName: paper.kindSymbol)
                     .font(.subheadline)
-                    .frame(width: 34, height: 34)
+                    .foregroundStyle(.tint)
+                    .frame(width: 32, height: 32)
                     .background(.tint.opacity(0.14), in: KindShape(kind: paper.docType))
             }
-            Text(paper.displayTitle).font(.body.weight(.medium)).lineLimit(1)
+            Text(paper.displayTitle).lineLimit(1)
             Spacer(minLength: 6)
             if day == nil { Text(shortDate(Filters.paperDay(paper))).font(.footnote).foregroundStyle(.secondary) }
-            if let a = paper.amountText { Text(a).font(.body.weight(.semibold)) }
+            if let a = paper.amountText { Text(a).fontWeight(.semibold).monospacedDigit() }
             if signedIn { CloudMark(paper: paper) }
         }
-        .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(selected ? Color.accentColor.opacity(0.15) : Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
