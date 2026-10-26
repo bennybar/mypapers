@@ -10,7 +10,8 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     # Set to your Apple Developer team for device builds and TestFlight.
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: 57L2ULXB7Z
+    CODE_SIGN_STYLE: Automatic
     # The simulator only needs a local signature (tests won't load unsigned).
     "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
 packages:

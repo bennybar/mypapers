@@ -369,13 +369,16 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					4CB0FE7D562FB85621D65041 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 57L2ULXB7Z;
+						ProvisioningStyle = Automatic;
 					};
 					6067CE3D5266B205E6CDDFA1 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 57L2ULXB7Z;
+						ProvisioningStyle = Automatic;
 					};
 					B1D6FBE96156E4D0CEF16F9B = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 57L2ULXB7Z;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -574,10 +577,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 57L2ULXB7Z;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -688,10 +692,11 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 57L2ULXB7Z;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
