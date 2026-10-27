@@ -223,51 +223,93 @@ private struct RegionSection: View {
     }
 }
 
-/** What Gmail scans found: pick what to add (the AI never reads these on its own). */
+/**
+ * What Gmail scans found: pick what to add (the AI never reads these on its own). One by one (swipe,
+ * long-press), or Select → Select All (or some) → Add / Not Papers for all of them at once.
+ */
 struct GmailView: View {
     @Environment(AppModel.self) private var app
+    @State private var editMode: EditMode = .inactive
+    @State private var selection: Set<String> = []
 
     var body: some View {
         let g = app.gmail
-        List {
-            if g.scanning {
+        let keys = g.candidates.map(\.key)
+        List(selection: Binding(get: { editMode.isEditing ? selection : [] }, set: { if editMode.isEditing { selection = $0 } })) {
+            if g.busy {
                 HStack {
                     ProgressView()
-                    Text(g.progress.map { $0.total > 0 ? "Looking through Gmail · \($0.done) of \($0.total)" : "Looking through Gmail…" } ?? "Looking through Gmail…")
+                    Text(scanText(g)).font(.subheadline)
                     Spacer()
-                    Button("Stop") { g.cancelScan() }
+                    if g.scanning { Button("Stop") { g.cancelScan() }.buttonStyle(.glass) }
                 }
             }
             if let e = g.scanError { Text(e).foregroundStyle(.red) }
-            if g.candidates.isEmpty && !g.scanning {
-                ContentUnavailableView("Nothing new in Gmail", systemImage: "envelope.open", description: Text("New receipts and documents show up here after a scan."))
+            if g.candidates.isEmpty && !g.busy {
+                ContentUnavailableView("Nothing new in Gmail", systemImage: "envelope.open",
+                                       description: Text(g.settings.isConnected ? "New receipts and documents show up here after a scan." : "Connect Gmail in Settings to find receipts and documents in your mail."))
             }
-            ForEach(g.candidates, id: \.key) { c in
-                VStack(alignment: .leading, spacing: 4) {
-                    Label(c.fileName, systemImage: c.kind == GmailCandidate.kindEmail ? "envelope" : (c.mimeType == "application/pdf" ? "doc.richtext" : "photo"))
-                        .font(.body.weight(.medium))
-                    Text("\(c.sender) · \(c.subject)").font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                    Text(Format.day(c.sentAt)).font(.caption2).foregroundStyle(.secondary)
-                    if c.state == GmailCandidate.stateQueued { Label("Adding…", systemImage: "arrow.down.circle").font(.caption).foregroundStyle(.tint) }
-                    if c.state == GmailCandidate.stateFailed { Text(c.error ?? "Couldn't add it").font(.caption).foregroundStyle(.red) }
+            Section {
+                ForEach(g.candidates, id: \.key) { c in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(c.fileName, systemImage: c.kind == GmailCandidate.kindEmail ? "envelope" : (c.mimeType == "application/pdf" ? "doc.richtext" : "photo"))
+                            .font(.body.weight(.medium))
+                        Text("\(c.sender) · \(c.subject)").font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Text(Format.day(c.sentAt)).font(.caption2).foregroundStyle(.secondary)
+                        if c.state == GmailCandidate.stateQueued { Label("Adding…", systemImage: "arrow.down.circle").font(.caption).foregroundStyle(.tint) }
+                        if c.state == GmailCandidate.stateFailed { Text(c.error ?? "Couldn't add it").font(.caption).foregroundStyle(.red) }
+                    }
+                    .tag(c.key)
+                    .swipeActions(edge: .leading) { Button("Add") { g.importCandidate(c) }.tint(.accentColor) }
+                    .swipeActions(edge: .trailing) { Button("Not a Paper", role: .destructive) { g.dismiss(c) } }
+                    .contextMenu {
+                        Button("Add to My Papers", systemImage: "plus") { g.importCandidate(c) }
+                        Button("Not a Paper", systemImage: "xmark", role: .destructive) { g.dismiss(c) }
+                    }
                 }
-                .swipeActions(edge: .leading) { Button("Add") { g.importCandidate(c) }.tint(.accentColor) }
-                .swipeActions(edge: .trailing) { Button("Not a paper", role: .destructive) { g.dismiss(c) } }
-                .contextMenu {
-                    Button("Add to My Papers") { g.importCandidate(c) }
-                    Button("Not a paper", role: .destructive) { g.dismiss(c) }
-                }
+            } footer: {
+                if !g.candidates.isEmpty && !editMode.isEditing { Text("Swipe right to add, left if it isn't a paper — or Select to do many at once.") }
             }
         }
-        .navigationTitle("Found in Gmail")
+        .environment(\.editMode, $editMode)
+        // In Select mode the actions bar takes the tab bar's place.
+        .toolbar(editMode.isEditing ? .hidden : .visible, for: .tabBar)
+        .navigationTitle(editMode.isEditing ? "\(selection.count) selected" : "Found in Gmail")
+        .refreshable { g.scanNow() }
+        .onChange(of: editMode) { _, m in if !m.isEditing { selection = [] } }
+        .onChange(of: keys) { _, now in selection.formIntersection(now) }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { g.scanNow() } label: { Image(systemName: "arrow.clockwise") }.disabled(g.busy).accessibilityLabel("Scan again")
-            }
-            if !g.candidates.isEmpty {
-                ToolbarItem(placement: .bottomBar) { Button("Add all \(g.candidates.count)") { g.importAll() }.buttonStyle(.glassProminent) }
+            if editMode.isEditing {
+                ToolbarItem(placement: .topBarLeading) { Button("Done") { editMode = .inactive } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(selection.count == keys.count ? "Deselect All" : "Select All") {
+                        selection = selection.count == keys.count ? [] : Set(keys)
+                    }
+                }
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button("Not Papers", role: .destructive) { g.dismiss(Array(selection)); editMode = .inactive }
+                        .disabled(selection.isEmpty)
+                    Spacer()
+                    Button(selection.isEmpty ? "Add" : "Add \(selection.count)") { g.queue(Array(selection)); editMode = .inactive }
+                        .buttonStyle(.glassProminent)
+                        .disabled(selection.isEmpty)
+                }
+            } else {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Select") { editMode = .active }.disabled(g.candidates.isEmpty)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { g.scanNow() } label: { Image(systemName: "arrow.clockwise") }
+                        .disabled(g.busy || !g.settings.isConnected).accessibilityLabel("Scan again")
+                }
             }
         }
         .onAppear { g.refresh() }
+    }
+
+    private func scanText(_ g: GmailImporter) -> String {
+        let p = g.progress
+        if g.scanning { return p.map { $0.total > 0 ? "Looking through Gmail · \($0.done) of \($0.total)" : "Looking through Gmail…" } ?? "Looking through Gmail…" }
+        return p.map { $0.total > 0 ? "Adding · \($0.done + 1) of \($0.total)" : "Adding…" } ?? "Adding…"
     }
 }

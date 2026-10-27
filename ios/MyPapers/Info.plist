@@ -6,7 +6,7 @@
 	<array>
 		<string>com.bennybar.mypapers.sync</string>
 		<string>com.bennybar.mypapers.gmail</string>
-		<string>com.bennybar.mypapers.ai.*</string>
+		<string>com.bennybar.mypapers.live.*</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>

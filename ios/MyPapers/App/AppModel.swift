@@ -76,9 +76,17 @@ final class AppModel {
         if ai.config.isSet && ai.config.autoRead && !store.unread().isEmpty { jobs.readAll() }
     }
 
+    /**
+     * A sync the user asked for (pull to refresh, signing in): shown by iOS as live work (Dynamic Island,
+     * Lock Screen) and kept going after leaving the app, so a big first upload or download finishes.
+     */
     func syncNow() async {
         guard account.email != nil else { return }
+        LiveWork.shared.begin("drive-sync", title: "Syncing with Google Drive", subtitle: "Your papers") { }
+        sync.onProgress = { done, total in LiveWork.shared.progress("drive-sync", done: done, total: total) }
         await sync.sync()
+        sync.onProgress = nil
+        LiveWork.shared.end("drive-sync")
     }
 
     // MARK: Account
@@ -90,6 +98,7 @@ final class AppModel {
         if let email = account.email {
             await sync.connect(email: email)
             AIJobs.requestNotificationPermission()
+            await syncNow()
         }
     }
 

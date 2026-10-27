@@ -32,6 +32,8 @@ struct LibraryView: View {
             .navigationSubtitle(searching || editMode.isEditing ? "" : (lib.narrowed ? "\(results.count) shown" : (all.count == 1 ? "1 paper" : "\(all.count) papers")))
             .toolbar { toolbar(all, results) }
             .environment(\.editMode, $editMode)
+            // In Select mode the actions bar takes the tab bar's place.
+            .toolbar(editMode.isEditing ? .hidden : .visible, for: .tabBar)
             .onChange(of: editMode) { _, m in if !m.isEditing { lib.selection = [] } }
             .refreshable { await app.syncNow() }
             .sheet(isPresented: $showFilters) { FilterSheet(vendors: lib.vendors(all)).presentationDetents([.medium, .large]) }

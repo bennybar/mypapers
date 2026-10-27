@@ -42,6 +42,7 @@
 		9B9FAF845A111DF202554E72 /* AIInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8BE4B147D0A193BD5176A27 /* AIInput.swift */; };
 		A483166811C838C27A03CF2D /* MyPapersApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E936D85966649CBE7C668A2C /* MyPapersApp.swift */; };
 		A4BF866689D22546C3BC89F3 /* DriveClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE48CF4A71CA0DBFB78FA0B2 /* DriveClient.swift */; };
+		A90635515334B0A9CAFBB930 /* LiveWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BE95AF707DF0E64022D2103 /* LiveWork.swift */; };
 		B2807A912D0BDA725F546218 /* ScannerAndTrash.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1596B647BF80FD5C920EE788 /* ScannerAndTrash.swift */; };
 		B5BF2F515115B66AB7F6D004 /* AskAll.swift in Sources */ = {isa = PBXBuildFile; fileRef = 971E3CAF380EE9DA8B9CABD1 /* AskAll.swift */; };
 		BC4FF802A09920F062AF6506 /* Filters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10833C540B84950FE1479523 /* Filters.swift */; };
@@ -122,6 +123,7 @@
 		74E793E4253C0A9EECC08AD0 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		752DF6DF6C57932B433821E9 /* LogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicTests.swift; sourceTree = "<group>"; };
 		849E7748E43B5AFC332827BE /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		8BE95AF707DF0E64022D2103 /* LiveWork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWork.swift; sourceTree = "<group>"; };
 		971E3CAF380EE9DA8B9CABD1 /* AskAll.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskAll.swift; sourceTree = "<group>"; };
 		996DC1253031628BAAB6466A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9973446A6B7FB194DD3AE544 /* MyPapers.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MyPapers.entitlements; sourceTree = "<group>"; };
@@ -275,6 +277,7 @@
 			children = (
 				849E7748E43B5AFC332827BE /* AppModel.swift */,
 				EB5172E6BEA47C418777815E /* DemoData.swift */,
+				8BE95AF707DF0E64022D2103 /* LiveWork.swift */,
 				E936D85966649CBE7C668A2C /* MyPapersApp.swift */,
 			);
 			path = App;
@@ -513,6 +516,7 @@
 				DFAFA5AED6C72FC68660EC19 /* HTMLToPDF.swift in Sources */,
 				6FA8D990132577D28DFD2B37 /* LibraryModel.swift in Sources */,
 				1A52DB3B4BD22118CBE55EE8 /* LibraryView.swift in Sources */,
+				A90635515334B0A9CAFBB930 /* LiveWork.swift in Sources */,
 				824C28329851440BB460766D /* MarkdownViews.swift in Sources */,
 				A483166811C838C27A03CF2D /* MyPapersApp.swift in Sources */,
 				F65FCD47D1855B7872D3DB46 /* OpenAIClient.swift in Sources */,

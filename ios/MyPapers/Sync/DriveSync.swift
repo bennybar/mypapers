@@ -48,6 +48,8 @@ enum SyncState: Equatable, Sendable {
 @MainActor @Observable
 final class DriveSync {
     private(set) var state: SyncState = .idle
+    /** Uploads and downloads as they go: (done, total), for a live activity. */
+    @ObservationIgnored var onProgress: ((Int, Int) -> Void)?
     /** When a sync last finished (epoch ms); 0 = not yet. */
     private(set) var lastSyncAt: Int64
 
@@ -242,6 +244,7 @@ final class DriveSync {
         let ids = store.dirty().map(\.id)
         for (i, id) in ids.enumerated() {
             state = .uploading(done: i, total: ids.count)
+            onProgress?(i, ids.count)
             try await pushOne(drive, id)
         }
         state = .syncing
@@ -289,7 +292,9 @@ final class DriveSync {
     }
 
     private func downloadFiles(_ drive: any DriveStore) async throws {
-        for id in store.missingFiles().map(\.id) {
+        let ids = store.missingFiles().map(\.id)
+        for (i, id) in ids.enumerated() {
+            onProgress?(i, ids.count)
             guard let fileId = try await drive.find(id + DriveSync.fileSuffix) else { continue }
             let temp = fileURL(id).deletingLastPathComponent().appending(path: ".tmp-\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: temp) }

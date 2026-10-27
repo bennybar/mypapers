@@ -31,7 +31,12 @@ final class GmailImporter {
     /** True while a scan or an import is running (not the idle daily sweep). */
     var busy: Bool { scanning || importing }
     /** The scan's or the import's progress; total 0: not known yet. */
-    private(set) var progress: (done: Int, total: Int)?
+    private(set) var progress: (done: Int, total: Int)? {
+        // Shown in the live activity of a scan or import the user started.
+        didSet { if let p = progress, let key = liveKey, p.total > 0 { LiveWork.shared.progress(key, done: p.done, total: p.total) } }
+    }
+    /** The live activity for what's running now (a scan or import the user started); nil for the daily sweep. */
+    @ObservationIgnored private var liveKey: String?
     /** Why the last scan (or import) failed, if it did. */
     private(set) var scanError: String?
     /** What's waiting for a decision (and what failed, to retry, and what's being added), newest email first. */
@@ -66,8 +71,13 @@ final class GmailImporter {
     /** Looks through Gmail now ("Scan now", "Look again"). Already scanning: nothing. */
     func scanNow() {
         guard settings.isConnected, scanTask == nil else { return }
+        // Shown by iOS (Dynamic Island, Lock Screen) and kept going after leaving the app.
+        liveKey = "gmail-scan"
+        LiveWork.shared.begin("gmail-scan", title: "Looking through Gmail", subtitle: "Receipts and documents") { [weak self] in self?.cancelScan() }
         scanTask = Task {
             await runScan(notify: false)
+            LiveWork.shared.end("gmail-scan")
+            liveKey = nil
             scanTask = nil
         }
     }
@@ -216,6 +226,10 @@ final class GmailImporter {
 
     private func startImport() {
         guard importTask == nil else { return }
+        if liveKey == nil {
+            liveKey = "gmail-import"
+            LiveWork.shared.begin("gmail-import", title: "Adding from Gmail", subtitle: "To My Papers") { [weak self] in self?.importTask?.cancel() }
+        }
         importTask = Task {
             importing = true
             let background = UIApplication.shared.beginBackgroundTask(withName: "Gmail import")
@@ -229,6 +243,7 @@ final class GmailImporter {
             importing = false
             progress = nil
             importTask = nil
+            if liveKey == "gmail-import" { LiveWork.shared.end("gmail-import"); liveKey = nil }
         }
     }
 
@@ -307,7 +322,10 @@ final class GmailImporter {
     func scheduleDailySweep() {
         BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: GmailImporter.sweepTaskId)
         guard settings.isConnected, settings.dailySweep, settings.lastScanAt > 0 else { return }
-        let request = BGAppRefreshTaskRequest(identifier: GmailImporter.sweepTaskId)
+        // A processing task: iOS gives it minutes (a refresh gets ~30 s, too short for a scan), usually
+        // at night or while charging, with the network.
+        let request = BGProcessingTaskRequest(identifier: GmailImporter.sweepTaskId)
+        request.requiresNetworkConnectivity = true
         let next = Date(timeIntervalSince1970: Double(settings.lastScanAt) / 1000).addingTimeInterval(24 * 60 * 60)
         request.earliestBeginDate = max(next, Date().addingTimeInterval(60 * 60))
         try? BGTaskScheduler.shared.submit(request)

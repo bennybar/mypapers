@@ -49,7 +49,7 @@ targets:
         BGTaskSchedulerPermittedIdentifiers:
           - com.bennybar.mypapers.sync
           - com.bennybar.mypapers.gmail
-          - com.bennybar.mypapers.ai.*
+          - com.bennybar.mypapers.live.*
         UIBackgroundModes: [fetch, processing]
     settings:
       base:
