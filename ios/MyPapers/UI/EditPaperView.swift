@@ -52,7 +52,15 @@ struct EditPaperView: View {
                 if !tags.isEmpty {
                     FlowLayout(spacing: 6) {
                         ForEach(tags, id: \.self) { t in
-                            Button { tags.removeAll { $0 == t } } label: { Label(t, systemImage: "xmark") }.buttonStyle(.glass)
+                            Button { tags.removeAll { $0 == t } } label: {
+                                HStack(spacing: 4) { Text(t); Image(systemName: "xmark").imageScale(.small) }
+                                    .font(.footnote)
+                                    .padding(.horizontal, 10).padding(.vertical, 4)
+                                    .background(.tint.opacity(0.12), in: Capsule())
+                                    .fixedSize()
+                            }
+                            // Each chip its own tap (a Form row otherwise fires all its buttons).
+                            .buttonStyle(.borderless)
                         }
                     }
                 }
