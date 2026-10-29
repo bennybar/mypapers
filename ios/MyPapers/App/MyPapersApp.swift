@@ -81,6 +81,7 @@ struct RootView: View {
         TabView(selection: $app.tab) {
             Tab("Papers", systemImage: "doc.text", value: AppTab.papers) {
                 NavigationStack(path: $app.path) { LibraryView().destinations() }
+                .toolbarVisibility(Self.onPaper(app.path) ? .hidden : .visible, for: .tabBar)
             }
             Tab("Gmail", systemImage: "envelope", value: AppTab.gmail) {
                 NavigationStack { GmailView().destinations() }
@@ -88,12 +89,14 @@ struct RootView: View {
             .badge(app.gmail.newCount)
             Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
                 NavigationStack(path: $app.settingsPath) { SettingsView().destinations() }
+                .toolbarVisibility(Self.onPaper(app.settingsPath) ? .hidden : .visible, for: .tabBar)
             }
             // iOS 26's search tab: the field floats at the bottom, matches and "Ask AI" above it.
             Tab(value: AppTab.search, role: .search) {
                 NavigationStack(path: $app.searchPath) {
                     LibraryView(searching: true).destinations()
                 }
+                .toolbarVisibility(Self.onPaper(app.searchPath) ? .hidden : .visible, for: .tabBar)
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
@@ -132,6 +135,11 @@ struct RootView: View {
             }
         }
         .animation(.spring, value: app.toastText)
+    }
+
+    /** A paper is open: its own glass action bar takes the tab bar's place (hiding it from the page itself doesn't take). */
+    private static func onPaper(_ path: [Route]) -> Bool {
+        if case .paper? = path.last { true } else { false }
     }
 }
 

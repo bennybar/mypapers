@@ -74,8 +74,6 @@ struct PaperView: View {
             } header: { Text("File") } footer: { Text(p.fileName ?? "") }
         }
         .listStyle(.insetGrouped)
-        // The paper's own glass action bar takes the tab bar's place.
-        .toolbar(.hidden, for: .tabBar)
         .navigationTitle(p.displayTitle)
         .navigationSubtitle(p.subtitle)
         .toolbar {
