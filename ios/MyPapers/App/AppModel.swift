@@ -282,7 +282,7 @@ final class AppModel {
     }
 
     /** A new folder per share (the app shared to may read later); older ones go. */
-    private static func shareDir() -> URL {
+    static func shareDir() -> URL {
         let root = FileManager.default.temporaryDirectory.appending(path: "share")
         for d in (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.creationDateKey])) ?? [] {
             if let c = try? d.resourceValues(forKeys: [.creationDateKey]).creationDate, c < Date().addingTimeInterval(-86400) { try? FileManager.default.removeItem(at: d) }

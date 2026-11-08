@@ -22,6 +22,7 @@
 		32FBBF0C99A5FA6CB8380BA0 /* GmailImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586C5974CA08A20505EF7311 /* GmailImporter.swift */; };
 		36C95D12234573E033F98D70 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD54C2532C9822810E7E0ED6 /* ShareViewController.swift */; };
 		377CCD0B891D5C247A13A130 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EB6E9123FE928FBBFE1DC31D /* Assets.xcassets */; };
+		422441EFB519B6B57BB264AF /* DetailsExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00CF0C76FF2485EA0E7ACCBF /* DetailsExport.swift */; };
 		434D91088BE304E9EF4193D4 /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5172E6BEA47C418777815E /* DemoData.swift */; };
 		4500D195A41EB00B015BC4E9 /* SyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C424AE13B91F6C98B3AC56 /* SyncTests.swift */; };
 		482FC5EAE5D8F7F4509A1179 /* PaperStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5664694B25B3B5A9671788 /* PaperStore.swift */; };
@@ -33,6 +34,7 @@
 		6BBDE66DD4469F3C44949ED4 /* AIProxyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07D651CC1D5719AD02A110B /* AIProxyTests.swift */; };
 		6FA8D990132577D28DFD2B37 /* LibraryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D7A60E59DF28A8CE5573AC /* LibraryModel.swift */; };
 		72B9135359BC001358B6AFBB /* Extraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA84C9A395269A830D624076 /* Extraction.swift */; };
+		754F60E3451A485A2212769B /* DetailsExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147E4CA95B05BFD3D83069A1 /* DetailsExportTests.swift */; };
 		824C28329851440BB460766D /* MarkdownViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63B7983FF36A2D07F016A74 /* MarkdownViews.swift */; };
 		8660D33684676C20D7477C82 /* PaperFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCAF6383897D4D176B84B8D /* PaperFiles.swift */; };
 		8B3ECFA37279F464F8A38162 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E793E4253C0A9EECC08AD0 /* AIService.swift */; };
@@ -100,11 +102,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00CF0C76FF2485EA0E7ACCBF /* DetailsExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsExport.swift; sourceTree = "<group>"; };
 		095F7CD560C9B08BE0D858E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		098669ABFBD3C2F8DB94399A /* GoogleAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAccount.swift; sourceTree = "<group>"; };
 		0A0808AC0ADC80CBB2DF5F9B /* FuzzySearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuzzySearch.swift; sourceTree = "<group>"; };
 		10833C540B84950FE1479523 /* Filters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Filters.swift; sourceTree = "<group>"; };
 		13F1F2494B7BCAD4B4CF9D40 /* Expiry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Expiry.swift; sourceTree = "<group>"; };
+		147E4CA95B05BFD3D83069A1 /* DetailsExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsExportTests.swift; sourceTree = "<group>"; };
 		1596B647BF80FD5C920EE788 /* ScannerAndTrash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerAndTrash.swift; sourceTree = "<group>"; };
 		18C424AE13B91F6C98B3AC56 /* SyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncTests.swift; sourceTree = "<group>"; };
 		190F4A48B686B91772B1CF41 /* PaperJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaperJSON.swift; sourceTree = "<group>"; };
@@ -287,6 +291,7 @@
 			isa = PBXGroup;
 			children = (
 				ED530A66EDB299F4559E32EF /* AskSheets.swift */,
+				00CF0C76FF2485EA0E7ACCBF /* DetailsExport.swift */,
 				1BD7C268636F9A85FFC9EC69 /* EditPaperView.swift */,
 				50D7A60E59DF28A8CE5573AC /* LibraryModel.swift */,
 				6377E126BCED12E1C3AE85A3 /* LibraryView.swift */,
@@ -333,6 +338,7 @@
 			children = (
 				E3BE20FC3F5210FB05A94240 /* AIAskAllTests.swift */,
 				B07D651CC1D5719AD02A110B /* AIProxyTests.swift */,
+				147E4CA95B05BFD3D83069A1 /* DetailsExportTests.swift */,
 				3C2DB758A9FEAD9EF250C442 /* GmailTests.swift */,
 				752DF6DF6C57932B433821E9 /* LogicTests.swift */,
 				18C424AE13B91F6C98B3AC56 /* SyncTests.swift */,
@@ -498,6 +504,7 @@
 				098BBBCFCB0F6ED9A998490D /* Conversations.swift in Sources */,
 				07ECE23EF1C7378F16E7CD9E /* Day.swift in Sources */,
 				434D91088BE304E9EF4193D4 /* DemoData.swift in Sources */,
+				422441EFB519B6B57BB264AF /* DetailsExport.swift in Sources */,
 				A4BF866689D22546C3BC89F3 /* DriveClient.swift in Sources */,
 				28DF46BB21A495B80E093766 /* DriveSync.swift in Sources */,
 				4B49444E79252F5A17B93ECC /* Duplicates.swift in Sources */,
@@ -546,6 +553,7 @@
 			files = (
 				2A17A0D087C7720B6F98DECC /* AIAskAllTests.swift in Sources */,
 				6BBDE66DD4469F3C44949ED4 /* AIProxyTests.swift in Sources */,
+				754F60E3451A485A2212769B /* DetailsExportTests.swift in Sources */,
 				09691A4E59401313B78B3F3E /* GmailTests.swift in Sources */,
 				137A60FBCBE27E43297B3D1F /* LogicTests.swift in Sources */,
 				4500D195A41EB00B015BC4E9 /* SyncTests.swift in Sources */,

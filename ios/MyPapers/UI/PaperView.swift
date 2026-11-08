@@ -64,7 +64,9 @@ struct PaperView: View {
                 if let dup = p.duplicateOf, let other = app.store.live(dup) { DuplicateBanner(other: other, paperID: id) }
             }
             if !p.details.isEmpty {
-                DetailsSection(details: p.details, onRework: app.ai.config.isSet && p.fileLocal && !asking ? { reworking = $0 } : nil)
+                DetailsSection(details: p.details, onRework: app.ai.config.isSet && p.fileLocal && !asking ? { reworking = $0 } : nil) {
+                    app.exportDetails(id, $0, pdf: $1)
+                }
             }
             if !p.transcript.isEmpty { TextSection(markdown: p.transcript) { editingText = true } }
             if !p.notes.isEmpty { Section("Notes") { Text(p.notes).textSelection(.enabled) } }
@@ -228,19 +230,22 @@ func linked(_ text: String) -> AttributedString {
 /** A table detail: header row bold, lines between rows, scrolls sideways; a Hebrew table runs right to left. */
 struct DetailTable: View {
     let rows: [[String]]
+    /** Off when drawn into a PDF or picture (a scroll view draws nothing there). */
+    var scrolls = true
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
-                ForEach(rows.indices, id: \.self) { r in
-                    if r > 0 { Divider() }
-                    GridRow {
-                        ForEach(rows[r].indices, id: \.self) { c in
-                            Text(linked(rows[r][c])).font(r == 0 ? .subheadline.weight(.semibold) : .subheadline)
-                        }
+        let grid = Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
+            ForEach(rows.indices, id: \.self) { r in
+                if r > 0 { Divider() }
+                GridRow {
+                    ForEach(rows[r].indices, id: \.self) { c in
+                        Text(linked(rows[r][c])).font(r == 0 ? .subheadline.weight(.semibold) : .subheadline)
                     }
                 }
             }
-            .padding(.vertical, 4)
+        }
+        .padding(.vertical, 4)
+        Group {
+            if scrolls { ScrollView(.horizontal, showsIndicators: false) { grid } } else { grid }
         }
         .environment(\.layoutDirection, isRtl(rows.flatMap { $0 }.joined()) ? .rightToLeft : .leftToRight)
     }
@@ -312,6 +317,8 @@ struct PageImage: View {
 struct DetailsSection: View {
     let details: [KeyDetail]
     let onRework: ((String) -> Void)?
+    /** These details, as a PDF (true) or a JPG (false). */
+    let onExport: ([KeyDetail], Bool) -> Void
 
     var body: some View {
         Section {
@@ -323,6 +330,8 @@ struct DetailsSection: View {
                 .contextMenu {
                     Button("Copy", systemImage: "doc.on.doc") { UIPasteboard.general.string = d.value }
                     if let onRework { Button("Rework with AI…", systemImage: "sparkles") { onRework(d.label) } }
+                    Button("Export as PDF", systemImage: "doc.richtext") { onExport([d], true) }
+                    Button("Export as JPG", systemImage: "photo") { onExport([d], false) }
                 }
                 .swipeActions(edge: .trailing) {
                     if let onRework { Button { onRework(d.label) } label: { Label("Rework", systemImage: "sparkles") }.tint(.purple) }
@@ -335,6 +344,10 @@ struct DetailsSection: View {
                 Button {
                     UIPasteboard.general.string = details.map { $0.value.contains("\n") ? "\($0.label):\n\($0.value)" : "\($0.label): \(shownDate($0.value))" }.joined(separator: "\n")
                 } label: { Image(systemName: "doc.on.doc") }.accessibilityLabel("Copy details")
+                Menu {
+                    Button("Export all as PDF", systemImage: "doc.richtext") { onExport(details, true) }
+                    Button("Export all as JPG", systemImage: "photo") { onExport(details, false) }
+                } label: { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("Export details")
             }
         }
     }

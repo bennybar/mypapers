@@ -6,6 +6,7 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import com.bennybar.mypapers.app
 import com.bennybar.mypapers.data.Document
+import com.bennybar.mypapers.data.KeyDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.bennybar.mypapers.data.Export
@@ -76,6 +77,22 @@ object Sharing {
         val intent = Intent(Intent.ACTION_SEND)
             .putExtra(Intent.EXTRA_STREAM, uri)
             .setType("application/zip")
+            .apply { clipData = ClipData.newRawUri(null, uri) }
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(Intent.createChooser(intent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    /** The paper's [details] drawn as a PDF or a JPG (see [DetailsPage]), to the share sheet. */
+    suspend fun details(context: Context, doc: Document, details: List<KeyDetail>, pdf: Boolean) {
+        val file = withContext(Dispatchers.IO) {
+            val base = (if (details.size == 1) "${doc.title()} – ${details.single().label}" else "${doc.title()} – details")
+                .replace(Regex("[\\\\/:*?\"<>|]"), " ").trim().take(80)
+            File(shareDir(context), "$base.${if (pdf) "pdf" else "jpg"}").also { DetailsPage(doc.title(), doc.subtitle(), details).write(it, pdf) }
+        }
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        val intent = Intent(Intent.ACTION_SEND)
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .setType(if (pdf) "application/pdf" else "image/jpeg")
             .apply { clipData = ClipData.newRawUri(null, uri) }
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         context.startActivity(Intent.createChooser(intent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

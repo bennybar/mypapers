@@ -53,6 +53,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -431,7 +432,9 @@ private fun DocumentDetails(
         }
         if (doc.details.isNotEmpty()) {
             Spacer(Modifier.padding(top = 16.dp))
-            DetailsCard(doc.details, onReworkDetail)
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            DetailsCard(doc.details, onReworkDetail) { details, pdf -> scope.launch { Sharing.details(context, doc, details, pdf) } }
         }
         if (doc.transcript.isNotBlank()) {
             Spacer(Modifier.padding(top = 16.dp))
@@ -475,7 +478,7 @@ private fun DuplicateBanner(otherId: String, onOpen: (String) -> Unit, onKeepBot
 
 /** The AI's key details for this paper (a prescription's values, a policy number…). */
 @Composable
-private fun DetailsCard(details: List<KeyDetail>, onRework: ((String) -> Unit)?) {
+private fun DetailsCard(details: List<KeyDetail>, onRework: ((String) -> Unit)?, onExport: (List<KeyDetail>, Boolean) -> Unit) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     Card(
@@ -491,8 +494,9 @@ private fun DetailsCard(details: List<KeyDetail>, onRework: ((String) -> Unit)?)
                     val text = details.joinToString("\n") { if ('\n' in it.value) "${it.label}:\n${it.value}" else "${it.label}: ${shownDate(it.value)}" }
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Details", text))) }
                 }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy details") }
+                ExportButton(all = true) { pdf -> onExport(details, pdf) }
             }
-            DetailList(details, Modifier.padding(end = 12.dp), onRework)
+            DetailList(details, Modifier.padding(end = 12.dp), onRework, onExport)
         }
     }
 }
@@ -533,7 +537,13 @@ private const val SHORT_TEXT_LINES = 12
 
 /** Label over value, tables as tables. Any part can be selected and copied; web addresses open. */
 @Composable
-internal fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier, onRework: ((String) -> Unit)? = null) {
+internal fun DetailList(
+    details: List<KeyDetail>,
+    modifier: Modifier = Modifier,
+    onRework: ((String) -> Unit)? = null,
+    /** These details, as a PDF (true) or a JPG (false); null: no export here. */
+    onExport: ((List<KeyDetail>, Boolean) -> Unit)? = null,
+) {
     SelectionContainer {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             details.forEach { d ->
@@ -546,6 +556,7 @@ internal fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier,
                                 Icon(Icons.Outlined.AutoAwesome, contentDescription = "Rework ${d.label} with AI", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                             }
                         }
+                        if (onExport != null) ExportButton(all = false, small = true) { pdf -> onExport(listOf(d), pdf) }
                     }
                     val table = tableRows(d.value)
                     if (table != null) DetailTable(table)
@@ -556,8 +567,27 @@ internal fun DetailList(details: List<KeyDetail>, modifier: Modifier = Modifier,
     }
 }
 
+/** Export as PDF or JPG, from a small menu. */
+@Composable
+private fun ExportButton(all: Boolean, small: Boolean = false, onExport: (pdf: Boolean) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(shapes = IconButtonDefaults.shapes(), onClick = { open = true }, modifier = if (small) Modifier.size(32.dp) else Modifier) {
+            Icon(
+                Icons.Outlined.Share, contentDescription = if (all) "Export details" else "Export",
+                tint = if (small) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                modifier = if (small) Modifier.size(16.dp) else Modifier,
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text(if (all) "Export all as PDF" else "Export as PDF") }, onClick = { open = false; onExport(true) })
+            DropdownMenuItem(text = { Text(if (all) "Export all as JPG" else "Export as JPG") }, onClick = { open = false; onExport(false) })
+        }
+    }
+}
+
 /** A date the AI wrote as 2027-08-15, in the region's format. */
-private fun shownDate(value: String) = if (Regex("\\d{4}-\\d{2}-\\d{2}").matches(value)) Format.date(value) ?: value else value
+internal fun shownDate(value: String) = if (Regex("\\d{4}-\\d{2}-\\d{2}").matches(value)) Format.date(value) ?: value else value
 
 /** A table detail: header row bold, lines between rows, scrolls sideways when wide. */
 @Composable
